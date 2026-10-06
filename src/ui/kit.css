@@ -1,0 +1,289 @@
+/* ==========================================================================
+   kit.css: Springboard-native UI kit (src/ui). Owner A3. Class prefix kx-.
+   Global order (src/main.jsx): shell.css, ui/kit.css, charts/charts.css, styles/app.css, then each view's css.
+   NOT here, on purpose: html/body background and `a` rules (shell.css), the global :focus-visible rule, the
+   placeholder colour, reduced motion and the coarse-pointer sizes (styles/app.css). A rule here that resets
+   outline (all: unset, outline: none) restores the ring itself; the global rule is not !important.
+   Colours only from Springboard custom properties (no hex), flat fills only.
+   ========================================================================== */
+
+/* ---------- 1. Tokens (both themes, every text pair AA-checked) ------------------------------------------ */
+:root, :root[data-theme="dark"] {
+  --kx-card-bg:         var(--bg-1);                     /* same surface as the DS Card */
+  --kx-card-border:     var(--border-1);
+  --kx-pop-bg:          var(--bg-1);                     /* dialogs, drawers, menus */
+  --kx-pop-border:      var(--border-1);
+  --kx-row-hover:       var(--bg-2);
+  --kx-scrim:           color-mix(in srgb, var(--black) 50%, transparent);
+  /* The DS shadow tokens are tuned for light and vanish in dark; popovers and modals use this one. */
+  --kx-shadow-pop:      0 4px 8px color-mix(in srgb, var(--black) 30%, transparent), 0 10px 24px color-mix(in srgb, var(--black) 25%, transparent);
+  /* AA-safe status TEXT colours (the DS --success, --warning, --danger and --accent fail 4.5:1 as text) */
+  --kx-info-text:       var(--text-link-text-default);
+  --kx-success-text:    var(--border-success-default);
+  --kx-warning-text:    var(--depreciated-status-colours-default-warning);
+  --kx-danger-text:     var(--text-destructive-text-default);
+  /* AA control boundary (the DS --border-2 is 1.6:1 against its surface) */
+  --kx-control-border:  var(--grey-500);
+  --border-strong:      var(--grey-500);                 /* only Checkbox and Radio read this DS token: a safe global override */
+  --kx-seg-thumb:       var(--bg-3);
+}
+:root[data-theme="light"] {
+  --kx-card-bg:         var(--bg-canvas);                /* white card on a white panel: the hairline border does the work */
+  --kx-card-border:     var(--border-1);
+  --kx-pop-bg:          var(--bg-canvas);
+  --kx-pop-border:      var(--border-2);
+  --kx-row-hover:       var(--bg-1);
+  --kx-scrim:           color-mix(in srgb, var(--black) 50%, transparent);
+  --kx-shadow-pop:      var(--shadow-3);
+  --kx-info-text:       var(--text-link-text-default);
+  --kx-success-text:    var(--swatch-depreciated-success-high-contast-bg);
+  --kx-warning-text:    var(--swatch-depreciated-yellow-high-contast-bg);
+  --kx-danger-text:     var(--text-destructive-text-default);
+  --kx-control-border:  var(--grey-500);
+  --border-strong:      var(--grey-500);
+  --kx-seg-thumb:       var(--bg-canvas);
+}
+
+/* ---------- 2. Typography recipes and small utilities ----------------------------------------------------- */
+.kx-section-title { font: 600 16px/1.3 var(--font-sans); color: var(--fg-1); margin: 0; }
+.kx-card-title    { font: 600 14px/20px var(--font-sans); color: var(--fg-1); margin: 0; }
+.kx-eyebrow       { font: 500 12px/16px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
+.kx-caption       { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.kx-num           { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.kx-kpi           { font: 600 28px/1.1 var(--font-display); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--fg-1); }
+.kx-mono          { font-family: var(--font-mono); font-size: 12px; line-height: 16px; color: var(--fg-2); }   /* clause refs, ids, transaction refs */
+.kx-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* 44px hit area around a small control (Fitts) without growing it */
+.kx-hit { position: relative; }
+.kx-hit::after { content: ""; position: absolute; inset: -8px; }
+
+/* ---------- 3. Card, Panel, grid ---------------------------------------------------------------------------- */
+.kx-card { background: var(--kx-card-bg); border: 1px solid var(--kx-card-border); border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
+.kx-card__head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--kx-card-border); }
+.kx-card__titles { min-width: 0; flex: 1 1 auto; }
+.kx-card__titlerow { display: flex; align-items: center; gap: 8px; }
+.kx-card__desc { margin: 2px 0 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.kx-card__head .spacer { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.kx-card__body { padding: 16px; }
+.kx-card__body--pad { padding: var(--kx-pad); }
+@media (max-width: 699px) { .kx-card__body--pad { padding: min(var(--kx-pad), 16px); } }
+.kx-card__foot { padding: 12px 16px; border-top: 1px solid var(--kx-card-border); background: var(--bg-1); }
+.kx-grid { display: grid; gap: 16px; }
+.kx-grid > * { min-width: 0; }
+.kx-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kx-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kx-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kx-grid--2-1 { grid-template-columns: 2fr 1fr; }
+@media (max-width: 1100px) { .kx-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kx-grid--2-1 { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .kx-grid--4, .kx-grid--3, .kx-grid--2 { grid-template-columns: 1fr; } }
+
+/* ---------- 4. Data table ------------------------------------------------------------------------------------ */
+.kx-table-wrap { overflow: auto; max-height: var(--kx-table-max-h, none); }
+.kx-table { width: 100%; border-collapse: separate; border-spacing: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-1); }
+.kx-table th { position: sticky; top: 0; z-index: 1; background: var(--bg-1); text-align: left; white-space: nowrap;
+  padding: 10px 16px; font: 500 12px/16px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2);
+  border-bottom: 1px solid var(--border-2); }
+.kx-table td, .kx-table tbody th { padding: 12px 16px; height: 44px; box-sizing: border-box; border-bottom: 1px solid var(--border-1); vertical-align: middle; }
+.kx-table tbody th { position: static; text-align: left; text-transform: none; letter-spacing: 0; font: 500 13px/18px var(--font-sans); color: var(--fg-1); white-space: normal; }
+.kx-table tbody tr:last-child td, .kx-table tbody tr:last-child th { border-bottom: 0; }
+.kx-table tbody tr:hover td, .kx-table tbody tr:hover th { background: var(--kx-row-hover); }       /* no zebra */
+.kx-table tbody tr[aria-selected="true"] td, .kx-table tbody tr[aria-selected="true"] th { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.kx-table tbody tr.is-clickable { cursor: pointer; }
+.kx-table tbody tr:focus-visible { outline-offset: -2px; }                  /* the global ring, drawn inside the scroll wrapper */
+.kx-table .num, .kx-table th.num { text-align: right; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.kx-table td.muted { color: var(--fg-2); }
+.kx-table td.nowrap, .kx-table th.nowrap { white-space: nowrap; }
+.kx-table__empty { text-align: center; color: var(--fg-2); }
+.kx-table th .sort { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; border-radius: var(--radius-sm); }
+.kx-table th .sort:hover { color: var(--fg-1); }
+.kx-table th .sort:focus-visible, .kx-tag__x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }   /* `all: unset` removed the global ring: put it back */
+.kx-table th .sort i { font-size: 10px; opacity: .7; }
+.kx-table th[aria-sort="ascending"] .sort, .kx-table th[aria-sort="descending"] .sort { color: var(--fg-1); }
+.kx-table th[aria-sort="ascending"] .sort i, .kx-table th[aria-sort="descending"] .sort i { opacity: 1; color: var(--kx-info-text); }
+.kx-table--dense td, .kx-table--dense tbody th { padding: 6px 12px; height: 32px; }     /* desktop only: below the 44px touch target */
+.kx-table--dense th { padding: 8px 12px; }
+.kx-table tfoot th, .kx-table tfoot td { position: static; font: 600 13px/18px var(--font-sans); text-transform: none; letter-spacing: 0; color: var(--fg-1);
+  padding: 12px 16px; border-top: 1px solid var(--border-2); border-bottom: 0; background: var(--bg-1); }
+.kx-table tfoot th { text-align: left; }
+.kx-table tfoot tr + tr th, .kx-table tfoot tr + tr td { border-top: 1px solid var(--border-1); }
+
+/* Payments drill-down (PaymentsTable) */
+.kx-payments { display: flex; flex-direction: column; gap: 16px; }
+.kx-payments__what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kx-payments__who { font: 400 12px/16px var(--font-sans); color: var(--fg-2); overflow-wrap: anywhere; }
+.kx-payments__after { display: flex; flex-direction: column; gap: 4px; }
+.kx-payments__after .kx-table-wrap { margin-top: 8px; }
+.kx-payments__total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 16px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); font: 500 14px/20px var(--font-sans); color: var(--fg-1); }
+.kx-payments__total strong { font: 600 18px/24px var(--font-display); }
+
+/* ---------- 5. Pill, tag, chip ------------------------------------------------------------------------------- */
+.kx-pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; box-sizing: border-box; border-radius: var(--radius-pill); white-space: nowrap;
+  font: 500 12px/1 var(--font-sans); border: 1px solid var(--border-standard-subtle);
+  background: var(--tone-neutral-surface-default); color: var(--tone-neutral-surface-text); }
+.kx-pill i { font-size: 11px; }
+.kx-pill__dot { width: 6px; height: 6px; border-radius: var(--radius-pill); background: currentColor; }
+.kx-pill--success { background: var(--tone-success-surface-default); color: var(--tone-success-surface-text); border-color: var(--border-success-subtle); }
+.kx-pill--warning { background: var(--tone-warning-surface-default); color: var(--tone-warning-surface-text); border-color: var(--border-warning-subtle); }
+.kx-pill--danger  { background: var(--tone-error-surface-default);   color: var(--tone-error-surface-text);   border-color: var(--border-error-subtle); }
+.kx-pill--info    { background: var(--tone-info-surface-default);    color: var(--tone-info-surface-text);    border-color: var(--border-info-subtle); }
+.kx-pill--sm { height: 18px; padding: 0 7px; font-size: 11px; }
+/* solid variants: white text on the DS high-contrast swatch colours, all at least 4.5:1 in both themes */
+.kx-pill--solid { color: var(--white); border-color: transparent; }
+.kx-pill--solid.kx-pill--success { background: var(--swatch-depreciated-success-high-contast-bg); color: var(--white); }
+.kx-pill--solid.kx-pill--warning { background: var(--swatch-depreciated-yellow-high-contast-bg); color: var(--white); }
+.kx-pill--solid.kx-pill--danger  { background: var(--swatch-depreciated-error-high-contast-bg); color: var(--white); }
+.kx-pill--solid.kx-pill--info    { background: var(--swatch-depreciated-info-high-contast-bg); color: var(--white); }
+.kx-pill--solid.kx-pill--neutral { background: var(--swatch-grey-high-contrast-bg); color: var(--white); }
+
+.kx-tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); background: var(--bg-2); color: var(--fg-1); font: 400 12px/1 var(--font-sans); }
+.kx-tag__x { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: var(--radius-sm); color: var(--fg-2); font-size: 10px; position: relative; }
+.kx-tag__x:hover { color: var(--fg-1); background: var(--bg-3); }
+.kx-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--radius-pill); cursor: pointer; position: relative;
+  background: transparent; color: var(--fg-1); border: 1px solid var(--kx-control-border); font: 500 13px/1 var(--font-sans); }
+.kx-chip::after { content: ""; position: absolute; inset: -6px -2px; }
+.kx-chip:hover { background: var(--bg-2); }
+.kx-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--fg-1); }
+.kx-chip__count { font-variant-numeric: tabular-nums; color: var(--fg-2); font-weight: 400; }
+
+/* ---------- 6. Segmented control ------------------------------------------------------------------------------ */
+.kx-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; background: var(--bg-2); border: 1px solid var(--border-1); border-radius: var(--radius-lg); }
+.kx-seg button { position: relative; height: 32px; min-width: 44px; padding: 0 14px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--fg-2);
+  font: 500 13px/1 var(--font-sans); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background .15s ease, color .15s ease; }
+.kx-seg button::after { content: ""; position: absolute; inset: -6px 0; }
+.kx-seg button:hover:not(:disabled) { color: var(--fg-1); }
+.kx-seg button:disabled { opacity: .4; cursor: default; }
+.kx-seg button[aria-checked="true"], .kx-seg button[aria-pressed="true"] { background: var(--kx-seg-thumb); color: var(--fg-1); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border-2); }
+.kx-seg button:focus-visible { outline-offset: 0; }
+.kx-seg--lg button { height: 36px; }
+.kx-seg__count { font-variant-numeric: tabular-nums; font-weight: 400; color: var(--fg-2); }
+
+/* ---------- 7. Stat tile ---------------------------------------------------------------------------------------- */
+.kx-stat { background: var(--kx-card-bg); border: 1px solid var(--kx-card-border); border-radius: var(--radius-lg); padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.kx-stat__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kx-stat__label { font: 500 12px/16px var(--font-sans); color: var(--fg-2); }
+.kx-stat__icon { width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--bg-2); color: var(--fg-2); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: none; }
+.kx-stat__value { font: 600 28px/1.1 var(--font-display); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--fg-1); }
+.kx-stat__foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.kx-stat--button, .kx-stat--link { cursor: pointer; text-align: left; font: inherit; color: var(--fg-1); width: 100%; box-sizing: border-box; text-decoration: none; }
+.kx-stat--button:hover, .kx-stat--link:hover { background: var(--kx-row-hover); color: var(--fg-1); }
+.kx-stat--button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* ---------- 8. Empty state, kbd ----------------------------------------------------------------------------------- */
+.kx-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 24px; }
+.kx-empty__icon { width: 48px; height: 48px; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--fg-2); display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
+.kx-empty__title { font: 600 16px/1.3 var(--font-sans); color: var(--fg-1); margin: 0; }
+.kx-empty__text { font: 400 14px/20px var(--font-sans); color: var(--fg-2); margin: 0; max-width: 44ch; }
+.kx-kbd { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: var(--radius-sm); background: var(--bg-2); border: 1px solid var(--border-2);
+  font: 500 11px/1 var(--font-mono); color: var(--fg-2); }
+
+/* ---------- 9. Dialog and scrim (z-index: drawer 101, dialog 110, popover 120, tooltip 130, toasts 200) ---------- */
+.kx-scrim { position: fixed; inset: 0; z-index: 110; background: var(--kx-scrim); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: kx-fade .2s ease-in-out; }
+.kx-scrim--blur { backdrop-filter: blur(8px); }
+.kx-dialog { width: min(480px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--kx-pop-bg); color: var(--fg-1);
+  border: 1px solid var(--kx-pop-border); border-radius: var(--radius-xl); box-shadow: var(--kx-shadow-pop); animation: kx-pop .2s ease-in-out; }
+.kx-dialog--sm { width: min(420px, 100%); }
+.kx-dialog--wide { width: min(720px, 100%); }
+.kx-dialog:focus-visible, .kx-drawer:focus-visible { outline: none !important; }
+.kx-dialog__head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 0; }
+.kx-dialog__title { font: 600 18px/1.3 var(--font-sans); margin: 0; flex: 1; }
+.kx-dialog__body { padding: 8px 24px 20px; font: 400 14px/20px var(--font-sans); color: var(--fg-2); overflow: auto; }
+.kx-dialog__desc { margin: 0 0 12px; }
+.kx-dialog__foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border-1); background: var(--bg-canvas); border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
+@keyframes kx-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kx-pop  { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ---------- 10. Drawer ------------------------------------------------------------------------------------------------ */
+.kx-drawer-scrim { position: fixed; inset: 0; z-index: 100; background: var(--kx-scrim); animation: kx-fade .2s ease-in-out; }
+.kx-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 101; width: min(520px, 100vw); display: flex; flex-direction: column; color: var(--fg-1);
+  background: var(--kx-pop-bg); border-left: 1px solid var(--kx-pop-border); box-shadow: var(--kx-shadow-pop); animation: kx-slide .2s ease-in-out; }
+.kx-drawer--lg { width: min(720px, 100vw); }
+.kx-drawer__head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 16px; border-bottom: 1px solid var(--border-1); }
+.kx-drawer__titles { flex: 1; min-width: 0; }
+.kx-drawer__sub { margin-top: 2px; }
+.kx-drawer__body { flex: 1; overflow: auto; padding: 20px 24px; }
+.kx-drawer__foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border-1); background: var(--bg-canvas); }
+@keyframes kx-slide { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 559px) { .kx-drawer__head, .kx-drawer__body, .kx-drawer__foot { padding-left: 16px; padding-right: 16px; } .kx-dialog__head, .kx-dialog__body, .kx-dialog__foot { padding-left: 16px; padding-right: 16px; } }
+
+/* ---------- 11. Popover, menu, tooltip ---------------------------------------------------------------------------------- */
+.kx-pop { position: fixed; z-index: 120; }
+.kx-menu { min-width: 220px; max-width: min(340px, calc(100vw - 16px)); padding: 4px; background: var(--kx-pop-bg); color: var(--fg-1); border: 1px solid var(--kx-pop-border); border-radius: var(--radius-lg); box-shadow: var(--kx-shadow-pop); }
+.kx-menu__label { padding: 8px 10px 4px; font: 500 11px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); }
+.kx-menu__item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; min-height: 36px; box-sizing: border-box; border: 0; background: transparent; border-radius: var(--radius-md);
+  font: 400 13px/18px var(--font-sans); color: var(--fg-1); text-align: left; cursor: pointer; text-decoration: none; }
+.kx-menu__item i { width: 14px; flex: none; text-align: center; color: var(--fg-2); }
+.kx-menu__item:hover, .kx-menu__item:focus-visible { background: var(--bg-2); color: var(--fg-1); }
+.kx-menu__item:focus-visible { outline-offset: -2px; }
+.kx-menu__item[aria-disabled="true"] { opacity: .4; cursor: default; }
+.kx-menu__text { flex: 1 1 auto; min-width: 0; }
+.kx-menu__item i.kx-menu__ext { width: auto; font-size: 11px; }
+.kx-menu__item .kx-kbd { margin-left: auto; }
+.kx-menu__item--danger, .kx-menu__item--danger i, .kx-menu__item--danger:hover { color: var(--kx-danger-text); }
+.kx-menu__sep { height: 1px; margin: 4px 2px; background: var(--border-1); }
+.kx-menubtn { display: inline-flex; }
+
+.kx-tipwrap { display: inline-flex; }
+.kx-tip { position: fixed; z-index: 130; max-width: 280px; padding: 6px 10px; background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--border-2); border-radius: var(--radius-md);
+  box-shadow: var(--kx-shadow-pop); font: 400 12px/16px var(--font-sans); overflow-wrap: anywhere; }
+
+/* ---------- 12. Pager -------------------------------------------------------------------------------------------------- */
+.kx-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; border-top: 1px solid var(--border-1); font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.kx-pager .spacer { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.kx-pager__gap { padding: 0 4px; color: var(--fg-2); }
+
+/* ---------- 13. Accessible check, radio, switch, field wrapper --------------------------------------------------------- */
+/* The DS Checkbox, Radio and Switch are spans without tabIndex: no keyboard, label text not clickable, 16px hit area. */
+.kx-fieldrow { display: flex; flex-direction: column; }
+.kx-field { position: relative; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font: 400 14px/20px var(--font-sans); color: var(--fg-1); user-select: none; }
+.kx-field input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.kx-field input:focus-visible { outline: none !important; }               /* the ring is drawn on the visible box below */
+.kx-field--disabled { opacity: .5; cursor: not-allowed; }
+.kx-field__desc { margin: -6px 0 6px 26px; font: 400 13px/18px var(--font-sans); color: var(--fg-2); max-width: 60ch; }
+.kx-box { width: 16px; height: 16px; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: transparent; color: var(--white); font-size: 9px; transition: background .15s ease, border-color .15s ease; }
+.kx-box--radio { border-radius: var(--radius-pill); }
+.kx-field input:checked + .kx-box, .kx-field input:indeterminate + .kx-box { background: var(--accent); border-color: var(--accent); }
+.kx-field input:checked + .kx-box--radio { background: transparent; box-shadow: inset 0 0 0 3px var(--kx-card-bg), inset 0 0 0 8px var(--accent); }
+.kx-field input:focus-visible + .kx-box, .kx-field input:focus-visible + .kx-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kx-track { width: 36px; height: 20px; box-sizing: border-box; flex: none; position: relative; border-radius: var(--radius-pill); background: var(--kx-control-border); transition: background .15s ease; }
+.kx-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--white); box-shadow: var(--shadow-1); transition: left .15s ease; }
+.kx-field input:checked + .kx-track { background: var(--accent); }
+.kx-field input:checked + .kx-track::after { left: 18px; }
+
+.kx-radiogroup { border: 0; margin: 0; padding: 0; min-width: 0; }
+.kx-radiogroup__legend { padding: 0; margin: 0 0 4px; font: 500 14px/20px var(--font-sans); color: var(--fg-1); }
+.kx-radiogroup__opts { display: flex; flex-direction: column; }
+.kx-radiogroup.is-inline .kx-radiogroup__opts { flex-direction: row; flex-wrap: wrap; gap: 0 24px; }
+
+.kx-fieldwrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kx-fieldwrap__req { font-weight: 400; color: var(--fg-2); }
+.kx-fieldwrap__help { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.kx-fieldwrap__error { margin: 0; display: flex; gap: 6px; align-items: flex-start; font: 500 13px/18px var(--font-sans); color: var(--kx-danger-text); }
+.kx-fieldwrap__error i { margin-top: 2px; font-size: 12px; }
+
+/* ---------- 14. Route tabs (links styled like the DS Tabs) ------------------------------------------------------------ */
+.kx-routetabs ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--border-1); }
+.kx-routetab { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 12px; margin-bottom: -1px; box-sizing: border-box;
+  font: 500 14px/20px var(--font-sans); color: var(--fg-2); text-decoration: none; border-bottom: 2px solid transparent; transition: color .15s ease; }
+.kx-routetab:hover { color: var(--fg-1); }
+.kx-routetab.is-current, .kx-routetab.is-current:hover { color: var(--fg-1); border-bottom-color: var(--accent); }
+.kx-routetab i { font-size: 13px; }
+.kx-routetab__count { font-variant-numeric: tabular-nums; font-weight: 400; color: var(--fg-2); }
+.kx-routetab:focus-visible { outline-offset: -2px; }
+
+/* ---------- 15. Toasts ------------------------------------------------------------------------------------------------- */
+.kx-toasts { position: fixed; right: 16px; bottom: 16px; z-index: 200; max-width: calc(100vw - 32px); display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; }
+.kx-toasts__list { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; max-width: 100%; }
+.kx-toast { pointer-events: auto; display: flex; gap: 12px; align-items: flex-start; width: 360px; max-width: 100%; box-sizing: border-box; padding: 13px 8px 13px 14px;
+  background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--border-2); border-radius: var(--radius-lg); box-shadow: var(--kx-shadow-pop); font-family: var(--font-sans); animation: kx-fade .2s ease-in-out; }
+.kx-toast__icon { flex: none; margin-top: 1px; font-size: 16px; }
+.kx-toast--info .kx-toast__icon { color: var(--kx-info-text); }
+.kx-toast--success .kx-toast__icon { color: var(--kx-success-text); }
+.kx-toast--warning .kx-toast__icon { color: var(--kx-warning-text); }
+.kx-toast--error .kx-toast__icon { color: var(--kx-danger-text); }
+.kx-toast__text { flex: 1; min-width: 0; }
+.kx-toast__title { font: 600 14px/20px var(--font-sans); color: var(--fg-1); }
+.kx-toast__desc { margin-top: 2px; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.kx-toast__close { flex: none; width: 32px; height: 32px; margin: -6px 0 -6px 0; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--fg-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.kx-toast__close:hover { color: var(--fg-1); background: var(--bg-3); }
+@media (max-width: 699px) { .kx-toasts { left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); align-items: stretch; } .kx-toasts__list { align-items: stretch; } .kx-toast { width: 100%; } }

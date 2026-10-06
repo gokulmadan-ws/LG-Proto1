@@ -2,17 +2,23 @@
   "name": "kontor-financial-layer-prototype",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Kontor Financial Layer: Stage 1 rapid prototype (single council), built in the Springboard 2.0 app shell.",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs --strict",
     "watch": "node scripts/build.mjs --watch",
     "standalone": "node scripts/make-standalone.mjs",
     "serve": "python3 -m http.server 4173",
     "data": "node scripts/gen-data.mjs",
-    "vendor": "node scripts/vendor.mjs"
+    "vendor": "node scripts/vendor.mjs",
+    "test": "node tests/engine.test.mjs && node tests/smoke.mjs && node tests/foundation.mjs",
+    "test:ui": "node tests/ui-checks.mjs",
+    "test:all": "npm test && npm run test:ui"
   },
   "devDependencies": {
+    "@fontsource/geist-mono": "^5.3.0",
     "@fortawesome/fontawesome-free": "6.5.2",
+    "axe-core": "^4.14.0",
     "esbuild": "^0.25.0",
     "playwright-core": "1.56.1",
     "react": "18.3.1",

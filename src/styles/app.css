@@ -1,1 +1,145 @@
-html, body { margin: 0; height: 100%; background: var(--bg-canvas); color: var(--fg-1); font-family: var(--font-sans); }
+/* ==========================================================================
+   app.css: global fixes and the shared composites (src/components). Owner A1.
+   Loaded LAST of the four global stylesheets (shell, ui/kit, charts/charts, app), before each view's own css.
+   No html/body BACKGROUND here: shell/shell.css alone owns it. Colours only from Springboard custom properties.
+   ========================================================================== */
+
+/* ---------- 0. Theme plumbing -------------------------------------------------- */
+/* Native controls, scrollbars and form popups follow the toggle, not the OS (the meta tag alone follows the OS). */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* DS bug: fig-tokens.css defines --focus-ring as a dull grey under :root[data-theme="dark"] (specificity 0,2,0),
+   which beats colors_and_type.css (:root, 0,1,0), so Input/Textarea/Select got a dull grey halo in dark. Same
+   specificity, loaded later, so this wins. Light keeps the DS value (accent at 32%). */
+:root[data-theme="dark"] { --focus-ring: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+body { color: var(--fg-1); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+/* ---------- 1. The one global focus rule ---------------------------------------- */
+/* Every focusable element gets a 2px accent outline when it is reached by keyboard. Lowest specificity on purpose: a
+   component that draws its own ring (chart rows with a stretched link, the shell) simply overrides it. The DS Button,
+   Input, Textarea and Select ship an INLINE `outline: none` and draw nothing back (keyboard users lost the focus
+   position), so those need !important; the attribute selector targets exactly them. Text fields keep the DS accent
+   border and halo, with the outline on the border (offset 0) so the three do not stack. Programmatic focus targets
+   (the page h1 after a route change, main) stay quiet. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[style*="outline: none"]:focus-visible, [style*="outline:none"]:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 2px; }
+input[style*="outline"]:focus-visible, textarea[style*="outline"]:focus-visible, select[style*="outline"]:focus-visible { outline-offset: 0; }
+h1[tabindex="-1"]:focus-visible, main[tabindex="-1"]:focus-visible { outline: none; }
+
+/* ---------- 2. Utilities -------------------------------------------------------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+/* Tabular figures for every number column, KPI and £ amount. */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* DS inputs never style the placeholder, so browsers draw their default grey (fails AA on both themes). */
+input::placeholder, textarea::placeholder { color: var(--fg-2); opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+  }
+}
+
+/* Touch: controls inside the content area and overlays are at least 44px tall (R70). The shell has its own hit areas. */
+@media (pointer: coarse) {
+  :is(.shell__main, dialog) :is(button, [role="tab"], [role="menuitem"], select, input:not([type="checkbox"], [type="radio"])) { min-height: 44px; }
+}
+
+/* ---------- 3. Page container (blueprint section 4) ------------------------------ */
+.page {
+  max-width: 1360px; margin: 0 auto; padding: 24px 32px 48px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.page > * { min-width: 0; }
+@media (max-width: 699px) { .page { padding: 24px 24px 48px; } }
+
+/* ---------- 4. PageHeader ------------------------------------------------------- */
+.page-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px 24px; }
+.page-header__breadcrumb { flex: 0 0 100%; min-width: 0; }
+.page-header__main { flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.page-header__eyebrow { margin: 0; }
+.page-header__title { margin: 0; text-wrap: balance; }
+.page-header__asat { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.page-header__desc { margin: 0; max-width: 78ch; font: 400 14px/20px var(--font-sans); color: var(--fg-2); }
+.page-header__desc p { margin: 0; }
+.page-header__desc p + p { margin-top: 8px; }
+.page-header__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 2px; }
+.page-header__tabs { flex: 0 0 100%; min-width: 0; margin-top: 4px; }
+
+/* ---------- 5. Sample-data banner (shell `banner` slot) --------------------------- */
+.sample-banner {
+  flex: 0 0 auto; display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 24px; background: var(--shell-banner-bg); border-bottom: 1px solid var(--shell-line); color: var(--fg-1);
+}
+.sample-banner__icon { margin-top: 3px; font-size: 13px; color: var(--fg-2); }
+.sample-banner__text { margin: 0; font: 400 13px/20px var(--font-sans); }
+.sample-banner__text strong { font-weight: 600; }
+.sample-banner__link {
+  display: inline; padding: 0; margin: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--shell-link); text-decoration: underline; text-underline-offset: 2px;
+}
+.sample-banner__link:hover { color: var(--shell-link-hover); }
+@media (pointer: coarse) { .sample-banner__link { padding-block: 13px; } }   /* inline: grows the hit area, not the line box */
+@media (max-width: 699px) { .sample-banner { padding: 6px 16px; gap: 8px; } .sample-banner__text { font-size: 12px; line-height: 18px; } }
+
+/* ---------- 6. ClauseLink, MethodLink, AsAt, ConfidencePill ------------------------ */
+/* Underlined always: they sit inside sentences, tables and lists, and colour must not be the only cue. */
+.clause-link, .method-link {
+  color: var(--shell-link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px;
+}
+.clause-link:hover, .method-link:hover { color: var(--shell-link-hover); }
+.clause-link, .method-link { white-space: nowrap; }       /* short, so they never break across two lines */
+.clause-link__icon { margin-right: 6px; font-size: 0.92em; }
+@media (pointer: coarse) { .clause-link { display: inline-flex; align-items: center; min-height: 44px; } }
+
+.as-at { font-variant-numeric: tabular-nums; }
+
+/* ConfidencePill renders the kit Pill; `.conf-pill` is only a hook for tests and views, it has no styles. */
+
+/* ---------- 7. Error boundary ------------------------------------------------------ */
+.error-panel__details { max-width: 78ch; color: var(--fg-2); font: 400 13px/18px var(--font-sans); }
+.error-panel__details summary { cursor: pointer; width: fit-content; min-height: 24px; }
+.error-panel__details pre {
+  margin: 8px 0 0; padding: 12px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  border: 1px solid var(--border-1); border-radius: var(--radius-md); background: var(--bg-1); color: var(--fg-1);
+  font: 400 12px/16px var(--font-mono);
+}
+.error-panel--app { min-height: 100vh; justify-content: center; }
+
+/* ---------- 8. Toasts: the kit ToastHost owns its css (ui/kit.css, .kx-toasts) ---------------- */
+
+/* ---------- 9. Placeholder overlays (native <dialog>; the real overlays use the kit Dialog and Drawer) ------------------------ */
+.stub-overlay {
+  padding: 0; border: 1px solid var(--border-2); border-radius: var(--radius-xl);
+  background: var(--bg-1); color: var(--fg-1); box-shadow: var(--kx-shadow-pop, var(--shadow-3));
+  max-width: calc(100vw - 32px);
+}
+.stub-overlay { width: 520px; }
+.stub-overlay::backdrop { background: color-mix(in srgb, var(--black) 50%, transparent); }
+.stub-overlay__body { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.stub-overlay__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.stub-overlay--drawer {
+  margin: 0 0 0 auto; height: 100dvh; max-height: 100dvh; width: min(480px, 100vw); max-width: 100vw;
+  border-radius: 0; border-width: 0 0 0 1px;
+}
+
+/* ---------- 10. Rail menu popover (placeholder styling, V7 may replace) ------------------- */
+.menu-popover {
+  position: fixed; z-index: 150; min-width: 240px; padding: 6px; display: flex; flex-direction: column;
+  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--kx-shadow-pop, var(--shadow-3));
+}
+.menu-popover__list { display: flex; flex-direction: column; }
+.menu-popover__item {
+  display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-md); background: transparent; color: var(--fg-1);
+  font: 500 14px/1 var(--font-sans); text-align: left; cursor: pointer;
+}
+.menu-popover__item:hover { background: var(--bg-2); }
+.menu-popover__item i { width: 16px; text-align: center; color: var(--fg-2); }

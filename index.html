@@ -5,23 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kontor financial layer | Prototype</title>
   <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Kontor financial layer, Stage 1 prototype. Sample data for a fictional council.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2043%2043%22%3E%3Cpath%20d%3D%22M21.5%200.75C32.9599%200.75%2042.25%2010.0401%2042.25%2021.5C42.25%2032.9599%2032.9599%2042.25%2021.5%2042.25C10.0401%2042.25%200.75%2032.9599%200.75%2021.5C0.75%2010.0401%2010.0401%200.75%2021.5%200.75Z%22%20fill%3D%22%231A1B22%22%20stroke%3D%22%233E3F47%22%20stroke-width%3D%221.5%22%2F%3E%3Cpath%20d%3D%22M13.1012%2017.7963C14.2649%2017.7963%2015.2023%2016.8458%2015.2023%2015.6658C15.2023%2014.4859%2014.2649%2013.5354%2013.1012%2013.5354C11.9374%2013.5354%2011%2014.4859%2011%2015.6658C11%2016.8458%2011.9374%2017.7963%2013.1012%2017.7963Z%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M18.5318%2028.1864L23.4453%2016.518C23.8978%2015.4036%2023.3806%2014.1581%2022.2816%2013.6665C21.1825%2013.2076%2019.9541%2013.732%2019.5016%2014.8136L14.6204%2026.5148C14.1679%2027.6292%2014.6851%2028.8747%2015.7518%2029.3335C16.8509%2029.7924%2018.0793%2029.268%2018.5318%2028.1864Z%22%20fill%3D%22%23fff%22%2F%3E%3Cpath%20d%3D%22M26.9364%2028.1864L31.8176%2016.518C32.3025%2015.4036%2031.7853%2014.1581%2030.6862%2013.6665C29.5871%2013.2076%2028.3588%2013.732%2027.9062%2014.8136L23.0251%2026.5148C22.5725%2027.6292%2023.0897%2028.8747%2024.1565%2029.3335C25.2555%2029.7924%2026.4839%2029.268%2026.9364%2028.1864Z%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E">
   <script>
-    /* Set the theme before first paint. Default is dark. */
+    /* Set the theme before first paint. Default is dark. localStorage may throw (private mode, blocked storage). */
     (function () {
       var t = 'dark';
       try { var s = localStorage.getItem('kontor-theme'); if (s === 'light' || s === 'dark') t = s; } catch (e) {}
       document.documentElement.setAttribute('data-theme', t);
+      var m = document.querySelector('meta[name="color-scheme"]');
+      if (m) m.setAttribute('content', t);
     })();
   </script>
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
-  <link rel="stylesheet" href="design-system/styles.css">
+  <link rel="stylesheet" href="dist/ds/styles.css">
   <link rel="stylesheet" href="dist/app.css">
 </head>
 <body>
-  <div id="root"></div>
+  <noscript>Kontor financial layer needs JavaScript. Turn it on in your browser and reload the page.</noscript>
+  <!--
+    Script order matters. design-system/_ds_bundle.js ends with its own demo app that does
+    ReactDOM.createRoot(document.getElementById('root')).render(...) inside a try/catch. It must run BEFORE
+    <div id="root"> exists: getElementById returns null, the demo throws, the catch swallows it, and the Springboard
+    components are still registered. If #root came first, the DS demo UI would flash up before the prototype mounts.
+  -->
   <script src="vendor/react.production.min.js"></script>
   <script src="vendor/react-dom.production.min.js"></script>
   <script src="design-system/_ds_bundle.js"></script>
+  <div id="root"></div>
   <script src="dist/app.js"></script>
 </body>
 </html>
