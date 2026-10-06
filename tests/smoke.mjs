@@ -121,7 +121,8 @@ try {
       }));
       eq(early.theme, 'dark', 'data-theme before mount');
       eq(early.meta, 'dark', 'meta color-scheme before mount');
-      eq(early.mounted, 0, 'React not mounted yet');
+      // -1 = #root not parsed yet (the page was caught very early), 0 = parsed but empty. Both mean React has not mounted.
+      eq(early.mounted <= 0, true, 'React not mounted yet');
       eq(early.stored, null, 'nothing stored on a fresh profile');
       await t.page.waitForSelector('#shell-main h1', { timeout: 8000 });
       await t.ctx.close();
