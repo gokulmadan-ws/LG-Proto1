@@ -1,0 +1,85 @@
+/* ==========================================================================
+   FlagDrawer (V2). Scoped under .flag-drawer (the kit Drawer's className). Springboard tokens only.
+   ========================================================================== */
+
+.flag-drawer__content { display: flex; flex-direction: column; gap: 28px; }
+
+/* ---------- summary ------------------------------------------------------------------------------------------- */
+.flag-sum { display: flex; flex-direction: column; gap: 4px; }
+.flag-sum__pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.flag-sum__label { margin: 0; }
+.flag-sum__value { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.flag-sum__value .kx-kpi { font-size: 36px; line-height: 1.1; }
+.flag-sum__basis { font: 500 14px/20px var(--font-sans); color: var(--fg-2); }
+.flag-sum__date { margin: 4px 0 0; font: 400 14px/20px var(--font-sans); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.flag-sum__caveat { margin: 8px 0 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+
+/* ---------- blocks ---------------------------------------------------------------------------------------------- */
+.flag-block { display: flex; flex-direction: column; gap: 8px; }
+.flag-block__h { margin: 0; font: 600 14px/20px var(--font-sans); color: var(--fg-1); }
+.flag-block__p { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--fg-1); max-width: 68ch; }
+.flag-block__rule { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); max-width: 68ch; }
+.flag-block__small { margin: 0; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.flag-block .method-link, .flag-block .clause-link { font-weight: 500; }
+
+/* links in the drawer: always underlined (colour is never the only cue) */
+.flag-textlink { color: var(--shell-link); text-decoration: none; font-weight: 500; white-space: nowrap; }
+.flag-textlink:hover { color: var(--shell-link-hover); }
+.flag-textlink__t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.flag-textlink i { margin-right: 6px; font-size: 0.92em; }
+
+/* ---------- numbered breakdown ------------------------------------------------------------------------------- */
+.flag-calc { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-1); border-radius: var(--radius-lg); overflow: hidden; }
+.flag-calc__row {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 12px; align-items: baseline; padding: 10px 14px;
+  font: 400 14px/20px var(--font-sans); color: var(--fg-1);
+}
+.flag-calc__row + .flag-calc__row { border-top: 1px solid var(--border-1); }
+.flag-calc__n { font: 500 12px/20px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.flag-calc__label { display: flex; flex-direction: column; min-width: 0; }
+.flag-calc__note { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.flag-calc__value { font: 500 14px/20px var(--font-sans); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.flag-calc__row.is-result { background: var(--bg-2); }
+.flag-calc__row.is-result .flag-calc__label { font-weight: 600; }
+.flag-calc__row.is-result .flag-calc__value { font: 600 16px/20px var(--font-display); }
+
+/* ---------- evidence ------------------------------------------------------------------------------------------- */
+.flag-evidence { margin: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.flag-evidence__ref { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.flag-evidence__ref .kx-mono { color: var(--fg-1); font-size: 13px; line-height: 18px; }
+.flag-evidence__quote {
+  margin: 0; padding: 12px 14px; width: 100%; box-sizing: border-box; background: var(--bg-2); border-radius: var(--radius-lg);
+  font: 400 14px/20px var(--font-mono); color: var(--fg-1); overflow-wrap: anywhere;
+}
+.flag-evidence__quote::before { content: "\201C"; }
+.flag-evidence__quote::after { content: "\201D"; }
+
+/* ---------- reasons ------------------------------------------------------------------------------------------- */
+.flag-reasons { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font: 400 14px/20px var(--font-sans); color: var(--fg-1); max-width: 68ch; }
+.flag-reasons li::marker { color: var(--fg-2); }
+
+/* ---------- sticky footer: review status + the one primary button ------------------------------------------- */
+.flag-drawer .kx-drawer__foot { justify-content: stretch; }
+.flag-foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 16px; width: 100%; }
+.flag-foot__review { flex: 1 1 240px; max-width: 320px; }
+.flag-foot__review .kx-fieldwrap__help { font-size: 12px; line-height: 16px; }
+.flag-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; box-sizing: border-box;
+  margin-top: 26px;                                   /* lines the button up with the select (the label sits above it) */
+  border-radius: var(--radius-lg); background: var(--accent); color: var(--accent-fg); border: 1px solid transparent;
+  font: 500 14px/1 var(--font-sans); text-decoration: none; white-space: nowrap;
+}
+.flag-cta:hover { background: var(--accent-hover); color: var(--accent-fg); }
+.flag-cta:active { background: var(--accent-pressed); }
+.flag-cta .clause-link__icon { margin-right: 0; font-size: 13px; }
+
+@media (max-width: 559px) {
+  .flag-sum__value .kx-kpi { font-size: 30px; }
+  .flag-foot__review { max-width: none; flex-basis: 100%; }
+  .flag-cta { margin-top: 0; width: 100%; }
+  .flag-calc__row { padding: 10px 12px; column-gap: 8px; }
+}
+
+/* A toast (a review was saved, for instance) must not sit on top of the sticky footer and hide the primary button: lift the stack above it while the drawer is open. */
+body:has(.flag-drawer) .kx-toasts { bottom: 152px; }
+@media (max-width: 559px) { body:has(.flag-drawer) .kx-toasts { bottom: 212px; } }

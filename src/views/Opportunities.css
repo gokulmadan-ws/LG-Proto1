@@ -1,0 +1,86 @@
+/* ==========================================================================
+   Opportunities (V2). Loaded after the four global stylesheets. Springboard tokens only.
+   Everything is scoped under .opp so nothing leaks to another view.
+   ========================================================================== */
+
+/* The caveat (R14) sits under the header so it can use the full width: two lines instead of four. */
+.opp-caveat {
+  margin: 0; display: flex; gap: 10px; align-items: flex-start; max-width: 150ch;
+  font: 400 14px/20px var(--font-sans); color: var(--fg-2);
+}
+.opp-caveat i { margin-top: 3px; font-size: 13px; color: var(--fg-2); flex: none; }
+
+/* ---------- toolbar --------------------------------------------------------------------------------------- */
+.opp-toolbar { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-bottom: 1px solid var(--kx-card-border); }
+.opp-toolbar .kviz-filters { margin-bottom: 0; }
+.opp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.opp-control { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; cursor: default; }
+.opp-control__label { font: 500 13px/18px var(--font-sans); color: var(--fg-2); white-space: nowrap; }
+.opp-control--search { flex: 1 1 280px; max-width: 360px; }
+.opp-control--search > div { flex: 1 1 auto; min-width: 0; }
+.opp-control--status { --opp-w: 132px; }
+.opp-control--sort { --opp-w: 204px; }
+.opp-clear { flex: none; }
+
+/* ---------- totals bar (R27) ------------------------------------------------------------------------------- */
+.opp-totals {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 24px; padding: 12px 16px;
+  background: var(--bg-2); border-bottom: 1px solid var(--kx-card-border);
+  font: 400 14px/20px var(--font-sans); color: var(--fg-2);
+}
+.opp-totals p { margin: 0; }
+.opp-totals__main { color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.opp-totals__main strong { font-weight: 600; }
+.opp-totals__basis { font-variant-numeric: tabular-nums; }
+.opp-totals__note { font-size: 13px; }
+.opp-totals:focus-visible { outline-offset: -2px; }
+
+/* ---------- list ----------------------------------------------------------------------------------------- */
+.opp-body { padding: 16px 12px 8px; }
+.opp-body .kviz-tablewrap { margin: 0 4px 8px; }
+.opp-body .kx-empty { padding: 40px 24px 48px; }
+.opp-calc, .opp-linkbtn { font-weight: 500; }
+
+/* ---------- watch list (R28) ------------------------------------------------------------------------------ */
+/* The columns follow the ranked list above (rank gap, type, opportunity, value, confidence) so the two lists line up. */
+.opp .opp-watch { container: oppwatch / inline-size; list-style: none; margin: 0; padding: 8px 12px 12px; }   /* .opp prefix: `.shell ul` would otherwise zero the padding */
+.opp-watch > li + li { border-top: 1px solid var(--viz-grid); }
+.opp-watch__row {
+  display: grid; grid-template-columns: 28px 172px minmax(220px, 1.5fr) minmax(150px, 1fr) 176px; column-gap: 14px; align-items: start; padding: 12px;
+}
+.opp-watch__text { display: flex; flex-direction: column; min-width: 0; }
+.opp-watch__name { font: 600 14px/20px var(--font-sans); color: var(--viz-ink); }
+.opp-watch__row .kviz-row__link:hover { color: var(--viz-ink); }
+.opp-watch__sub { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.opp-watch__supplier { color: var(--viz-ink); font-weight: 500; }
+.opp-watch__used { display: flex; flex-direction: column; gap: 2px; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); }
+.opp-watch__used strong { font: 600 14px/20px var(--font-sans); color: var(--viz-ink); font-variant-numeric: tabular-nums; }
+.opp-watch__conf { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.opp-watch__empty { padding: 24px 16px; color: var(--fg-2); font: 400 14px/20px var(--font-sans); }
+.opp-watch__empty p { margin: 0; }
+.opp-watch .is-muted .opp-watch__name, .opp-watch .is-muted .opp-watch__supplier { color: var(--viz-ink-2); }
+@container oppwatch (min-width: 761px) and (max-width: 1000px) {
+  .opp-watch__row { grid-template-columns: 28px minmax(0, 1fr) 190px 168px; row-gap: 6px; }
+  .opp-watch__type { grid-column: 2; grid-row: 1; }
+  .opp-watch__text { grid-column: 2; grid-row: 2; }
+  .opp-watch__used { grid-column: 3; grid-row: 1 / span 2; }
+  .opp-watch__conf { grid-column: 4; grid-row: 1 / span 2; }
+}
+@container oppwatch (max-width: 760px) {
+  .opp-watch__row { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .opp-watch__rank { display: none; }
+  .opp-watch__conf { flex-direction: row; flex-wrap: wrap; align-items: center; }
+}
+
+@media (max-width: 699px) {
+  .opp-control { flex: 1 1 100%; max-width: none; flex-direction: column; align-items: stretch; gap: 6px; --opp-w: 100%; }
+  .opp-control--status { flex: 0 0 34%; }
+  .opp-control--sort { flex: 1 1 0; }
+  .opp-clear { width: 100%; }
+  .opp-body { padding: 12px 4px 4px; }
+  .opp .opp-watch { padding: 4px 4px 8px; }
+  .opp-totals { gap: 4px 16px; }
+}
+
+/* the table twin: keep the short columns on one line */
+.opp-body .kviz-table td:nth-child(7), .opp-body .kviz-table td:nth-child(10), .opp-body .kviz-table td:nth-child(5) { white-space: nowrap; }

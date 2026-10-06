@@ -1,0 +1,64 @@
+/* ==========================================================================
+   Contracts register (V6). Loaded after the four global stylesheets. Springboard tokens only, no hex, no gradients.
+   Everything is scoped under .cr so nothing leaks to another view.
+   ========================================================================== */
+
+/* the hand-check line under the page description (R59) */
+.cr-hand { display: flex; gap: 10px; align-items: flex-start; color: var(--fg-1); }
+.cr-hand i { margin-top: 3px; font-size: 13px; color: var(--fg-2); flex: none; }
+.cr-hand strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cr-hand__hint { color: var(--fg-2); }
+
+/* ---------- toolbar --------------------------------------------------------------------------------------- */
+.cr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px; border-bottom: 1px solid var(--kx-card-border); }
+.cr-control { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; cursor: default; }
+.cr-control__label { font: 500 13px/18px var(--font-sans); color: var(--fg-2); white-space: nowrap; }
+.cr-control--search { flex: 1 1 280px; max-width: 380px; }
+.cr-control--search > div { flex: 1 1 auto; min-width: 0; }
+.cr-control--category { --cr-w: 280px; }
+.cr-clear { flex: none; }
+.cr-count { margin: 0 0 0 auto; font: 400 13px/18px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.cr-count:focus-visible { outline-offset: 2px; }
+
+/* ---------- table ----------------------------------------------------------------------------------------- */
+/* Tighter cell padding than the kit default so all ten columns fit at 1366 wide; text columns wrap to two lines instead of scrolling. */
+.cr-table .kx-table th, .cr-table .kx-table td { padding-left: 8px; padding-right: 8px; }
+.cr-table .kx-table th { letter-spacing: .04em; }
+.cr-table .kx-table th:first-child, .cr-table .kx-table td:first-child { padding-left: 16px; }
+.cr-table .kx-table th:last-child, .cr-table .kx-table td:last-child { padding-right: 16px; }
+.cr-table .kx-table tbody td, .cr-table .kx-table tbody th { padding-top: 10px; padding-bottom: 10px; }
+.cr-table .kx-table tbody th { font-weight: 600; background: transparent; }   /* the kit gives every th the header surface; a row header must not (visible in light) */
+.cr-table .kx-table th.num .sort { justify-content: flex-end; }
+
+/* 700 to 1180px wide: category, route and start give way so the table fits without scrolling (the contract page shows them all). Phones scroll the whole table. */
+@media (min-width: 700px) and (max-width: 1180px) {
+  .cr-table .kx-table :is(th, td):nth-child(4), .cr-table .kx-table :is(th, td):nth-child(5), .cr-table .kx-table :is(th, td):nth-child(6) { display: none; }
+}
+
+/* The stretched link: the title is the row's one link and its hit area covers the whole row (the row is the positioning context). */
+.cr-table .kx-table tbody tr { position: relative; cursor: pointer; }
+.cr-rowlink { color: var(--fg-1); text-decoration: none; }
+.cr-rowlink::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-sm); }
+.cr-rowlink:hover { color: var(--fg-1); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.shell a.cr-rowlink:focus-visible { outline: none; box-shadow: none; }
+.shell a.cr-rowlink:focus-visible::after { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cr-id { font: 500 12px/16px var(--font-mono); color: var(--fg-2); }
+.cr-flags { font-variant-numeric: tabular-nums; font-weight: 600; }
+.cr-flags.is-zero { font-weight: 400; color: var(--fg-2); }
+
+/* the empty state sits inside the card body */
+.cr .kx-empty { padding: 40px 24px 48px; }
+
+/* ---------- footer: the Source chip and where it comes from ---------------------------------------------------- */
+.cr-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; }
+.cr-sources { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.cr-sources li { display: flex; align-items: center; gap: 8px; }
+.cr-sources__n { font: 400 13px/18px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.cr-foot__rule { margin: 0; flex: 1 1 320px; max-width: 80ch; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+
+@media (max-width: 699px) {
+  .cr-toolbar { gap: 12px; }
+  .cr-control { flex: 1 1 100%; max-width: none; flex-direction: column; align-items: stretch; gap: 6px; --cr-w: 100%; }
+  .cr-clear { width: 100%; }
+  .cr-count { margin-left: 0; }
+}

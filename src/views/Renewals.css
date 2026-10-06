@@ -1,0 +1,80 @@
+/* ==========================================================================
+   Renewal radar (V1). Loaded after the four global stylesheets. Springboard tokens only, no hex, no gradients.
+   Everything is scoped under .rn. `.shell ul` zeroes list margins and padding at (0,1,1), so list rules carry the .rn prefix to win.
+   ========================================================================== */
+
+/* ---------- links ------------------------------------------------------------------------------------------ */
+.rn .rn-link { color: var(--viz-accent-text); text-decoration: underline; text-underline-offset: 2px; font-weight: 500; white-space: nowrap; }
+.rn .rn-link:hover { color: var(--viz-accent-text); text-decoration-thickness: 2px; }
+
+/* ---------- needs attention now ---------------------------------------------------------------------------- */
+.rn .rn-attn__list { list-style: none; margin: 0; padding: 0; }
+.rn .rn-attn__list > li + li { border-top: 1px solid var(--viz-grid); }
+.rn .rn-attn .kx-card__body { padding: 0; }
+.rn .rn-attn .kx-card__head { background: color-mix(in srgb, var(--viz-danger) 6%, transparent); }
+.rn .rn-attn__head-glyph { margin-right: 8px; color: var(--viz-danger-text); }
+.rn .page-header__desc { max-width: 100ch; }
+.rn .rn-lanes .kviz-fig__desc { max-width: 110ch; }
+.rn .rn-attn__none { margin: 0; padding: 16px 24px; font: 400 14px/20px var(--font-sans); color: var(--fg-2); }
+.rn .rn-attn__row {
+  display: grid; grid-template-columns: 32px minmax(220px, 1fr) minmax(0, 2fr) 140px; column-gap: 16px; row-gap: 4px; align-items: start;
+  padding: 18px 24px;
+}
+.rn .rn-attn__glyph {
+  grid-column: 1; grid-row: 1 / span 2; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md); background: color-mix(in srgb, var(--viz-danger) 14%, transparent); color: var(--viz-danger-text); font-size: 14px;
+}
+.rn .rn-attn__who { grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rn .rn-attn__title { font: 600 15px/22px var(--font-sans); color: var(--fg-1); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; text-decoration-color: var(--border-2); width: fit-content; max-width: 100%; }
+.rn .rn-attn__title:hover { color: var(--fg-1); text-decoration-color: currentColor; }
+.rn .rn-attn__supplier { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.rn .rn-attn__what { grid-column: 3; grid-row: 1 / span 2; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.rn .rn-attn__msg { margin: 0; font: 500 14px/22px var(--font-sans); color: var(--fg-1); max-width: 72ch; text-wrap: pretty; }
+.rn .rn-attn__value { grid-column: 4; grid-row: 1 / span 2; margin: 0; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.rn .rn-attn__value strong { font: 600 18px/26px var(--font-display); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.rn .rn-attn__value span { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.rn .rn-attn__links { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; font: 400 13px/18px var(--font-sans); }
+
+.rn .rn-facts { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 28px; }
+.rn .rn-fact { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.rn .rn-fact dt { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.rn .rn-fact dd { margin: 0; font: 500 13px/18px var(--font-sans); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.rn .rn-fact__rel { font-weight: 400; color: var(--fg-2); }
+
+.rn .rn-conf { display: inline-flex; align-items: center; gap: 8px; }
+.rn .rn-conf__label { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+
+/* ---------- the three bands -------------------------------------------------------------------------------- */
+/* The deadline and value columns are wider so band totals and annual values print in full pounds ("£6,930,000 a year"). */
+@container (min-width: 921px) {
+  .rn .kviz-rl__grid { grid-template-columns: minmax(200px, 1.1fr) minmax(260px, 2fr) 124px 156px; }
+}
+@container (max-width: 920px) {
+  .rn .kviz-rl__row.kviz-rl__grid, .rn .kviz-rl__ghead.kviz-rl__grid { grid-template-columns: minmax(0, 1fr) 150px; }
+  .rn .kviz-rl__axis { margin-top: 8px; }
+}
+.rn .kviz-rl__auto {
+  display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 8px; box-sizing: border-box; border-radius: var(--radius-pill);
+  background: var(--tone-neutral-surface-default); color: var(--tone-neutral-surface-text); border: 1px solid var(--border-standard-subtle);
+  font: 500 11px/1 var(--font-sans);
+}
+.rn .kviz-rl__auto i { margin: 0; font-size: 10px; }
+
+.rn .rn-extra { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.rn .rn-extra__action { font: 400 13px/18px var(--font-sans); color: var(--viz-ink); max-width: 100ch; }
+.rn .rn-extra__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); }
+.rn .rn-extra__meta .clause-link { font-size: 12px; }
+
+/* ---------- breakpoints ------------------------------------------------------------------------------------ */
+@media (max-width: 1100px) {
+  .rn .rn-attn__row { grid-template-columns: 32px minmax(0, 1fr) auto; }
+  .rn .rn-attn__what { grid-column: 2 / -1; grid-row: 2; }
+  .rn .rn-attn__value { grid-column: 3; grid-row: 1; }
+  .rn .rn-attn__glyph { grid-row: 1; }
+}
+@media (max-width: 699px) {
+  .rn .rn-attn__row { padding: 16px; column-gap: 12px; grid-template-columns: 32px minmax(0, 1fr); }
+  .rn .rn-attn__value { grid-column: 2; grid-row: 2; align-items: flex-start; text-align: left; flex-direction: row; gap: 6px; align-items: baseline; }
+  .rn .rn-attn__what { grid-column: 1 / -1; grid-row: 3; }
+  .rn .rn-attn__none { padding: 16px; }
+}

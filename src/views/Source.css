@@ -1,0 +1,139 @@
+/* ==========================================================================
+   Source viewer (V3). Springboard tokens only: no hex, no gradients, no coloured left borders.
+   Two panes: the contract page on a stage (left), the answer panel (right, sticky when the window is tall enough).
+   The paper uses surface tokens, so it follows the theme: a lifted dark sheet in dark, a white sheet on a grey stage in light.
+   ========================================================================== */
+
+.src-layout {
+  display: grid; grid-template-columns: minmax(0, 62fr) minmax(320px, 38fr); gap: 24px; align-items: start;
+}
+.src-layout > * { min-width: 0; }
+
+/* ---------- the stage and the paper ---------- */
+.src-stage {
+  --src-stage-bg: var(--bg-canvas);
+  --src-paper-bg: var(--bg-1);
+  --src-paper-rule: var(--border-2);
+  --src-paper-shadow: 0 1px 2px color-mix(in srgb, var(--black) 40%, transparent), 0 8px 24px color-mix(in srgb, var(--black) 35%, transparent);
+  background: var(--src-stage-bg); border: 1px solid var(--border-1); border-radius: var(--radius-lg); padding: 24px;
+}
+:root[data-theme="light"] .src-stage {
+  --src-stage-bg: var(--bg-2);
+  --src-paper-bg: var(--bg-canvas);
+  --src-paper-rule: var(--border-2);
+  --src-paper-shadow: 0 1px 2px color-mix(in srgb, var(--black) 10%, transparent), 0 6px 18px color-mix(in srgb, var(--black) 8%, transparent);
+}
+
+.src-paper {
+  max-width: 720px; margin: 0 auto; box-sizing: border-box;
+  aspect-ratio: 1 / 1.414;                         /* A4 proportions; a taller page simply grows */
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 40px 56px 32px;
+  background: var(--src-paper-bg); color: var(--fg-1);
+  border: 1px solid var(--src-paper-rule); border-radius: var(--radius-sm);
+  box-shadow: var(--src-paper-shadow);
+  font: 400 14px/1.65 var(--font-sans);
+}
+
+.src-run { font: 400 11px/16px var(--font-mono); letter-spacing: .02em; color: var(--fg-2); text-wrap: balance; }
+.src-run--head { padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--src-paper-rule); }
+.src-run--foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--src-paper-rule); }
+
+.src-heading { margin: 8px 0 0; font: 500 15px/22px var(--font-mono); letter-spacing: -0.005em; color: var(--fg-1); }
+
+.src-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 0 8px; }
+.src-row--item { padding-bottom: 10px; border-bottom: 1px solid var(--border-1); }
+.src-row--item:last-of-type { border-bottom: 0; }
+.src-num { font: 400 12px/22px var(--font-mono); color: var(--fg-2); }
+.src-body { min-width: 0; }
+.src-title { margin: 0; font: 600 14px/22px var(--font-sans); color: var(--fg-1); }
+.src-text { margin: 0; color: var(--fg-1); text-wrap: pretty; }
+
+/* the cited clause: 2px accent outline, light accent tint, and a visible label (never colour alone) */
+.src-cite { position: relative; margin: 14px 0 6px; }
+.src-cite__label {
+  position: absolute; z-index: 1; top: -12px; left: 12px; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; box-sizing: border-box;
+  border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-fg); font: 600 12px/1 var(--font-sans); white-space: nowrap;
+}
+.src-cite__label i { font-size: 10px; }
+.src-mark {
+  display: block; padding: 16px 14px 12px; margin: 0; color: inherit; text-wrap: pretty;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: 2px solid var(--accent); outline-offset: 0; border-radius: var(--radius-sm);
+}
+@keyframes src-land { from { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent); } to { box-shadow: 0 0 0 0 transparent; } }
+.src-mark { animation: src-land .9s ease-out 1; }
+.src-mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* ---------- the answer panel ---------- */
+.src-panel {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--kx-card-bg); border: 1px solid var(--kx-card-border); border-radius: var(--radius-lg);
+}
+.src-panel__block { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.src-panel__block + .src-panel__block { border-top: 1px solid var(--border-1); }
+.src-eyebrow { margin: 0; color: var(--fg-2); }
+.src-question { margin: 0; font: 600 20px/28px var(--font-display); letter-spacing: -0.01em; color: var(--fg-1); }
+.src-help { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+
+.src-answer__text { margin: 0; font: 600 18px/26px var(--font-display); color: var(--fg-1); overflow-wrap: anywhere; }
+.src-answer__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.src-valueclause { margin: 0; font: 400 13px/20px var(--font-sans); }
+.src-score { font: 400 12px/16px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+
+.src-rates { width: 100%; border-collapse: collapse; font: 400 13px/18px var(--font-sans); color: var(--fg-1); }
+.src-rates th, .src-rates td { padding: 6px 0; text-align: left; border-bottom: 1px solid var(--border-1); font-weight: 400; }
+.src-rates thead th { font: 500 11px/16px var(--font-sans); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); }
+.src-rates tbody th { font-weight: 500; }
+.src-rates .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.src-facts { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.src-facts > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.src-facts dt { font: 400 13px/20px var(--font-sans); color: var(--fg-2); }
+.src-facts dd { margin: 0; font: 500 13px/20px var(--font-sans); color: var(--fg-1); overflow-wrap: anywhere; }
+.src-mono { font-family: var(--font-mono); font-weight: 500; }
+
+.src-quote { margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.src-quote__cap { font: 400 13px/20px var(--font-sans); color: var(--fg-2); }
+.src-quote blockquote {
+  margin: 0; padding: 12px 14px; border: 1px solid var(--border-2); border-radius: var(--radius-md); background: transparent;
+  font: 400 13px/20px var(--font-sans); color: var(--fg-1); text-wrap: pretty;
+}
+.src-illustrative { margin: 0; display: flex; gap: 8px; align-items: flex-start; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.src-illustrative i { margin-top: 2px; font-size: 11px; }
+
+.src-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.src-status { margin: 0; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+
+/* ---------- the toolbar: the way back, and stepping through the answers; pinned while you read the page ---------- */
+.src-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 10px 0;
+  background: var(--shell-canvas); border-bottom: 1px solid var(--border-1);
+}
+.src-toolbar__group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.src-stepper__count { font: 400 13px/16px var(--font-sans); color: var(--fg-2); font-variant-numeric: tabular-nums; text-align: center; min-width: 96px; }
+@media (min-width: 700px) {
+  .src-toolbar { position: sticky; top: 0; z-index: 5; margin-top: -8px; }
+}
+
+/* Sticky only when the whole panel fits in the window (the view measures it and adds this class). */
+.src-panel--sticky { position: sticky; top: 72px; }
+
+/* ---------- narrower windows: the answer first, then the page ---------- */
+@media (max-width: 1099px) {
+  .src-layout { grid-template-columns: minmax(0, 1fr); }
+  .src-panel { order: -1; }
+  .src-stage { padding: 16px; }
+}
+@media (max-width: 699px) {
+  .src-stage { padding: 8px; border-radius: var(--radius-md); }
+  .src-paper { padding: 24px 20px 20px; }
+  .src-row { grid-template-columns: 52px minmax(0, 1fr); }
+  .src-panel__block { padding: 14px 16px; }
+  .src-actions > * { flex: 1 1 auto; }
+}
+@media (max-width: 699px) {
+  .src-toolbar { flex-direction: column; align-items: stretch; border-bottom: 0; padding: 0; }
+  .src-toolbar__group > button { flex: 1 1 0; }
+  .src-stepper__count { flex-basis: 100%; order: -1; text-align: left; }
+}

@@ -1,16 +1,42 @@
-// STUB (A1). V5 replaces this file (and may add Matches.jsx / NoContract.jsx, stubs exist).
+// V5: Cap vs spend (#/spend, #/spend/matches, #/spend/no-contract). One page, one h1, three real routes shown as tabs.
 //
-// Contract
-//   default export: <Spend tab route />   for #/spend (tab 'cap'), #/spend/matches (tab 'matches'), #/spend/no-contract (tab 'no-contract')
-//   props: tab ('cap' | 'matches' | 'no-contract'), route (the useRoute() object). routes.js sends any other sub-path to NotFound.
-//   The three tabs are real routes: link between them with hrefFor('spend', { seg: ['matches'] }). Render ONE <h1> via <PageHeader>
-//   inside <div className="page">; the tab strip goes in PageHeader's `tabs` slot.
-import { StubPage } from '../components/StubPage.jsx';
-import Matches from './Matches.jsx';
-import NoContract from './NoContract.jsx';
+//   default export: <Spend tab route />   tab: 'cap' | 'matches' | 'no-contract' (routes.js sends any other sub-path to NotFound)
+//   The tab strip is RouteTabs (real links). The h1 stays "Cap vs spend" on every tab; document.title names the tab.
+//   Query strings: cap tab ?state=over|close|within and ?payments=<contractId> · matches tab ?status=review|accepted|unmatched|yours · no-contract tab ?payee=<name>
+//   The tab bodies live in src/views/spend/ (CapTab, MatchesTab, NoContractTab, PaymentsDrawer, PaymentList, strings.js).
+import { useEstate } from '../lib/estate.js';
+import { hrefFor, usePageTitle } from '../lib/router.js';
+import { COPY } from '../lib/copy.js';
+import { PageHeader, MethodLink } from '../components/index.js';
+import { RouteTabs } from '../ui/index.js';
+import CapTab from './spend/CapTab.jsx';
+import MatchesTab from './spend/MatchesTab.jsx';
+import NoContractTab from './spend/NoContractTab.jsx';
+import { DESCRIPTIONS, TABS, TABS_LABEL } from './spend/strings.js';
+import './Spend.css';
+
+const METHOD_SECTION = { cap: 'cap', matches: 'matching', 'no-contract': 'spend' };
 
 export default function Spend({ tab = 'cap' }) {
-  if (tab === 'matches') return <Matches />;
-  if (tab === 'no-contract') return <NoContract />;
-  return <StubPage name="Cap vs spend" owner="V5" />;
+  const { estate } = useEstate();
+  const current = TABS.find((t) => t.id === tab) || TABS[0];
+  usePageTitle(current.title);
+  const lead = current.id === 'cap' ? COPY.pages.spend.subtitle : current.id === 'matches' ? DESCRIPTIONS.matches : DESCRIPTIONS.noContract;
+
+  return (
+    <div className="page spend">
+      <PageHeader
+        eyebrow={estate.council.name}
+        title={COPY.pages.spend.title}
+        asAt
+        description={(
+          <>
+            <p>{lead} <MethodLink section={METHOD_SECTION[current.id]} /></p>
+          </>
+        )}
+        tabs={<RouteTabs label={TABS_LABEL} current={current.id} items={TABS.map((t) => ({ id: t.id, label: t.label, href: hrefFor('spend', { seg: t.seg }) }))} />}
+      />
+      {current.id === 'matches' ? <MatchesTab /> : current.id === 'no-contract' ? <NoContractTab /> : <CapTab />}
+    </div>
+  );
 }

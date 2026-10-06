@@ -1,0 +1,60 @@
+/* ==========================================================================
+   Evidence (V7). Springboard tokens only: no hex, no gradients, no coloured left borders.
+   Loaded after the four global stylesheets. Everything is scoped under .ev, except .ev-ext, which the Roadmap reuses.
+   ========================================================================== */
+
+.ev .page-header__desc { max-width: 78ch; }
+.ev .kx-card-title { font: 600 18px/26px var(--font-display); letter-spacing: -0.005em; }
+.ev .kx-card__desc { font-size: 14px; line-height: 22px; }
+.ev .kx-card__head { padding: 16px 24px; }
+
+/* ---------- external links (also used on the Roadmap) --------------------------------------------------------- */
+.ev-ext { color: var(--shell-link); text-decoration: none; overflow-wrap: anywhere; }
+.ev-ext:hover { color: var(--shell-link-hover); }
+.ev-ext__label { font-weight: 500; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.ev-ext:hover .ev-ext__label { text-decoration-thickness: 2px; }
+/* inline-block: the underline stops at the name, the hint reads as a quiet aside (an inline-block does not inherit its parent's underline) */
+.ev-ext__hint { display: inline-block; color: var(--fg-2); font-weight: 400; font-size: 0.92em; white-space: nowrap; }
+/* In a table cell the hint goes on its own line, so the council name stays the first thing the eye lands on. */
+.ev-ext--stacked { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.ev-ext--stacked .ev-ext__label { font: 600 14px/20px var(--font-sans); }
+.ev-ext--stacked .ev-ext__hint { font: 400 12px/16px var(--font-sans); }
+.ev-ext--stacked::after { content: ''; position: absolute; inset: -12px -6px; }          /* 44px hit area around a two-line link */
+.ev-ext--stacked { position: relative; }
+@media (pointer: fine) { .ev-ext--stacked::after { inset: -6px -4px; } }
+
+/* ---------- the table -------------------------------------------------------------------------------------- */
+.ev .ev-table .kx-table th { padding: 10px 24px; vertical-align: bottom; }
+.ev .ev-table .kx-table td, .ev .ev-table .kx-table tbody th { padding: 16px 24px; height: auto; vertical-align: top; }
+.ev .ev-table .kx-table tbody th { white-space: normal; background: transparent; }
+.ev-case { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ev-when { color: var(--fg-1); font: 400 14px/20px var(--font-sans); font-variant-numeric: tabular-nums; }
+.ev-what { display: block; max-width: 62ch; color: var(--fg-1); font: 400 14px/22px var(--font-sans); text-wrap: pretty; }
+.ev-feature { display: block; color: var(--fg-1); font: 400 14px/22px var(--font-sans); }
+.ev-link { color: var(--shell-link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.ev-link:hover { color: var(--shell-link-hover); text-decoration-thickness: 2px; }
+
+/* ---------- the Sefton caution ------------------------------------------------------------------------------ */
+.ev-caution {
+  display: flex; gap: 16px; align-items: flex-start; padding: 20px 24px;
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg); background: var(--bg-1);
+}
+.ev-caution__icon { flex: none; margin-top: 3px; font-size: 18px; color: var(--kx-warning-text); }
+.ev-caution__body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ev-caution__title { margin: 0; font: 600 16px/24px var(--font-sans); color: var(--fg-1); }
+.ev-caution__body p { margin: 0; max-width: 78ch; font: 400 14px/22px var(--font-sans); color: var(--fg-1); text-wrap: pretty; }
+
+@media (max-width: 699px) {
+  .ev-caution { padding: 16px; gap: 12px; }
+}
+
+/* ---------- ResponsiveTable on a phone: a list of cards (also used on the Roadmap) --------------------------------------- */
+.rt-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.rt-item { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-top: 1px solid var(--border-1); min-width: 0; }
+.rt-item:first-child { border-top: 0; }
+.rt-item__title { font: 600 14px/22px var(--font-sans); color: var(--fg-1); min-width: 0; }
+.rt-item__fields { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.rt-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rt-field dt { font: 500 11px/16px var(--font-sans); color: var(--fg-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.rt-field dd { margin: 0; font: 400 14px/22px var(--font-sans); color: var(--fg-1); overflow-wrap: anywhere; text-wrap: pretty; }
+.rt-field dd .ev-feature, .rt-field dd .ev-what, .rt-field dd .ev-when, .rt-field dd .rm-needs { max-width: none; }

@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Overview (V1). Loaded after the four global stylesheets. Springboard tokens only, no hex, no gradients.
+   Everything is scoped under .ov so nothing leaks to another view. `.shell ul` zeroes list margins and padding at (0,1,1),
+   so list rules below carry the .ov prefix to win.
+   ========================================================================== */
+
+/* ---------- page header: the headline is the h1 ------------------------------------------------------------ */
+.ov .page-header__desc { max-width: 100ch; }
+.ov .kviz-hero { font-size: 64px; }
+.ov .kviz-headline__lede { font: 400 20px/28px var(--font-sans); max-width: 60ch; }
+.ov .page-header__title { margin-bottom: 4px; }
+
+/* ---------- links in this view -------------------------------------------------------------------------- */
+.ov .ov-link {
+  display: inline-flex; align-items: center; gap: 6px; position: relative;
+  font: 500 13px/18px var(--font-sans); color: var(--viz-accent-text);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.ov .ov-link:hover { color: var(--viz-accent-text); text-decoration-thickness: 2px; }
+.ov .ov-link i { font-size: 11px; text-decoration: none; }
+.ov .ov-link::after { content: ''; position: absolute; inset: -13px -4px; }          /* 44px hit area around an 18px line */
+.ov .ov-link--lg { font-size: 14px; line-height: 20px; }
+.ov .ov-link__new { color: var(--viz-ink-2); font-weight: 400; }
+
+/* ---------- the headline card: bar, four cards, exact sum ------------------------------------------------- */
+.ov .ov-sum {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px;
+  margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--viz-grid);
+}
+.ov .ov-sum p { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
+.ov .ov-sum__label { margin-right: 10px; }
+.ov .ov-sum__eq { color: var(--viz-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ov .ov-sum__note { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.ov .ov-sum__note i { font-size: 12px; color: var(--viz-ink-2); align-self: center; }
+.ov .ov-sum__excluded { color: var(--viz-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ---------- radar summary and coverage row ---------------------------------------------------------------- */
+.ov .ov-row { align-items: stretch; }
+.ov .ov-row > .kx-card { display: flex; flex-direction: column; }
+.ov .ov-row > .kx-card > .kx-card__body { flex: 1 1 auto; }
+.ov .ov-coverage .kviz-meter { gap: 12px; }
+.ov .ov-coverage .kviz-meter__label strong { font: 600 32px/40px var(--font-display); letter-spacing: -0.01em; display: block; }
+.ov .ov-coverage .kviz-meter__track { height: 12px; }
+.ov .ov-cov { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--viz-grid); display: flex; flex-direction: column; gap: 10px; }
+.ov .ov-cov__row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.ov .ov-cov dt { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
+.ov .ov-cov dd { margin: 0; display: flex; align-items: baseline; gap: 8px; font: 600 16px/22px var(--font-display); color: var(--viz-ink); font-variant-numeric: tabular-nums; }
+.ov .ov-cov dd span { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
+
+/* ---------- evidence strip -------------------------------------------------------------------------------- */
+.ov .ov-cases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ov .ov-case { display: flex; min-width: 0; }
+.ov .ov-case__body {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px;
+  padding: 16px 20px 18px; border: 1px solid var(--viz-grid); border-radius: var(--radius-lg);
+}
+.ov .ov-case__head { display: flex; flex-direction: column; gap: 2px; }
+.ov .ov-case__name { margin: 0; font: 600 16px/22px var(--font-sans); color: var(--viz-ink); }
+.ov .ov-case__when { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
+.ov .ov-case__what { margin: 0; flex: 1 1 auto; font: 400 14px/22px var(--font-sans); color: var(--viz-ink); text-wrap: pretty; }
+.ov .ov-case__foot { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.ov .ov-case__foot .ov-link { display: inline; }
+.ov .ov-case__foot .ov-link i { margin-left: 6px; }
+
+/* ---------- close panel ----------------------------------------------------------------------------------- */
+.ov .ov-close {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px;
+  padding: 28px 32px; overflow: visible;
+}
+.ov .ov-close__text { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ov .ov-close__line { margin: 0; font: 600 24px/32px var(--font-display); letter-spacing: -0.01em; color: var(--fg-1); text-wrap: balance; }
+.ov .ov-close__support { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--fg-2); max-width: 70ch; }
+.ov .ov-close__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- breakpoints ----------------------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  .ov .ov-cases { grid-template-columns: 1fr; }
+  .ov .ov-case__body { gap: 10px; }
+}
+@media (max-width: 560px) {
+  .ov .kviz-hero { font-size: 48px; }
+  .ov .kviz-headline__lede { font-size: 18px; line-height: 26px; }
+}
+@media (max-width: 699px) {
+  .ov .kx-card__head { flex-wrap: wrap; }
+  .ov .ov-close { padding: 20px 16px; }
+  .ov .ov-close__line { font-size: 20px; line-height: 28px; }
+  .ov .ov-close__actions > * { flex: 1 1 auto; }
+}

@@ -1,76 +1,100 @@
-// STUB (A1, functional but plain). V7 replaces this file with the polished popover.
+// V7: the rail Menu. A kit Popover anchored to the Menu button, holding a menu of five items.
 //
 // Contract
 //   default export: <MenuPopover open anchor onClose />, mounted ONCE by App.jsx, returns null while closed.
 //   props: open (boolean), anchor (the "Menu" button element, or null), onClose () => void. The anchor is the rail Menu button
-//   (bottom left, on desktop) or the header Menu button (top right, on phones): open beside it or below it accordingly.
+//   (bottom left, on desktop) or the header Menu button (top right, on phones): the menu opens beside the first and below the second.
 //   Items, in this order: Why this matters (-> #/evidence), How this is calculated (-> #/method), About this data
-//   (useUI().openAbout()), Demo guide (openDemoGuide()), Give feedback (openFeedback()). role="menu"/"menuitem",
-//   arrow keys move, Esc closes and returns focus to `anchor`, a click outside closes it. Pointer events on `anchor`
-//   itself must NOT close it (useUI().openMenu toggles; closing and reopening in one click would flicker).
-//   Opening About/Demo guide/Feedback while the menu is open returns focus to `anchor` when they close (handled by ui-context).
-//   axe "region": a popup outside every landmark fails the rule, so the root is a <nav aria-label="Menu"> (an honest landmark:
-//   it lists pages and help). Native <dialog>s are exempt. Keep that wrapper when you restyle.
+//   (useUI().openAbout()), Demo guide (openDemoGuide()), Give feedback (openFeedback()). role="menu" / role="menuitem".
+//   Keys: ArrowDown and ArrowUp move (and wrap), Home and End jump, a letter jumps to the next item starting with it, Enter and Space choose,
+//   Escape closes and returns focus to `anchor`, Tab closes. A press outside closes it, a press on the anchor itself does not (the opener
+//   toggles, so closing and reopening in one click cannot flicker). Choosing an item puts focus back on `anchor` first, so a dialog opened
+//   by an item returns focus to the Menu button when it closes.
+//   Landmark: the menu sits inside <nav aria-label="Menu"> (an honest landmark: it lists pages and help). Without it axe `region` fails,
+//   because the popover is portalled to <body>, outside every landmark. The kit Menu cannot add a landmark, so this file uses the kit
+//   Popover (placement, outside press, Escape, layer order) and the kit's menu classes (kx-menu), with the same key handling as the kit Menu.
 import { useEffect, useRef, useState } from 'react';
+import { Popover, focusIn } from '../../ui/index.js';
 import { useUI } from '../../lib/ui-context.jsx';
-import { navigate } from '../../lib/router.js';
-import { focusElement } from '../../lib/a11y.js';
+import './overlays.css';
+
+const ITEM = '[role="menuitem"]';
+
+/** Beside the rail button when it sits low on the screen (desktop), below it when it sits high (the phone header). */
+function placementFor(anchor) {
+  try {
+    const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+    if (r && r.top < window.innerHeight / 2) return 'bottom-end';
+  } catch (e) { /* fall through */ }
+  return 'right-end';
+}
 
 export default function MenuPopover({ open, anchor, onClose }) {
   const ui = useUI();
-  const ref = useRef(null);
-  const [pos, setPos] = useState({ left: 80, bottom: 16 });   // either { left, bottom } (beside the rail) or { right, top } (below the header button)
-
-  useEffect(() => {
-    if (!open) return undefined;
-    if (anchor) {
-      const r = anchor.getBoundingClientRect();
-      setPos(r.top < window.innerHeight / 2
-        ? { right: Math.max(8, Math.round(window.innerWidth - r.right)), top: Math.round(r.bottom + 8) }
-        : { left: Math.round(r.right + 8), bottom: Math.round(window.innerHeight - r.bottom) });
-    }
-    const first = ref.current && ref.current.querySelector('[role="menuitem"]');
-    if (first) first.focus();
-    const onDown = (e) => {
-      if (ref.current && ref.current.contains(e.target)) return;
-      if (anchor && anchor.contains(e.target)) return;
-      onClose();
-    };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [open, anchor, onClose]);
-
-  if (!open) return null;
+  const list = useRef(null);
+  const [ready, setReady] = useState(false);
 
   const items = [
-    { label: 'Why this matters', icon: 'fa-solid fa-scale-balanced', go: () => navigate('/evidence') },
-    { label: 'How this is calculated', icon: 'fa-solid fa-calculator', go: () => navigate('/method') },
-    { label: 'About this data', icon: 'fa-solid fa-circle-info', go: () => ui.openAbout() },
-    { label: 'Demo guide', icon: 'fa-solid fa-compass', go: () => ui.openDemoGuide() },
-    { label: 'Give feedback', icon: 'fa-solid fa-message', go: () => ui.openFeedback() },
+    { id: 'why', label: 'Why this matters', icon: 'scale-balanced', href: '#/evidence' },
+    { id: 'how', label: 'How this is calculated', icon: 'calculator', href: '#/method' },
+    { id: 'about', label: 'About this data', icon: 'circle-info', onSelect: () => ui.openAbout() },
+    { id: 'demo', label: 'Demo guide', icon: 'compass', onSelect: () => ui.openDemoGuide() },
+    { id: 'feedback', label: 'Give feedback', icon: 'message', onSelect: () => ui.openFeedback() },
   ];
 
-  const onKeyDown = (e) => {
-    const els = Array.from(ref.current.querySelectorAll('[role="menuitem"]'));
+  // The popover measures and places itself on its first frame; focus the first item after that (a hidden element cannot take focus).
+  useEffect(() => {
+    if (!open) { setReady(false); return undefined; }
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+  useEffect(() => {
+    if (!open || !ready || !list.current) return;
+    const first = list.current.querySelector(ITEM);
+    if (first) first.focus({ preventScroll: true });
+  }, [open, ready]);
+
+  const entries = () => Array.from(list.current ? list.current.querySelectorAll(ITEM) : []);
+  const move = (to) => {
+    const els = entries();
+    if (!els.length) return;
     const i = els.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown') { e.preventDefault(); els[(i + 1) % els.length].focus(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); els[(i - 1 + els.length) % els.length].focus(); }
-    else if (e.key === 'Home') { e.preventDefault(); els[0].focus(); }
-    else if (e.key === 'End') { e.preventDefault(); els[els.length - 1].focus(); }
-    else if (e.key === 'Escape') { e.preventDefault(); onClose(); focusElement(anchor); }
-    else if (e.key === 'Tab') { onClose(); }
+    const n = to === 'first' ? 0 : to === 'last' ? els.length - 1 : (i + to + els.length) % els.length;
+    els[n].focus({ preventScroll: true });
+  };
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); move('first'); }
+    else if (e.key === 'End') { e.preventDefault(); move('last'); }
+    else if (e.key === 'Tab') { e.preventDefault(); focusIn(anchor); onClose(); }
+    else if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const els = entries();
+      const i = els.indexOf(document.activeElement);
+      const k = e.key.toLowerCase();
+      const hit = els.slice(i + 1).concat(els.slice(0, i + 1)).find((el) => (el.getAttribute('data-label') || '').toLowerCase().startsWith(k));
+      if (hit) { e.preventDefault(); hit.focus({ preventScroll: true }); }
+    }
+  };
+  const choose = (item) => {
+    focusIn(anchor);            // the item is about to disappear: focus goes back to the Menu button, so a dialog opened next returns there
+    onClose();
+    if (item.onSelect) item.onSelect();
   };
 
   return (
-    <nav className="menu-popover" aria-label="Menu" style={pos}>
-      <div ref={ref} role="menu" aria-label="Menu" className="menu-popover__list" onKeyDown={onKeyDown}>
-        {items.map((it) => (
-          <button key={it.label} type="button" role="menuitem" className="menu-popover__item" onClick={() => { it.go(); onClose(); }}>
-            <i className={it.icon} aria-hidden="true" />
-            <span>{it.label}</span>
-          </button>
-        ))}
-      </div>
-    </nav>
+    <Popover open={open} anchor={anchor} onClose={onClose} placement={open ? placementFor(anchor) : 'right-end'} className="ovl-pop">
+      <nav aria-label="Menu" className="kx-menu ovl-menu">
+        <div ref={list} role="menu" aria-label="Pages and help" onKeyDown={onKeyDown}>
+          {items.map((it) => {
+            const common = { role: 'menuitem', tabIndex: -1, 'data-label': it.label, className: 'kx-menu__item', onClick: () => choose(it) };
+            const inner = (<><i className={'fa-solid fa-' + it.icon} aria-hidden="true" /><span className="kx-menu__text">{it.label}</span></>);
+            return it.href
+              ? <a key={it.id} href={it.href} {...common}>{inner}</a>
+              : <button key={it.id} type="button" {...common}>{inner}</button>;
+          })}
+        </div>
+      </nav>
+    </Popover>
   );
 }

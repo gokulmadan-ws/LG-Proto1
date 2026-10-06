@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Method page (V3). Springboard tokens only: no hex, no gradients, no coloured left borders.
+   A reading page: a sticky section list on the left, twelve sections on the right, tables for constants and worked examples.
+   ========================================================================== */
+
+.mth-layout { display: grid; grid-template-columns: 220px minmax(0, 880px); gap: 48px; align-items: start; }
+.mth-layout > * { min-width: 0; }
+
+/* ---------- the section list ---------- */
+.mth-toc { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 8px; }
+.mth-toc__title { margin: 0 0 0 10px; }
+.mth-toc ul { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.mth-toc a {
+  display: flex; align-items: center; min-height: 36px; padding: 6px 10px; border-radius: var(--radius-md); box-sizing: border-box;
+  font: 400 14px/20px var(--font-sans); color: var(--fg-2); text-decoration: none;
+}
+.mth-toc a:hover { background: var(--bg-2); color: var(--fg-1); }
+.mth-toc a[aria-current="location"] { background: var(--bg-2); color: var(--fg-1); font-weight: 600; }
+.mth-toc a:focus-visible { outline-offset: -2px; }
+
+/* ---------- sections ---------- */
+.mth-content { display: flex; flex-direction: column; }
+.mth-section { display: flex; flex-direction: column; gap: 16px; padding: 32px 0; border-top: 1px solid var(--border-1); min-width: 0; }
+.mth-section:first-child { border-top: 0; padding-top: 0; }
+.mth-h2 { margin: 0; font: 600 24px/32px var(--font-display); letter-spacing: -0.01em; color: var(--fg-1); scroll-margin-top: 16px; }
+.mth-h2:focus-visible { outline: none; }                    /* the router-style quiet focus target: the section is announced, no ring on a heading */
+.mth-h3 { margin: 8px 0 -4px; font: 600 16px/24px var(--font-sans); color: var(--fg-1); }
+.mth-lead { margin: 0; max-width: 72ch; font: 400 16px/26px var(--font-sans); color: var(--fg-1); text-wrap: pretty; }
+.mth-section > p:not(.mth-lead) { margin: 0; max-width: 72ch; font: 400 15px/24px var(--font-sans); color: var(--fg-1); text-wrap: pretty; }
+.mth-section > p.mth-note { color: var(--fg-2); font-size: 14px; line-height: 22px; }
+.mth-muted { color: var(--fg-2); font: 400 13px/18px var(--font-sans); }
+.mth-list { display: flex; flex-direction: column; gap: 8px; max-width: 72ch; margin: 0; padding: 0 0 0 20px; list-style: disc; font: 400 15px/24px var(--font-sans); color: var(--fg-1); }
+.shell .mth-list { list-style: disc; }                      /* shell.css resets every ul; these are real reading lists */
+.mth-list li { padding-left: 4px; }
+.mth-list li::marker { color: var(--fg-2); }
+
+/* tables sit in a hairline box so they read as figures, not as page chrome */
+.mth-section .kx-table-wrap { border: 1px solid var(--kx-card-border); border-radius: var(--radius-lg); background: var(--kx-card-bg); }
+.mth-section .kx-table th { background: var(--bg-1); white-space: normal; padding: 10px 12px; vertical-align: bottom; }
+.mth-section .kx-table td, .mth-section .kx-table tbody th { height: 40px; padding: 8px 12px; vertical-align: top; }
+.mth-sub { display: block; margin-top: 2px; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.mth-ids { display: inline; }
+.mth-mono { font-family: var(--font-mono); font-size: 12px; }
+.mth-link { color: var(--shell-link); text-decoration: underline; text-underline-offset: 2px; }
+.mth-link:hover { color: var(--shell-link-hover); }
+.mth-changed { display: block; margin-top: 2px; font: 400 12px/16px var(--font-sans); color: var(--kx-warning-text); }
+
+/* ---------- worked examples ---------- */
+.mth-example { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); background: var(--bg-1); min-width: 0; }
+:root[data-theme="light"] .mth-example { background: var(--bg-1); }
+.mth-example__title { display: flex; flex-direction: column; gap: 2px; margin: 0; font: 600 16px/24px var(--font-sans); color: var(--fg-1); }
+.mth-example p { margin: 0; max-width: 72ch; font: 400 14px/22px var(--font-sans); color: var(--fg-1); text-wrap: pretty; }
+.mth-example .kx-table-wrap { background: var(--bg-canvas); }
+
+.mth-lines-wrap { display: flex; flex-direction: column; gap: 4px; max-width: 520px; }
+.mth-example .mth-lines__cap { margin: 0; font: 500 12px/16px var(--font-sans); color: var(--fg-2); }
+.mth-lines { margin: 0; display: flex; flex-direction: column; max-width: 520px; }
+.mth-lines > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border-1); }
+.mth-lines dt { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--fg-2); }
+.mth-lines dd { margin: 0; font: 500 14px/20px var(--font-sans); color: var(--fg-1); text-align: right; }
+.mth-lines > div.is-result { border-bottom: 0; border-top: 1px solid var(--border-2); }
+.mth-lines > div.is-result dt { color: var(--fg-1); font-weight: 600; }
+.mth-lines > div.is-result dd { font: 600 16px/20px var(--font-display); }
+
+.mth-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.mth-sum { font: 600 18px/28px var(--font-display); letter-spacing: -0.005em; overflow-wrap: anywhere; }
+.mth-section > p.mth-sum { font: 600 18px/28px var(--font-display); color: var(--fg-1); }
+
+.mth-toc__toggle { display: none; }
+/* an sr-only span inside a scrolling table would otherwise escape the wrapper and widen the whole page */
+.mth-section .kx-table-wrap { position: relative; }
+
+/* ---------- narrower windows: the section list folds away behind a button above the content ---------- */
+@media (max-width: 1179px) {
+  .mth-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .mth-toc { position: static; }
+  .mth-toc__title { display: none; }
+  .mth-toc__toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; padding: 0 14px; box-sizing: border-box;
+    border: 1px solid var(--border-2); border-radius: var(--radius-lg); background: transparent; color: var(--fg-1); font: 500 14px/20px var(--font-sans); cursor: pointer;
+  }
+  .mth-toc__toggle:hover { background: var(--bg-2); }
+  .mth-toc__toggle i { font-size: 12px; color: var(--fg-2); }
+  .mth-toc[data-open="false"] ul { display: none; }
+  .mth-toc ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; margin-top: 4px; }
+  .mth-toc a { min-height: 44px; }
+}
+@media (max-width: 699px) {
+  .mth-toc ul { grid-template-columns: minmax(0, 1fr); }
+  .mth-h2 { font-size: 22px; line-height: 30px; }
+  .mth-example { padding: 14px 14px; }
+  .mth-section { padding: 24px 0; }
+}
+.mth-nowrap { white-space: nowrap; }

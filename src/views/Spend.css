@@ -1,0 +1,142 @@
+/* ==========================================================================
+   Cap vs spend (V5). Loaded after the four global stylesheets. Springboard tokens only.
+   Scoped: .spend (page), .cap-* (cap tab), .mt-* (matches tab), .noc-* (no-contract tab), .pay-* (payments drawers).
+   ========================================================================== */
+
+/* ---------- cap tab -------------------------------------------------------------------------------------------- */
+.cap-tiles { margin: 0; }
+.cap-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.cap-more { display: flex; justify-content: center; padding: 16px 0 4px; border-top: 1px solid var(--viz-grid); margin-top: 4px; }
+
+/* the row's extra slot: the "At least" note, then the two actions */
+.cap-note { display: flex; gap: 6px; align-items: flex-start; flex: 0 0 100%; max-width: 62ch; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); }
+.cap-note i { margin-top: 2px; font-size: 11px; flex: none; }
+.cap-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; }
+.cap-link, .cap-actions .clause-link { font: 500 12px/16px var(--font-sans); }
+.cap-actions .clause-link { color: var(--viz-accent-text); }
+.cap-actions .clause-link:hover { color: var(--viz-accent-text); text-decoration-thickness: 2px; }
+.cap-pay i { font-size: 11px; margin-right: 2px; }
+@media (pointer: coarse) {
+  .cap-actions { gap: 0 16px; }
+  .cap-actions .clause-link, .cap-pay { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* ---------- payments drawer ------------------------------------------------------------------------------------ */
+.pay { display: flex; flex-direction: column; gap: 24px; }
+.pay-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.pay-figs--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pay-fig { margin: 0; padding: 12px 14px; border: 1px solid var(--border-1); border-radius: var(--radius-lg); background: var(--bg-2); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pay-fig__label { font: 500 12px/16px var(--font-sans); color: var(--fg-2); margin: 0; }
+.pay-fig__value { margin: 0; font: 600 20px/24px var(--font-display); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--fg-1); overflow-wrap: anywhere; }
+.pay-fig__value small { font: 500 12px/16px var(--font-sans); color: var(--fg-2); letter-spacing: 0; margin-right: 2px; }
+.pay-fig__sub { margin: 0; font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+@media (max-width: 760px) { .pay-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.pay-note { margin: -8px 0 0; display: flex; gap: 8px; align-items: flex-start; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.pay-note i { margin-top: 3px; font-size: 12px; flex: none; }
+
+.pay-section { display: flex; flex-direction: column; gap: 12px; }
+.pay-section__h { margin: 0; font: 600 16px/24px var(--font-sans); color: var(--fg-1); }
+.pay-section__p { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--fg-2); max-width: 68ch; }
+.pay-section__p--strong { color: var(--fg-1); }
+.pay-section__muted { color: var(--fg-2); }
+.pay-select { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pay-select__label { font: 500 13px/18px var(--font-sans); color: var(--fg-2); }
+.pay-block { display: flex; flex-direction: column; gap: 8px; }
+.pay-block__h { margin: 0; display: flex; align-items: baseline; gap: 8px; font: 600 14px/20px var(--font-sans); color: var(--fg-1); }
+.pay-block__count { font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.pay-block__p { margin: 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); max-width: 68ch; }
+.pay-list { display: flex; flex-direction: column; gap: 4px; }
+.pay-list .kx-table-wrap { border: 1px solid var(--border-1); border-radius: var(--radius-lg); }
+
+.pay-total { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); background: var(--bg-2); }
+.pay-total > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pay-total__label { font: 600 14px/20px var(--font-sans); color: var(--fg-1); }
+.pay-total__note { font: 400 12px/16px var(--font-sans); color: var(--fg-2); }
+.pay-total__value { font: 600 20px/24px var(--font-display); font-variant-numeric: tabular-nums; color: var(--fg-1); white-space: nowrap; }
+
+.pay-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; width: 100%; }
+.pay-foot__links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.pay-foot .clause-link { font: 500 14px/20px var(--font-sans); }
+.pay-link { color: var(--shell-link); text-decoration: none; font: 500 14px/20px var(--font-sans); white-space: nowrap; }
+.pay-link:hover { color: var(--shell-link-hover); }
+.pay-link__t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.pay-link i { margin-right: 6px; font-size: 0.92em; }
+@media (pointer: coarse) { .pay-link, .pay-foot .clause-link { display: inline-flex; align-items: center; min-height: 44px; } }
+
+/* ---------- matches tab ---------------------------------------------------------------------------------------- */
+.mt-intro { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 16px; border-bottom: 1px solid var(--kx-card-border); }
+.mt-rule { margin: 0; display: flex; gap: 8px; align-items: flex-start; font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.mt-rule i { margin-top: 3px; font-size: 13px; color: var(--fg-2); flex: none; }
+.mt-rule strong { font-weight: 500; }
+.mt-how { border: 1px solid var(--border-1); border-radius: var(--radius-lg); background: var(--bg-2); }
+.mt-how > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; cursor: pointer; font: 500 14px/20px var(--font-sans); color: var(--fg-1); border-radius: var(--radius-lg); }
+.mt-how > summary::-webkit-details-marker { display: none; }
+.mt-how > summary:hover { background: var(--kx-row-hover); }
+.mt-how__chev { font-size: 11px; color: var(--fg-2); transition: transform 0.15s ease; }
+.mt-how[open] > summary .mt-how__chev { transform: rotate(90deg); }
+.mt-how__body { display: flex; flex-direction: column; gap: 10px; padding: 4px 16px 16px 35px; max-width: 78ch; }
+.mt-how__body p { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.mt-how__h { margin: 6px 0 0; font: 600 13px/18px var(--font-sans); color: var(--fg-1); }
+.mt-thresholds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--border-1); border-radius: var(--radius-md); overflow: hidden; background: var(--kx-card-bg); }
+.mt-thresholds li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 8px 12px; font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.mt-thresholds li + li { border-top: 1px solid var(--border-1); }
+.mt-thresholds__range { font: 500 14px/20px var(--font-sans); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.mt-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mt-effects { padding: 12px 14px; border: 1px solid var(--border-1); border-radius: var(--radius-lg); background: var(--bg-2); }
+.mt-effects__h { margin: 0 0 6px; font: 600 13px/18px var(--font-sans); color: var(--fg-1); }
+.mt-effects ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mt-effects li { font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.mt-effects li i { color: var(--kx-success-text); margin-right: 6px; }
+.mt-link { color: var(--shell-link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; font-weight: 500; }
+.mt-link:hover { color: var(--shell-link-hover); }
+.mt-name { font-weight: 500; color: var(--fg-1); overflow-wrap: anywhere; }
+.mt-supplier { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mt-help { font: 400 12px/16px var(--font-sans); color: var(--fg-2); max-width: 46ch; }
+.mt-none { color: var(--fg-2); }
+.mt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.mt-table th, .mt-table td { padding-left: 12px; padding-right: 12px; }
+.mt-empty { padding: 8px 16px 24px; }
+.mt-foot { margin: 0; padding: 12px 16px 14px; border-top: 1px solid var(--kx-card-border); font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+@media (pointer: coarse) { .mt-link { display: inline-flex; align-items: center; min-height: 44px; } }
+
+/* ---------- no contract tab ------------------------------------------------------------------------------------ */
+.noc-intro { margin: 0 0 20px; max-width: 86ch; font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.noc-pending { margin: 16px 0 0; display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; font: 400 14px/20px var(--font-sans); color: var(--fg-1); }
+.noc-pending i { margin-top: 3px; font-size: 13px; color: var(--fg-2); }
+.noc-foot { margin: 12px 0 0; font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+
+/* ---------- cap tab, panel layout (appended) ---------- */
+.cap-tile--over .kx-stat__icon { color: var(--viz-danger-text); }
+.cap-tile--close .kx-stat__icon { color: var(--viz-warning-text); }
+.cap-tile--within .kx-stat__icon { color: var(--viz-accent-text); }
+.cap-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 4px 16px 16px; }
+.cap-toolbar .cap-chips { margin: 0; }
+.cap-toolbar .cap-legend { margin: 0; }
+.cap-body { padding: 0 16px 8px; }
+.cap-foot { margin: 0; padding: 12px 16px 16px; border-top: 1px solid var(--kx-card-border); font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
+@media (max-width: 699px) { .cap-toolbar, .cap-body, .cap-foot { padding-left: 16px; padding-right: 16px; } }
+
+/* The kit gives every <th> the page background, row headers included: on the white light-mode card the first column turns grey. */
+.spend .kx-table tbody th { background: transparent; }
+.spend .kx-table tbody tr:hover th { background: var(--kx-row-hover); }
+
+/* ---------- narrow screens ---------- */
+/* Four summary tiles stay four across down to tablet width (the list is the page, not the tiles), two by two on phones. */
+.cap-tiles.kx-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 899px) { .cap-tiles.kx-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cap-tiles .kx-stat { padding: 12px 16px; gap: 6px; } .cap-tiles .kx-stat__value { font-size: 24px; } }
+@media (max-width: 699px) { .cap-tiles.kx-grid--4 { gap: 12px; } .cap-tiles .kx-stat__icon { display: none; } .cap-tiles .kx-stat__foot { font-size: 11px; line-height: 14px; } }
+/* The three tabs scroll sideways on a phone instead of wrapping onto a second row. */
+@media (max-width: 699px) {
+  .spend .kx-routetabs ul { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .spend .kx-routetab { white-space: nowrap; flex: none; }
+}
+/* Payments table in a drawer: on a phone the reference moves under the date so the amount stays on screen. */
+.pay-ref-sm { display: none; }
+@media (max-width: 559px) {
+  .pay-list .kx-table thead th:nth-child(2), .pay-list .kx-table tbody td:nth-child(2) { width: 0; max-width: 0; padding: 0; border: 0; overflow: hidden; font-size: 0; line-height: 0; }   /* kept in the grid so the subtotal row's colspan still lines up */
+  .pay-list .kx-table tbody td:nth-child(2) > * { display: none; }
+  .pay-ref-sm { display: block; margin-top: 2px; font-size: 11px; line-height: 14px; }
+  .pay-list .kx-table td, .pay-list .kx-table th { padding-left: 8px; padding-right: 8px; }
+  .pay-list .kx-table thead th:nth-child(3) { min-width: 96px !important; }
+}
