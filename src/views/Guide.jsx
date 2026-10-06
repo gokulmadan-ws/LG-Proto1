@@ -255,6 +255,7 @@ function ScreensSection({ f }) {
               <div><dt>Answers</dt><dd>{c.answers}</dd></div>
               <div><dt>Who uses it</dt><dd>{c.who}</dd></div>
             </dl>
+            {c.tabs && <p className="gd-screen__tabs">{c.tabs}</p>}
             <ul className="gd-screen__links">
               {c.links.map((l) => <li key={l.href}><GoLink href={l.href}>{l.label}</GoLink></li>)}
             </ul>
@@ -303,7 +304,7 @@ function TrySection({ estate, f, ui, actions }) {
         `${fmtPct(m.after.cap.utilisation)} (${capStateLabel(m.after.cap)})`,
         gbp(m.before.totals.totalGBP), gbp(m.after.totals.totalGBP),
       )],
-      action: <LinkButton href={hrefFor('spend', { seg: ['matches'], query: { status: 'review' } })}>{TRY.match.link}</LinkButton>,
+      action: <LinkButton href={hrefFor('spend', { seg: ['matches'] })}>{TRY.match.link}</LinkButton>,
     });
   }
 
@@ -444,22 +445,18 @@ function NumbersSection({ estate, f }) {
 
 function RealSection({ estate }) {
   const notBuilt = roadmap.statusRows.filter((r) => r.notInPrototype).map((r) => r.feature.charAt(0).toLowerCase() + r.feature.slice(1));
+  const item = (x, extra) => <><strong>{x.lead}</strong> {x.body}{extra}</>;
   const lists = {
     real: [
-      <>{REAL.real.calc} <MethodLink /></>,
-      <>{REAL.real.cases(evidence.length)} <a className="gd-link" href={hrefFor('evidence')}>Read why this matters</a></>,
-      REAL.real.sources,
+      item(REAL.real.calc, <> <MethodLink /></>),
+      item(REAL.real.cases(evidence.length), <> <a className="gd-link" href={hrefFor('evidence')}>Read why this matters</a></>),
+      item(REAL.real.sources),
     ],
-    made: [
-      COPY.banner.body,
-      COPY.illustrativeLabel,
-      REAL.made.payments,
-      REAL.made.date(fmtDateLong(estate.asOf)),
-    ],
+    made: [item(REAL.made.council), item(REAL.made.text), item(REAL.made.payments), item(REAL.made.date(fmtDateLong(estate.asOf)))],
     not: [
-      <>{REAL.not.stage2(joinList(notBuilt))} <a className="gd-link" href={hrefFor('roadmap')}>Open roadmap</a></>,
-      REAL.not.ingestion,
-      REAL.not.ownData,
+      item(REAL.not.stage2(joinList(notBuilt)), <> <a className="gd-link" href={hrefFor('roadmap')}>Open roadmap</a></>),
+      item(REAL.not.ingestion),
+      item(REAL.not.ownData),
     ],
   };
   return (
@@ -569,7 +566,7 @@ function FaqSection({ estate, f, ui }) {
               {' '}{m.confirmed ? `They count towards ${m.contract.title}, which is at ${fmtPct(m.after.cap.utilisation)} of its cap (${capStateLabel(m.after.cap)}).` : `Confirm the match and they count towards ${m.contract.title}. It moves from ${fmtPct(m.before.cap.utilisation)} to ${fmtPct(m.after.cap.utilisation)} of its cap (${capStateLabel(m.after.cap)}), which adds an over cap amount, so the headline moves from ${gbp(m.before.totals.totalGBP)} to ${gbp(m.after.totals.totalGBP)}.`}
             </p>
           )}
-          <p><a className="gd-link" href={hrefFor('spend', { seg: ['matches'], query: { status: 'review' } })}>Open supplier matches</a> <MethodLink section="matching" /></p>
+          <p><a className="gd-link" href={hrefFor('spend', { seg: ['matches'] })}>Open supplier matches</a> <MethodLink section="matching" /></p>
         </>
       ),
     },

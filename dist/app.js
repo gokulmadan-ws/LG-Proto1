@@ -73,6 +73,109 @@
 
   // src/lib/a11y.js
   init_react_shim();
+
+  // src/ui/layers.js
+  init_react_shim();
+  var FOCUSABLE = [
+    "a[href]",
+    "button:not([disabled])",
+    'input:not([disabled]):not([type="hidden"])',
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "summary",
+    '[tabindex]:not([tabindex="-1"])',
+    '[contenteditable="true"]'
+  ].join(",");
+  var visible = (el) => !el.closest("[inert]") && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0) && getComputedStyle(el).visibility !== "hidden";
+  function focusables(root) {
+    return Array.from(root.querySelectorAll(FOCUSABLE)).filter(visible);
+  }
+  var layers = [];
+  var installed = false;
+  function onKeyDown(e) {
+    const top = layers[layers.length - 1];
+    if (!top) return;
+    const active = document.activeElement;
+    const inside = !!top.node && top.node.contains(active);
+    const mine = !top.modal || inside || !active || active === document.body;
+    if (!mine) return;
+    if (e.key === "Escape" && !e.defaultPrevented) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (top.onEscape) top.onEscape(e);
+      return;
+    }
+    if (e.key === "Tab" && top.modal && top.node) {
+      const list = focusables(top.node);
+      if (!list.length) {
+        e.preventDefault();
+        top.node.focus();
+        return;
+      }
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (!inside || active === top.node) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+  function addLayer(layer) {
+    layers.push(layer);
+    if (!installed) {
+      document.addEventListener("keydown", onKeyDown, true);
+      installed = true;
+    }
+    return () => {
+      const i = layers.indexOf(layer);
+      if (i >= 0) layers.splice(i, 1);
+      if (!layers.length && installed) {
+        document.removeEventListener("keydown", onKeyDown, true);
+        installed = false;
+      }
+    };
+  }
+  var hasModalLayer = () => layers.some((l) => l.modal);
+  var locks = 0;
+  var saved = "";
+  function lockScroll() {
+    const el = document.documentElement;
+    if (locks === 0) {
+      saved = el.style.overflow;
+      el.style.overflow = "hidden";
+    }
+    locks += 1;
+    return () => {
+      locks = Math.max(0, locks - 1);
+      if (locks === 0) el.style.overflow = saved;
+    };
+  }
+  function restoreFocus(trigger) {
+    const ok = trigger && trigger !== document.body && typeof trigger.focus === "function" && document.contains(trigger);
+    if (ok) {
+      trigger.focus({ preventScroll: true });
+      return;
+    }
+    const main = document.querySelector("main");
+    if (main) {
+      if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+      main.focus({ preventScroll: true });
+    }
+  }
+  function focusIn(el) {
+    if (!el) return;
+    const direct = el.matches && el.matches("a[href],button,input,select,textarea,summary,[tabindex]");
+    const target = direct ? el : el.querySelector && el.querySelector("a[href],button,input,select,textarea,summary,[tabindex]");
+    if (target && target.focus) target.focus({ preventScroll: true });
+  }
+
+  // src/lib/a11y.js
   var import_react = __toESM(require_react(), 1);
   function focusElement(el, { preventScroll = false } = {}) {
     if (!el || !el.isConnected || typeof el.focus !== "function") return false;
@@ -80,6 +183,7 @@
     return document.activeElement === el;
   }
   function focusPageHeading() {
+    if (hasModalLayer()) return true;
     const main = document.getElementById("shell-main");
     const h1 = main && main.querySelector("h1");
     if (!h1) return false;
@@ -1112,6 +1216,7 @@
 
   // src/lib/copy.js
   var FLAG_TYPE_LABEL = { overCap: "Spend over cap", nearCap: "Close to cap", renewal: "Renewal decision", uplift: "Price increase above cap" };
+  var FLAG_TYPE_CHIP_LABEL = { overCap: "Spend over cap", nearCap: "Close to cap", renewal: "Renewals", uplift: "Price increases above cap" };
   var FLAG_TYPES = ["overCap", "nearCap", "renewal", "uplift"];
   var ABOVE_ESTIMATE_LABEL = "Above contract value (estimate)";
   function flagTypeLabel(typeOrFlag) {
@@ -1296,6 +1401,26 @@
     const n = totals.contractCount;
     return `${fmtGBPCompact(totals.totalGBP)} across ${n} ${n === 1 ? "contract flagged as an opportunity" : "contracts flagged as opportunities"} to investigate`;
   }
+  var CARD_SUB = { overCap: "Already paid above the cap.", nearCap: "Projected at the current pace.", renewal: "Indicative value per year.", uplift: "Already paid above the cap." };
+  var CARD_ARIA = { overCap: "already paid above the cap", nearCap: "projected at the current pace", renewal: "indicative value per year", uplift: "already paid above the cap" };
+  function breakdownCards(totals) {
+    return FLAG_TYPES.map((type) => {
+      const count = totals.countByType ? totals.countByType[type] : 0;
+      const gbp2 = totals.byType[type];
+      const contracts = plural(count, "contract");
+      return {
+        type,
+        title: FLAG_TYPE_CHIP_LABEL[type],
+        value: fmtGBPCompact(gbp2),
+        exact: fmtGBP(gbp2),
+        exactGBP: gbp2,
+        count,
+        sub: `${contracts}. ${CARD_SUB[type]}`,
+        ariaLabel: `${FLAG_TYPE_CHIP_LABEL[type]} ${fmtGBPCompact(gbp2)}, ${contracts}, ${CARD_ARIA[type]}`,
+        href: `#/opportunities?type=${type}`
+      };
+    });
+  }
   function sumLine(totals) {
     const parts2 = FLAG_TYPES.filter((t) => totals.byType[t] > 0).map((t) => fmtGBP(totals.byType[t]));
     return `${parts2.length ? parts2.join(" + ") : fmtGBP(0)} = ${fmtGBP(totals.totalGBP)}`;
@@ -1303,8 +1428,14 @@
   function excludedNote(totals) {
     return totals.excludedGBP > 0 ? `${fmtGBP(totals.excludedGBP)} excluded after your review.` : null;
   }
+  function radarSummaryLine(key, group) {
+    return `${bandLabel(key)}: ${plural(group.count, "contract")}, ${fmtGBPCompact(group.annualGBP)} a year`;
+  }
   function radarFootnote(count) {
     return `${plural(count, "contract")} ${count === 1 ? "has a notice date" : "have notice dates"} more than 12 months away and ${count === 1 ? "is" : "are"} not on the radar.`;
+  }
+  function headlineShareText(totals, coverage2) {
+    return `The headline is equivalent to ${fmtPct(totals.totalGBP / coverage2.totalGBP, 0)} of the ${fmtGBPCompact(coverage2.totalGBP)} in the sample payment files.`;
   }
   var coverageLine = (coverage2) => `${Math.round(coverage2.linkedPct * 100)}% of payments are linked to a contract on the register`;
   var coverageDetail = (coverage2) => `${fmtGBPCompact(coverage2.linkedGBP)} of ${fmtGBPCompact(coverage2.totalGBP)}`;
@@ -1394,7 +1525,7 @@
     banner: { lead: "Sample data.", body: "Marchbank Borough Council, its suppliers, contracts and payments are fictional. They were written for this demo.", link: "About this data", badge: "Sample" },
     // 7.2 with blueprint decision 7: the headline caveat is generic. The 1.7m figure appears only in the evidence list beside its link.
     caveat: {
-      long: "Indicative figures. Each one is an opportunity to investigate, not a saving. A Local Government Association case study found that potential savings can shrink to nothing once outliers are tested, because many had legitimate reasons. Check each flag against its clause before you act.",
+      long: "Indicative figures. Each one is an opportunity to investigate, not a saving. In a 2019 Local Government Association case study, potential savings shrank to possibly nil once outliers turned out to have legitimate reasons. Check each flag against its clause before you act.",
       short: "Indicative. An opportunity to investigate, not a saving. Test it against the contract before you act.",
       tooltip: "Indicative means a prompt to investigate, calculated by the rules on the How this is calculated page. It is not a confirmed saving.",
       chartTooltip: "An opportunity to investigate, not a confirmed result",
@@ -1822,108 +1953,6 @@
   // src/ui/useOverlay.js
   init_react_shim();
   var import_react6 = __toESM(require_react(), 1);
-
-  // src/ui/layers.js
-  init_react_shim();
-  var FOCUSABLE = [
-    "a[href]",
-    "button:not([disabled])",
-    'input:not([disabled]):not([type="hidden"])',
-    "select:not([disabled])",
-    "textarea:not([disabled])",
-    "summary",
-    '[tabindex]:not([tabindex="-1"])',
-    '[contenteditable="true"]'
-  ].join(",");
-  var visible = (el) => !el.closest("[inert]") && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0) && getComputedStyle(el).visibility !== "hidden";
-  function focusables(root) {
-    return Array.from(root.querySelectorAll(FOCUSABLE)).filter(visible);
-  }
-  var layers = [];
-  var installed = false;
-  function onKeyDown(e) {
-    const top = layers[layers.length - 1];
-    if (!top) return;
-    const active = document.activeElement;
-    const inside = !!top.node && top.node.contains(active);
-    const mine = !top.modal || inside || !active || active === document.body;
-    if (!mine) return;
-    if (e.key === "Escape" && !e.defaultPrevented) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (top.onEscape) top.onEscape(e);
-      return;
-    }
-    if (e.key === "Tab" && top.modal && top.node) {
-      const list = focusables(top.node);
-      if (!list.length) {
-        e.preventDefault();
-        top.node.focus();
-        return;
-      }
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (!inside || active === top.node) {
-        e.preventDefault();
-        (e.shiftKey ? last : first).focus();
-      } else if (e.shiftKey && active === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  }
-  function addLayer(layer) {
-    layers.push(layer);
-    if (!installed) {
-      document.addEventListener("keydown", onKeyDown, true);
-      installed = true;
-    }
-    return () => {
-      const i = layers.indexOf(layer);
-      if (i >= 0) layers.splice(i, 1);
-      if (!layers.length && installed) {
-        document.removeEventListener("keydown", onKeyDown, true);
-        installed = false;
-      }
-    };
-  }
-  var locks = 0;
-  var saved = "";
-  function lockScroll() {
-    const el = document.documentElement;
-    if (locks === 0) {
-      saved = el.style.overflow;
-      el.style.overflow = "hidden";
-    }
-    locks += 1;
-    return () => {
-      locks = Math.max(0, locks - 1);
-      if (locks === 0) el.style.overflow = saved;
-    };
-  }
-  function restoreFocus(trigger) {
-    const ok = trigger && trigger !== document.body && typeof trigger.focus === "function" && document.contains(trigger);
-    if (ok) {
-      trigger.focus({ preventScroll: true });
-      return;
-    }
-    const main = document.querySelector("main");
-    if (main) {
-      if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
-      main.focus({ preventScroll: true });
-    }
-  }
-  function focusIn(el) {
-    if (!el) return;
-    const direct = el.matches && el.matches("a[href],button,input,select,textarea,summary,[tabindex]");
-    const target = direct ? el : el.querySelector && el.querySelector("a[href],button,input,select,textarea,summary,[tabindex]");
-    if (target && target.focus) target.focus({ preventScroll: true });
-  }
-
-  // src/ui/useOverlay.js
   function useOverlay(open, onClose, ref) {
     const closeRef = (0, import_react6.useRef)(onClose);
     closeRef.current = onClose;
@@ -2164,6 +2193,9 @@
 
   // src/ui/Kbd.jsx
   init_react_shim();
+  function Kbd({ children, className = "" }) {
+    return /* @__PURE__ */ React.createElement("kbd", { className: ("kx-kbd " + className).trim() }, children);
+  }
 
   // src/ui/Chip.jsx
   init_react_shim();
@@ -2826,7 +2858,7 @@
       const cx = tip.px == null ? (r.left + r.right) / 2 : clamp(tip.px, r.left, r.right);
       const left = clamp(cx - w / 2, 8, Math.max(8, vw - w - 8));
       let top = r.top - h - 10;
-      if (top < 8) top = Math.min(r.bottom + 10, vh - h - 8);
+      if (top < 118) top = Math.min(r.bottom + 10, vh - h - 8);
       setPos({ left, top });
     }, [tip]);
     if (!tip) return null;
@@ -3535,6 +3567,7 @@
   var TEXT = {
     breakdownTitle: "Where the total comes from",
     sumLabel: "The four cards add up to the headline",
+    countsNote: (contracts, multi, cards) => `${contracts} contracts in all. ${multi} ${multi === 1 ? "contract carries" : "contracts carry"} more than one flag, so the card counts add to ${cards}.`,
     reviewedLink: "See reviewed opportunities",
     radarTitle: "Renewals coming up",
     radarDesc: "Contracts by the date you must give notice.",
@@ -3555,6 +3588,12 @@
     const ui = useUI();
     const hp = headlineProps(estate);
     const excluded = excludedNote(estate.totals);
+    const perContract = {};
+    estate.ranked.forEach((f) => {
+      if (f.indicativeGBP > 0 && (f.status === "to_investigate" || f.status === "under_review")) perContract[f.contractId] = (perContract[f.contractId] || 0) + 1;
+    });
+    const multiFlag = Object.values(perContract).filter((n) => n > 1).length;
+    const cardCounts = Object.values(estate.totals.countByType || {}).reduce((a, b) => a + b, 0);
     const cov = coverageProps(estate);
     return /* @__PURE__ */ React.createElement("div", { className: "page ov" }, /* @__PURE__ */ React.createElement(
       PageHeader,
@@ -3570,7 +3609,7 @@
         ...hp,
         format: fmtGBPCompact,
         getHref: (type) => "#/opportunities?type=" + type,
-        footer: /* @__PURE__ */ React.createElement("div", { className: "ov-sum" }, /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line" }, /* @__PURE__ */ React.createElement("span", { className: "ov-sum__label" }, TEXT.sumLabel), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__eq" }, sumLine(estate.totals))), excluded && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__note", role: "status" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__excluded" }, excluded), /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/opportunities?status=reviewed" }, TEXT.reviewedLink)))
+        footer: /* @__PURE__ */ React.createElement("div", { className: "ov-sum" }, /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line" }, /* @__PURE__ */ React.createElement("span", { className: "ov-sum__label" }, TEXT.sumLabel), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__eq" }, sumLine(estate.totals))), multiFlag > 0 && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line ov-sum__counts" }, TEXT.countsNote(estate.totals.contractCount, multiFlag, cardCounts)), excluded && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__note", role: "status" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__excluded" }, excluded), /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/opportunities?status=reviewed" }, TEXT.reviewedLink)))
       }
     )), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--2-1 ov-row" }, /* @__PURE__ */ React.createElement(
       Panel,
@@ -4460,7 +4499,7 @@
     handHint: "Mark an answer correct or incorrect from its clause page.",
     handBreakdown: (correct, incorrect) => `${correct} correct, ${incorrect} incorrect`,
     sourceKey: "Source",
-    sourceRule: "A contract over \xA35m that started on or after 24 February 2025 would come from Find a Tender. The rest come from the council contracts register.",
+    sourceRule: "Councils publish a copy of any contract over \xA35m on Find a Tender, for procurements started on or after 24 February 2025. Below \xA35m, Contracts Finder notices give context but not the full documents.",
     noMatchFilters: { title: "No contracts match these filters.", body: "Clear the filters to see all contracts." }
   };
   var DETAIL = {
@@ -5467,7 +5506,7 @@
       { id: "overCap", type: flagTypeLabel("overCap"), basis: basisLabel("one_off"), rule: "Spend above the cap. For a cap per contract year, the spend above the cap in each year that went over, added together." },
       { id: "nearCap", type: flagTypeLabel("nearCap"), basis: basisLabel("projected"), rule: "Projected spend at the end of the term minus the cap, and never below \xA30." },
       { id: "uplift", type: flagTypeLabel("uplift"), basis: basisLabel("one_off"), rule: "Payments in the last 12 months, minus the earlier 12 months' payments with the contract's allowed increase added." }
-    ] }), /* @__PURE__ */ React.createElement(ConstantsTable, { caption: "Renewal rate", keys: ["renewalRate"], opts }), /* @__PURE__ */ React.createElement("div", { className: "mth-actions" }, /* @__PURE__ */ React.createElement(Button3, { type: "button", variant: "outline", leftIcon: "sliders", onClick: (e) => ui.openSettings(e.currentTarget) }, METHOD_COPY.openSettings), /* @__PURE__ */ React.createElement("span", { className: "mth-muted" }, "Settings offers ", joinList(ASSUMPTION_OPTIONS.renewalRate.map((v) => fmtPct(v, 0))), " for the renewal rate.")), /* @__PURE__ */ React.createElement("h3", { className: "mth-h3" }, "Why ", fmtPct(DEFAULTS.renewalRate, 0)), /* @__PURE__ */ React.createElement("p", null, fmtPct(DEFAULTS.renewalRate, 0), " is a prototype assumption. It is not a figure from the Kontor scope. It sits below the 8% of annual cost that the Local Government Association reported for Sheffield across seven contracts in 2012/13, because a 2019 case study at Sefton found that potential savings can shrink to nothing once the outliers are tested. Agree a rate with whoever owns the cost baseline before you use these figures with a council."), /* @__PURE__ */ React.createElement("p", null, sheffield && /* @__PURE__ */ React.createElement("a", { href: sheffield.url, target: "_blank", rel: "noopener noreferrer" }, "Sheffield, LGA ", OPENS_IN_NEW_TAB), sheffield && sefton && " \xB7 ", sefton && /* @__PURE__ */ React.createElement("a", { href: sefton.url, target: "_blank", rel: "noopener noreferrer" }, "Sefton, LGA ", OPENS_IN_NEW_TAB), " \xB7 ", /* @__PURE__ */ React.createElement("a", { href: hrefFor("evidence") }, METHOD_COPY.openEvidence)), renFlag && /* @__PURE__ */ React.createElement(Example, { title: "C-002 renewal decision" }, /* @__PURE__ */ React.createElement(Lines, { caption: "Renewal calculation for C-002", items: linesOfFlag(renFlag) }), /* @__PURE__ */ React.createElement("p", null, actionLine(contract("C-002"), derived("C-002")), " ", /* @__PURE__ */ React.createElement(ClauseFor, { contractId: "C-002", field: "noticePeriod", context: contract("C-002").title }))), /* @__PURE__ */ React.createElement("h3", { className: "mth-h3" }, "How the headline is put together"), /* @__PURE__ */ React.createElement("p", null, "The headline adds four indicative amounts on different bases: money already paid, spend projected at the current pace, and a value per year. The cards keep them apart and the sum line shows the addition, so the total is never a single unlabelled figure."), /* @__PURE__ */ React.createElement("p", { className: "mth-sum tnum", "data-testid": "method-sum-line" }, sumLine(totals)), /* @__PURE__ */ React.createElement("p", null, "The headline is about ", fmtPct(totals.totalGBP / coverage2.totalGBP, 0), " of the ", fmtGBPCompact(coverage2.totalGBP), " in the payment files. Read that as a check on scale, not as a share of spend that can be recovered. ", excludedNote(totals) ? `${excludedNote(totals)} ` : "", "Marking a flag Explained or No action takes it out of the headline.")), /* @__PURE__ */ React.createElement(Section, { id: "ranking" }, /* @__PURE__ */ React.createElement(Table, { caption: "How severity is set for each flag type", columns: [
+    ] }), /* @__PURE__ */ React.createElement(ConstantsTable, { caption: "Renewal rate", keys: ["renewalRate"], opts }), /* @__PURE__ */ React.createElement("div", { className: "mth-actions" }, /* @__PURE__ */ React.createElement(Button3, { type: "button", variant: "outline", leftIcon: "sliders", onClick: (e) => ui.openSettings(e.currentTarget) }, METHOD_COPY.openSettings), /* @__PURE__ */ React.createElement("span", { className: "mth-muted" }, "Settings offers ", joinList(ASSUMPTION_OPTIONS.renewalRate.map((v) => fmtPct(v, 0))), " for the renewal rate.")), /* @__PURE__ */ React.createElement("h3", { className: "mth-h3" }, "Why ", fmtPct(DEFAULTS.renewalRate, 0)), /* @__PURE__ */ React.createElement("p", null, fmtPct(DEFAULTS.renewalRate, 0), " is a prototype assumption. It is not a published figure. It sits below the 8% of annual cost that the Local Government Association reported for Sheffield across seven contracts in 2012/13, because in a 2019 case study at Sefton, potential savings shrank to possibly nil once the outliers were tested. Agree a rate with your finance team before you use these figures with a council."), /* @__PURE__ */ React.createElement("p", null, sheffield && /* @__PURE__ */ React.createElement("a", { href: sheffield.url, target: "_blank", rel: "noopener noreferrer" }, "Sheffield, LGA ", OPENS_IN_NEW_TAB), sheffield && sefton && " \xB7 ", sefton && /* @__PURE__ */ React.createElement("a", { href: sefton.url, target: "_blank", rel: "noopener noreferrer" }, "Sefton, LGA ", OPENS_IN_NEW_TAB), " \xB7 ", /* @__PURE__ */ React.createElement("a", { href: hrefFor("evidence") }, METHOD_COPY.openEvidence)), renFlag && /* @__PURE__ */ React.createElement(Example, { title: "C-002 renewal decision" }, /* @__PURE__ */ React.createElement(Lines, { caption: "Renewal calculation for C-002", items: linesOfFlag(renFlag) }), /* @__PURE__ */ React.createElement("p", null, actionLine(contract("C-002"), derived("C-002")), " ", /* @__PURE__ */ React.createElement(ClauseFor, { contractId: "C-002", field: "noticePeriod", context: contract("C-002").title }))), /* @__PURE__ */ React.createElement("h3", { className: "mth-h3" }, "How the headline is put together"), /* @__PURE__ */ React.createElement("p", null, "The headline adds four indicative amounts on different bases: money already paid, spend projected at the current pace, and a value per year. The cards keep them apart and the sum line shows the addition, so the total is never a single unlabelled figure."), /* @__PURE__ */ React.createElement("p", { className: "mth-sum tnum", "data-testid": "method-sum-line" }, sumLine(totals)), /* @__PURE__ */ React.createElement("p", null, "The headline is about ", fmtPct(totals.totalGBP / coverage2.totalGBP, 0), " of the ", fmtGBPCompact(coverage2.totalGBP), " in the payment files. Read that as a check on scale, not as a share of spend that can be recovered. ", excludedNote(totals) ? `${excludedNote(totals)} ` : "", "Marking a flag Explained or No action takes it out of the headline.")), /* @__PURE__ */ React.createElement(Section, { id: "ranking" }, /* @__PURE__ */ React.createElement(Table, { caption: "How severity is set for each flag type", columns: [
       { key: "type", label: "Flag", rowHeader: true, minWidth: 150, render: (r) => r.type },
       { key: "sev", label: "Severity", minWidth: 300, render: (r) => r.sev }
     ], rows: [
@@ -5622,7 +5661,7 @@
     terminationNote: "That is why Contract detail shows termination rights and exit fees for every contract in this prototype: they are the raw material for Stage 2.",
     // 6. Stage 1 data sources (verbatim bullets, spec "Stage 1: data sources")
     dataSourcesTitle: "Stage 1 data sources",
-    dataSourcesIntro: "A real Stage 1 runs entirely on public data for one council, so there's no redaction or client-data problem. This prototype uses sample data written for the demo.",
+    dataSourcesIntro: "The prototype runs entirely on sample data for one fictional council, so there's no redaction or client-data problem. A real council would use its own contracts and spend.",
     dataSources: [
       {
         title: "Contracts:",
@@ -5645,7 +5684,7 @@
   // src/views/Evidence.jsx
   init_react_shim();
   var import_react40 = __toESM(require_react(), 1);
-  var PHONE = "(max-width: 699px)";
+  var PHONE = "(max-width: 1099px)";
   var subscribe2 = (cb) => {
     const m = window.matchMedia(PHONE);
     m.addEventListener("change", cb);
@@ -5845,6 +5884,808 @@
     ), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--2 rm-pair" }, /* @__PURE__ */ React.createElement(Panel, { title: roadmap.whoTitle, className: "rm-panel", padded: 24 }, /* @__PURE__ */ React.createElement("ul", { className: "rm-points" }, roadmap.who.map((w) => /* @__PURE__ */ React.createElement("li", { key: w.title }, /* @__PURE__ */ React.createElement("strong", null, w.title), " ", /* @__PURE__ */ React.createElement(Linked, { text: w.text, links: w.links }))))), /* @__PURE__ */ React.createElement(Panel, { title: roadmap.trueTitle, className: "rm-panel", padded: 24 }, /* @__PURE__ */ React.createElement("ul", { className: "rm-points" }, roadmap.mustBeTrue.map((w) => /* @__PURE__ */ React.createElement("li", { key: w.title }, /* @__PURE__ */ React.createElement("strong", null, w.title), " ", w.text))), /* @__PURE__ */ React.createElement("p", { className: "rm-note rm-termination" }, roadmap.terminationNote, " ", /* @__PURE__ */ React.createElement("a", { className: "rm-link", href: "#/contracts/C-005" }, TEXT4.openContract)))));
   }
 
+  // src/views/Guide.jsx
+  init_react_shim();
+  var import_react42 = __toESM(require_react(), 1);
+
+  // src/lib/theme.js
+  init_react_shim();
+  var import_react41 = __toESM(require_react(), 1);
+  var THEME_KEY = KEYS.theme;
+  var THEME_EVENT = "kontor-theme";
+  function getTheme() {
+    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  }
+  function setTheme(next) {
+    const t = next === "light" ? "light" : "dark";
+    const root = document.documentElement;
+    root.setAttribute("data-theme", t);
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.setAttribute("content", t);
+    setItem(THEME_KEY, t);
+    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: t }));
+    return t;
+  }
+  function useTheme() {
+    const [theme, setLocal] = (0, import_react41.useState)(getTheme);
+    (0, import_react41.useEffect)(() => {
+      const sync = () => setLocal(getTheme());
+      const onStorage = (e) => {
+        if (e.key === THEME_KEY && (e.newValue === "light" || e.newValue === "dark")) {
+          document.documentElement.setAttribute("data-theme", e.newValue);
+          sync();
+        }
+      };
+      window.addEventListener(THEME_EVENT, sync);
+      window.addEventListener("storage", onStorage);
+      sync();
+      return () => {
+        window.removeEventListener(THEME_EVENT, sync);
+        window.removeEventListener("storage", onStorage);
+      };
+    }, []);
+    return [theme, setTheme];
+  }
+
+  // src/views/guide-facts.js
+  init_react_shim();
+  var PAYEE = "Larchmont Grounds Maintenance";
+  var RATE_TARGET = 0.08;
+  var RATE_FALLBACK = 0.03;
+  var without = (obj, key) => {
+    const o = { ...obj };
+    delete o[key];
+    return o;
+  };
+  function changeCounts(state) {
+    return [
+      [Object.keys(state.triage || {}).length, "review"],
+      [Object.keys(state.decisions || {}).length, "match decision"],
+      [Object.keys(state.handcheck || {}).length, "hand-check"],
+      [(state.feedback || []).length, "feedback entry", "feedback entries"],
+      [Object.keys(state.assumptions || {}).length, "assumption"]
+    ].filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+  }
+  function guideFacts(estate, state) {
+    const base = { decisions: state.decisions || {}, triage: state.triage || {}, assumptions: state.assumptions || {} };
+    const what = (patch) => computeEstate({ ...base, ...patch });
+    const start = computeEstate();
+    const opts = estate.opts;
+    const moved = Object.keys(base.triage).length + Object.keys(base.decisions).length + Object.keys(base.assumptions).length > 0;
+    const topFlag = estate.ranked.find((f) => f.type === "overCap") || null;
+    const topContract = topFlag ? estate.contractsById[topFlag.contractId] : null;
+    const topCap = topFlag ? estate.derived[topFlag.contractId].cap : null;
+    const topClause = topFlag ? evidenceFor(topFlag) : null;
+    const topDoc = topContract ? estate.data.documents[topContract.documentId] : null;
+    let explain = null;
+    if (topFlag) {
+      const status = base.triage[topFlag.id] || "to_investigate";
+      const explained = status === "explained";
+      const other = explained ? what({ triage: without(base.triage, topFlag.id) }) : what({ triage: { ...base.triage, [topFlag.id]: "explained" } });
+      explain = { status, explained, now: estate.totals, other: other.totals };
+    }
+    let match = null;
+    const m = estate.matches.get(PAYEE);
+    if (m && m.supplierId) {
+      const decision = base.decisions[PAYEE] || null;
+      const confirmed = decision === "confirm";
+      const contracts = estate.data.contracts.filter((c) => c.supplierId === m.supplierId);
+      const alt = confirmed ? what({ decisions: without(base.decisions, PAYEE) }) : what({ decisions: { ...base.decisions, [PAYEE]: "confirm" } });
+      const after = confirmed ? estate : alt;
+      const before = confirmed ? alt : estate;
+      const cid = contracts.map((c) => c.id).sort((a, b) => after.derived[b].cap.utilisation - before.derived[b].cap.utilisation - (after.derived[a].cap.utilisation - before.derived[a].cap.utilisation))[0];
+      if (cid) {
+        match = {
+          payee: PAYEE,
+          decision,
+          confirmed,
+          status: m.status,
+          paymentCount: m.paymentCount,
+          totalGBP: m.totalGBP,
+          score: m.score,
+          contract: estate.contractsById[cid],
+          before: { cap: before.derived[cid].cap, totals: before.totals },
+          after: { cap: after.derived[cid].cap, totals: after.totals }
+        };
+      }
+    }
+    const rateTarget = Math.abs(opts.renewalRate - RATE_TARGET) < 1e-9 ? RATE_FALLBACK : RATE_TARGET;
+    const rateAfter = what({ assumptions: { ...base.assumptions, renewalRate: rateTarget } });
+    const rate = { now: opts.renewalRate, target: rateTarget, nowTotals: estate.totals, afterTotals: rateAfter.totals };
+    const capStates = { over: 0, near: 0, ok: 0 };
+    for (const r of estate.capRows) {
+      if (r.capState === "over" || r.capState === "above_estimate") capStates.over += 1;
+      else if (r.capState === "near") capStates.near += 1;
+      else capStates.ok += 1;
+    }
+    const partialCaps = estate.capRows.filter((r) => estate.summaries[r.contractId] && estate.summaries[r.contractId].coverage === "partial").length;
+    const answersToReview = estate.data.extractions.filter((x) => confidenceBand(x.confidence) === "review").length;
+    const flagsToReview = estate.ranked.filter((f) => f.confidence === "low").length;
+    return {
+      start: { totals: start.totals },
+      moved,
+      changes: changeCounts(state),
+      handcheck: handcheckSummary(state),
+      top: { flag: topFlag, contract: topContract, cap: topCap, clause: topClause, doc: topDoc },
+      explain,
+      match,
+      rate,
+      capStates,
+      partialCaps,
+      answersToReview,
+      flagsToReview,
+      counts: {
+        contracts: estate.data.contracts.length,
+        payments: estate.data.payments.length,
+        answers: estate.data.extractions.length,
+        flaggedContracts: estate.totals.contractCount,
+        ranked: estate.ranked.length
+      }
+    };
+  }
+
+  // src/views/guide-content.js
+  init_react_shim();
+  var SECTIONS2 = [
+    { id: "start", title: "Start here", icon: "circle-play", lead: "This is Stage 1 of the Kontor financial layer. It reads one council's contracts and spend and flags opportunities to investigate." },
+    { id: "tour", title: "The five-minute tour", icon: "route", lead: "Four steps for a live demo, from the headline number down to one clause. Each step says what to do, what to say and the number you should see." },
+    { id: "screens", title: "Screens at a glance", icon: "table-cells-large", lead: "Each screen answers one question, so you can open the one you need." },
+    { id: "try", title: "Try these", icon: "hand-pointer", lead: "Things to do with your own hands. Each one changes what you see, and you can undo all of them." },
+    { id: "numbers", title: "How to read the numbers", icon: "calculator", lead: "Every figure is a prompt to look, not a result. This is what the words and the colours mean." },
+    { id: "real", title: "What is real and what is not", icon: "circle-half-stroke", lead: "The sums are real. The council and its documents are made up. Some things are not built yet." },
+    { id: "glossary", title: "Words you will see", icon: "book", lead: "Plain-language meanings for the contract and procurement terms used in the prototype." },
+    { id: "keys", title: "Keyboard and links", icon: "keyboard", lead: "You can use the whole prototype without a mouse, and you can share any view as a link." },
+    { id: "faq", title: "Questions people ask", icon: "circle-question", lead: "Straight answers to the questions that come up most." }
+  ];
+  var SECTION_IDS = SECTIONS2.map((s) => s.id);
+  var SECTION_BY_ID = Object.fromEntries(SECTIONS2.map((s) => [s.id, s]));
+  var TEXT5 = {
+    eyebrow: "Stage 1 prototype",
+    pageIntro: "How to use this prototype and how to read what it shows. Read it in order, or jump to a section.",
+    toc: "On this page",
+    jump: "Jump to a section",
+    openStep: "Open step",
+    seeNow: "You should see",
+    say: "Say",
+    doThis: "Do",
+    where: "Where",
+    startingNote: (value) => `Starting value ${value}`,
+    aboutThisData: "Read about this data"
+  };
+  var START = {
+    sample: {
+      title: "Everything here is sample data",
+      body: "Marchbank Borough Council, its suppliers, contracts and payments are fictional. They were written for this demo. Real councils appear only in the public cases, which link to their sources."
+    },
+    stepsTitle: "Three steps to begin",
+    primary: "Open the overview",
+    tourLink: "See the five-minute tour",
+    glance: {
+      contracts: { label: "Contracts", foot: "on the register", icon: "folder-open" },
+      payments: { label: "Payments", foot: "over \xA3500, in the sample files", icon: "sterling-sign" },
+      answers: { label: "Answers", foot: "each with its clause and page", icon: "list-check" },
+      flagged: { label: "Contracts flagged", foot: "as opportunities to investigate", icon: "flag" }
+    },
+    steps: {
+      headline: (headline) => ({ title: "Read the headline", body: `Open the overview. The number at the top is the total of every opportunity to investigate. It reads ${headline}.` }),
+      clause: (page) => ({ title: "Follow one flag to its clause", body: `Open Opportunities and select the top row. Then choose View clause${page ? `, page ${page}` : ""}. You land on the contract text with the clause highlighted.` }),
+      change: { title: "Change something", body: "Mark a flag as Explained, or confirm a supplier match, and watch the numbers move. Reset your changes in Settings whenever you like." }
+    }
+  };
+  var TOUR = {
+    note: {
+      title: "The numbers below are live",
+      body: "They move if you change a review status, confirm a supplier match or change an assumption. If your demo shows different numbers from these, someone has made a change. Reset your changes in Settings to get the starting numbers back."
+    },
+    pillStart: "Showing the starting numbers",
+    pillChanged: "Showing your changes",
+    steps: {
+      headline: {
+        title: "The headline",
+        do: "Open the overview. Point at the caveat under the headline.",
+        say: "This is a list of places to look. Every figure is an opportunity to investigate, not a confirmed result.",
+        link: "Open step 1, the headline"
+      },
+      radar: {
+        title: "The renewal radar",
+        do: "Open the renewal radar. Show the next 3, 6 and 12 months, then the notice dates that have already passed.",
+        say: "These were nobody's job to watch.",
+        needs: (n) => `${n} ${n === 1 ? "contract needs" : "contracts need"} attention now`
+      },
+      cap: {
+        title: "One contract over its cap",
+        do: "Open the top spend over cap flag. Then choose View clause.",
+        say: "Every flag shows the words it came from.",
+        paid: (spent, cap) => `${spent} paid against a ${cap} maximum`,
+        clause: (ref, page, count) => `${ref}, page ${page}${count ? ` of ${count}` : ""}`
+      },
+      close: {
+        title: "The close",
+        do: "Go to the last panel on the overview. Stop talking, then ask for feedback.",
+        say: null
+        // COPY.closePanel.spoken
+      }
+    }
+  };
+  function screens(f) {
+    const clause = f.top.clause;
+    const sourceHref2 = clause ? hrefFor("source", { seg: [clause.contractId, clause.extractionId], query: { from: "opportunities" } }) : hrefFor("contracts");
+    return [
+      {
+        id: "overview",
+        title: "Overview",
+        icon: "fa-solid fa-house",
+        answers: "How big is the total, and where does it come from?",
+        who: "A head of procurement or commercial lead who wants the whole picture at a glance.",
+        links: [{ label: "Open overview", href: hrefFor("overview") }]
+      },
+      {
+        id: "opportunities",
+        title: "Opportunities",
+        icon: "fa-solid fa-magnifying-glass-dollar",
+        answers: "What should we look at first?",
+        who: "The commercial or contracts team deciding where to start.",
+        links: [{ label: "Open opportunities", href: hrefFor("opportunities") }]
+      },
+      {
+        id: "renewals",
+        title: "Renewal radar",
+        icon: "fa-regular fa-calendar-check",
+        answers: "Which contracts need a decision, and by when?",
+        who: "Contract managers and procurement leads who must act before a notice date.",
+        links: [{ label: "Open renewal radar", href: hrefFor("renewals") }]
+      },
+      {
+        id: "spend",
+        title: "Cap vs spend",
+        icon: "fa-solid fa-chart-line",
+        answers: "Have we paid more than a contract allows?",
+        who: "Finance partners and contract managers checking spend against the contract.",
+        tabs: "Three tabs",
+        links: [
+          { label: "Open cap vs spend", href: hrefFor("spend") },
+          { label: "Open supplier matches", href: hrefFor("spend", { seg: ["matches"] }) },
+          { label: "See spend with no contract", href: hrefFor("spend", { seg: ["no-contract"] }) }
+        ]
+      },
+      {
+        id: "contracts",
+        title: "Contracts and contract detail",
+        icon: "fa-regular fa-folder-open",
+        answers: "What does this one contract say, and where does each answer come from?",
+        who: "Contract managers and internal audit looking up a single contract.",
+        links: [
+          { label: "Open contracts", href: hrefFor("contracts") },
+          ...f.top.contract ? [{ label: `Open contract ${f.top.contract.id}`, href: hrefFor("contracts", { seg: [f.top.contract.id] }) }] : []
+        ]
+      },
+      {
+        id: "source",
+        title: "Source viewer",
+        icon: "fa-regular fa-file-lines",
+        answers: "What are the exact words in the contract?",
+        who: "Anyone who needs to check an answer against the document. It opens from any View clause link.",
+        links: [{ label: clause ? `Open ${clause.clauseRef.replace(/^Clause/, "clause")}, page ${clause.page}` : "Open contracts", href: sourceHref2 }]
+      },
+      {
+        id: "method",
+        title: "How this is calculated",
+        icon: "fa-solid fa-calculator",
+        answers: "What rule produced this number?",
+        who: "Finance and audit staff who need to trust the figures.",
+        links: [{ label: "Read how this is calculated", href: hrefFor("method") }]
+      },
+      {
+        id: "roadmap",
+        title: "Roadmap",
+        icon: "fa-solid fa-diagram-project",
+        answers: "What is built, and what comes next?",
+        who: "Anyone deciding what to ask for after Stage 1.",
+        links: [{ label: "Open roadmap", href: hrefFor("roadmap") }]
+      },
+      {
+        id: "evidence",
+        title: "Why this matters",
+        icon: "fa-solid fa-scale-balanced",
+        answers: "Where have councils lost money for want of a view like this?",
+        who: "Anyone who asks why a council would want this.",
+        links: [{ label: "Read why this matters", href: hrefFor("evidence") }]
+      }
+    ];
+  }
+  var TRY = {
+    theme: {
+      title: "Switch between dark and light",
+      body: "Use the moon and sun button at the top right of the header. The prototype opens in dark mode, and your choice is remembered on this device.",
+      see: "The page changes at once. The charts redraw in the new colours.",
+      now: (theme) => `It is in ${theme} mode now.`
+    },
+    explain: {
+      title: "Mark a flag as Explained",
+      body: "Open the top spend over cap flag. In the panel, set Review status to Explained.",
+      bodyDone: "You have marked this flag as Explained. Open it and set Review status back to To investigate to undo it.",
+      link: "Open the top spend over cap flag",
+      fall: (from, to, note) => `The headline falls from ${from} to ${to}.${note ? ` The overview then shows ${note}` : ""} That is the caveat in action.`,
+      rise: (from, to) => `The headline moves from ${from} to ${to}.`
+    },
+    match: {
+      title: "Confirm a suggested supplier match",
+      body: (payee) => `Open the supplier matches. Find ${payee} and choose Confirm match.`,
+      bodyDone: "You have confirmed this match. Open the supplier matches and choose Undo decision to go back.",
+      bodyRejected: "You rejected this match. Open the supplier matches, choose Undo decision, then choose Confirm match.",
+      link: "Open supplier matches",
+      moves: (title, a, b, headA, headB) => `${title} moves from ${a} to ${b}. The headline moves from ${headA} to ${headB}.`
+    },
+    rate: {
+      title: "Change the renewal rate",
+      body: (target, now, def) => `Open Settings and choose ${target} for the renewal rate. ${now === def ? "" : `It is ${now} now. `}The default is ${def}, a prototype assumption.`,
+      button: "Open settings",
+      moves: (cardA, cardB, headA, headB) => `The renewals card moves from ${cardA} to ${cardB}, and the headline from ${headA} to ${headB}.`
+    },
+    handcheck: {
+      title: "Check an answer by hand",
+      body: "Open the clause. On the right, choose Mark answer as correct or Mark answer as incorrect.",
+      now: (line) => `${line} now. The count shows at the top of the contracts register.`
+    },
+    share: {
+      title: "Share a link",
+      body: "Open the filtered list, then use the Share button at the top right of the header. It copies the address of the screen you are on, with its filters and any open panel. On a phone, copy the address from your browser instead.",
+      link: "Open spend over cap",
+      see: "A message says the link is copied. Paste it into a new tab to open the same view."
+    },
+    reset: {
+      title: "Reset your changes",
+      body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. You can also do it in Settings, with Reset demo changes.",
+      nothing: "Nothing has been changed yet.",
+      changed: (parts2) => `Changed on this device: ${parts2.join(", ")}.`,
+      see: (head) => `A confirm dialog asks first. After you confirm, the headline is back to ${head}.`
+    }
+  };
+  var NUMBERS = {
+    notSavings: {
+      title: "Opportunities to investigate, not savings",
+      see: "The cases behind this caution are on the evidence page."
+    },
+    indicative: {
+      title: "What indicative means",
+      extra: "Every pound figure the prototype works out is indicative. The figures that are not worked out, such as a payment or a contract value, are exact and come straight from the data."
+    },
+    bases: {
+      title: "The four bases behind the headline",
+      intro: "The headline is the sum of four kinds of figure. Each has its own basis, so read the basis before you read the number.",
+      overCap: "You have paid more than the contract says you can. The amount is the part above the cap, and it is already paid.",
+      nearCap: "Spend is close to the cap. We project it forward at the pace of the last 12 months. The amount is the part of that projection that would land above the cap.",
+      renewal: (rate) => `A contract is coming up for a decision. The amount is ${rate} of its annual value, a year. ${rate} is a prototype assumption, and you can change it in Settings.`,
+      uplift: "Payments rose by more than the contract's cap on price increases allows. The amount is the extra you paid above the capped rise. A change in volume can explain part of it.",
+      addsUp: "The four cards add up to the headline",
+      once: "Each flag sits in exactly one card, so nothing is counted twice. A flag you mark as Explained or No action leaves its card and the headline together."
+    },
+    confidence: {
+      title: "Confidence",
+      high: "The answer is clear in the clause.",
+      medium: "The answer is probably right. Check the clause before you rely on it.",
+      review: "Kontor is not sure about an answer or a supplier match that the flag relies on. Read the clause first.",
+      live: (n, total) => `In this sample, ${n} of ${total} flags need review.`
+    },
+    notice: {
+      title: "Notice window",
+      body: "The notice window is the time before a contract ends when you must tell the supplier what you want. The notice deadline is the last day to do it.",
+      miss: "If the deadline passes on a contract that renews automatically, it renews unless you agree otherwise with the supplier.",
+      radar: "The renewal radar groups contracts by this deadline: the next 3 months, 3 to 6 months and 6 to 12 months. Needs attention now lists the deadlines that have already passed."
+    },
+    cap: {
+      title: "Over cap and close to cap",
+      over: (pct3) => `Spend is above ${pct3} of the cap.`,
+      near: (from, to) => `Spend is from ${from} of the cap up to ${to}.`,
+      within: (from) => `Spend is below ${from} of the cap.`,
+      estimate: "Above contract value (estimate)",
+      estimateBody: "Some contracts state no maximum, so we use the contract value. That is an estimate, not a ceiling, so confidence is one step lower.",
+      live: (over, near, within) => `In this sample: ${over} over cap, ${near} close to cap and ${within} within cap.`
+    }
+  };
+  var REAL = {
+    groups: [
+      { id: "real", title: "Real", icon: "circle-check" },
+      { id: "made", title: "Made up for the demo", icon: "pen" },
+      { id: "not", title: "Not built yet", icon: "hourglass-half" }
+    ],
+    // each item: a short bold lead, then the rest of the sentence
+    real: {
+      calc: { lead: "The calculations.", body: "Every figure is worked out in your browser from the sample data, by the rules on the method page." },
+      cases: (n) => ({ lead: "The evidence.", body: `${n} public cases from councils and the Local Government Association are summarised on the evidence page, each with a link to its source.` }),
+      sources: { lead: "The sources.", body: "Find a Tender, the Transparency Code spend files and Contracts Finder are all public, and the design is built around them." }
+    },
+    made: {
+      council: { lead: "The council.", body: "Marchbank Borough Council, its suppliers, contracts and payments are fictional. They were written for this demo." },
+      text: { lead: "The contract text.", body: "It is illustrative text written for this demo, not a real document." },
+      payments: { lead: "The payment rows.", body: "They look like the files councils publish for payments over \xA3500: date, department, supplier, purpose and amount. They are not copies of any real file." },
+      date: (long) => ({ lead: "The date.", body: `Every figure is calculated as at ${long}, whatever today's date is.` })
+    },
+    not: {
+      stage2: (list) => ({ lead: "Stage 2 and the not-yet items.", body: `${list.charAt(0).toUpperCase()}${list.slice(1)}.` }),
+      ingestion: { lead: "Reading documents.", body: "This prototype starts after document ingestion, so every answer is shown as already extracted." },
+      ownData: { lead: "Your own data.", body: "You cannot load it from the screen." }
+    }
+  };
+  var GLOSSARY = [
+    ["Auto-renewal", "The contract renews by itself for a set period unless you give notice in time."],
+    ["Buying group", "Councils that buy the same thing together to get a better price. Forming one is a Stage 2 idea on the roadmap."],
+    ["Contract cap or maximum value", "The most the contract says you can pay the supplier. Some contracts give only a contract value, which is an estimate and not a ceiling."],
+    ["Contracts Finder", "The public service for contract notices. In this project it is the source for contracts below \xA35m, where full documents are not published."],
+    ["Exit fee", "A charge the supplier can make if the contract ends early."],
+    ["Extension option", "A right to carry on beyond the first term, for example two extensions of 12 months. Some are the council's choice and others need both sides to agree."],
+    ["Find a Tender", "The central platform where councils must publish a copy of any contract over \xA35m, for procurements started on or after 24 February 2025."],
+    ["Framework", "An agreement a buying body sets up with suppliers, so councils can buy from it without a new tender each time."],
+    ["Indexation", "A rule that lets prices rise each year with an index such as CPI. Many contracts cap the rise."],
+    ["Notice period", "How much warning you must give the supplier before the end of the term if you want to end, extend or stop a renewal."],
+    ["Service credits", "Money the supplier gives back when it misses agreed service levels."],
+    ["Termination for convenience", "A right to end the contract early without giving a reason, usually on notice."],
+    ["Transparency Code spend file", "A list of payments over \xA3500 that a council publishes under the Local Government Transparency Code."],
+    ["Uplift", "A price increase. A price increase above cap means payments rose by more than the contract's cap on increases allows."]
+  ];
+  var KEYS2 = {
+    moving: {
+      title: "Moving around",
+      rows: [
+        { keys: ["Tab"], text: "moves to the next control, and Shift with Tab moves back. The order is the skip link, the header, the left rail, the sample-data link, then the page." },
+        { keys: ["Enter"], text: "on the Skip to content link jumps to the page without changing the address." },
+        { keys: ["Esc"], text: "closes the top panel, dialog, menu or tooltip, and puts focus back on the button that opened it." },
+        { keys: ["Up", "Down", "Home", "End"], text: "move through menu items and through chart rows. In a menu, a letter jumps to the next item that starts with it." },
+        { keys: ["Left", "Right"], text: "move between the options of a segmented control, such as the settings choices. A select opens with the arrow keys, then Enter." },
+        { keys: ["Enter", "Space"], text: "activate a button. Enter follows a link." }
+      ]
+    },
+    addresses: {
+      title: "Addresses you can share",
+      intro: "Filters, tabs and open panels are written into the address, so a copied link opens the same view. Replace the words in angle brackets with a real id."
+    },
+    back: {
+      title: "What the back button does",
+      body: "Back takes you to the last screen you opened. Moving to another screen adds a step. Changing a filter, searching, or opening a flag panel from a list does not, so one press of Back leaves the screen. A link that opens a flag panel from another screen does add a step, and Back then closes the panel and returns you to where you were."
+    }
+  };
+  function addresses(f) {
+    const cid = f.top.contract ? f.top.contract.id : "C-005";
+    const fid = f.top.flag ? f.top.flag.id : "F-C-005-overCap";
+    const clause = f.top.clause;
+    return [
+      { pattern: "#/opportunities?type=<type>", what: "Opportunities for one type: overCap, nearCap, renewal or uplift.", example: hrefFor("opportunities", { query: { type: "overCap" } }) },
+      { pattern: "#/opportunities?status=<status>", what: "Opportunities that are open, reviewed or all.", example: hrefFor("opportunities", { query: { status: "reviewed" } }) },
+      { pattern: "#/<screen>?flag=<flag id>", what: "The flag panel, on any screen.", example: hrefFor("opportunities", { query: { flag: fid } }) },
+      { pattern: "#/spend?state=<state>", what: "Cap vs spend for contracts over, close to or within the cap.", example: hrefFor("spend", { query: { state: "over" } }) },
+      { pattern: "#/spend?payments=<contract id>", what: "The payments behind a contract's spend figure.", example: hrefFor("spend", { query: { payments: cid } }) },
+      { pattern: "#/spend/matches?status=<status>", what: "Supplier matches by status: review, accepted, unmatched or yours.", example: hrefFor("spend", { seg: ["matches"], query: { status: "accepted" } }) },
+      { pattern: "#/contracts/<contract id>", what: "One contract and its answers.", example: hrefFor("contracts", { seg: [cid] }) },
+      { pattern: "#/source/<contract id>/<answer id>", what: "A clause in the source viewer.", example: clause ? hrefFor("source", { seg: [clause.contractId, clause.extractionId], query: { from: "opportunities" } }) : hrefFor("contracts") },
+      { pattern: "#/method?s=<section>", what: "A section of How this is calculated.", example: hrefFor("method", { query: { s: "cap" } }) },
+      { pattern: "#/guide?s=<section>", what: "A section of this guide.", example: hrefFor("guide", { query: { s: "tour" } }) }
+    ];
+  }
+
+  // src/views/Guide.jsx
+  var { Button: Button12, Select: Select3 } = ds_default;
+  function scrollMainTo2(el, behavior) {
+    const main = document.getElementById("shell-main");
+    if (!main) {
+      el.scrollIntoView({ block: "start", behavior });
+      return;
+    }
+    const delta = el.getBoundingClientRect().top - main.getBoundingClientRect().top - 16;
+    main.scrollTo({ top: main.scrollTop + delta, behavior });
+  }
+  function GoLink({ href, children, sr, ...rest }) {
+    return /* @__PURE__ */ React.createElement("a", { className: "gd-link gd-link--go", href, ...rest }, children, sr && /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, " ", sr), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }));
+  }
+  function LinkButton({ href, icon: icon2 = "arrow-right", children, sr }) {
+    return /* @__PURE__ */ React.createElement("a", { className: "gd-btn", href }, children, sr && /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, " ", sr), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + icon2, "aria-hidden": "true" }));
+  }
+  function Callout({ tone = "info", title, children }) {
+    const icon2 = tone === "warning" ? "triangle-exclamation" : "circle-info";
+    return /* @__PURE__ */ React.createElement("div", { className: "gd-callout gd-callout--" + tone, role: "note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + icon2, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "gd-callout__body" }, title && /* @__PURE__ */ React.createElement("p", { className: "gd-callout__title" }, title), /* @__PURE__ */ React.createElement("div", { className: "gd-callout__text" }, children)));
+  }
+  function Expect({ label = TEXT5.seeNow, lines, note, inline = false }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "gd-expect" + (inline ? " gd-expect--inline" : "") }, /* @__PURE__ */ React.createElement("p", { className: "gd-expect__label" }, label), lines.map((l, i) => /* @__PURE__ */ React.createElement("p", { key: i, className: i === 0 ? "gd-expect__main" : "gd-expect__more" }, l)), note && /* @__PURE__ */ React.createElement("p", { className: "gd-expect__note" }, note));
+  }
+  function Section2({ id, lead, children }) {
+    const s = SECTION_BY_ID[id];
+    return /* @__PURE__ */ React.createElement("section", { className: "gd-section", "aria-labelledby": id }, /* @__PURE__ */ React.createElement("div", { className: "gd-head" }, /* @__PURE__ */ React.createElement("span", { className: "gd-head__icon", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + s.icon })), /* @__PURE__ */ React.createElement("div", { className: "gd-head__text" }, /* @__PURE__ */ React.createElement("h2", { id, className: "gd-h2", tabIndex: -1 }, s.title), /* @__PURE__ */ React.createElement("p", { className: "gd-lead" }, lead || s.lead))), children);
+  }
+  function Toc({ active, wanted }) {
+    const onLink = (e, id) => {
+      if (wanted === id) {
+        e.preventDefault();
+        const el = document.getElementById(id);
+        if (el) {
+          scrollMainTo2(el, scrollBehavior());
+          el.focus({ preventScroll: true });
+        }
+      }
+    };
+    return /* @__PURE__ */ React.createElement("nav", { className: "gd-toc", "aria-label": TEXT5.toc }, /* @__PURE__ */ React.createElement("p", { className: "ds-caption-caps gd-toc__title" }, TEXT5.toc), /* @__PURE__ */ React.createElement("ul", { className: "gd-toc__list" }, SECTIONS2.map((s) => /* @__PURE__ */ React.createElement("li", { key: s.id }, /* @__PURE__ */ React.createElement("a", { href: hrefFor("guide", { query: { s: s.id } }), "aria-current": active === s.id ? "location" : void 0, onClick: (e) => onLink(e, s.id) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + s.icon, "aria-hidden": "true" }), s.title)))), /* @__PURE__ */ React.createElement("div", { className: "gd-toc__select" }, /* @__PURE__ */ React.createElement(Select3, { "aria-label": TEXT5.jump, value: active, options: SECTIONS2.map((s) => ({ value: s.id, label: s.title })), onChange: (e) => navigate(hrefFor("guide", { query: { s: e.target.value } })) })));
+  }
+  function StartSection({ estate, f, ui }) {
+    const t = estate.totals;
+    const clausePage = f.top.clause ? f.top.clause.page : null;
+    const steps = [START.steps.headline(headlineSentence(t)), START.steps.clause(clausePage), START.steps.change];
+    const glance = [
+      ["contracts", fmtNumber(f.counts.contracts)],
+      ["payments", fmtNumber(f.counts.payments)],
+      ["answers", fmtNumber(f.counts.answers)],
+      ["flagged", fmtNumber(f.counts.flaggedContracts)]
+    ];
+    return /* @__PURE__ */ React.createElement(Section2, { id: "start" }, /* @__PURE__ */ React.createElement(Callout, { title: START.sample.title }, /* @__PURE__ */ React.createElement("p", null, START.sample.body, " ", /* @__PURE__ */ React.createElement("button", { type: "button", className: "gd-link", onClick: (e) => ui.openAbout(e.currentTarget) }, TEXT5.aboutThisData))), /* @__PURE__ */ React.createElement("div", { className: "gd-glance-grid", role: "list", "aria-label": "The sample at a glance" }, glance.map(([k, v]) => /* @__PURE__ */ React.createElement("div", { role: "listitem", key: k, className: "gd-glance" }, /* @__PURE__ */ React.createElement(StatTile, { label: START.glance[k].label, value: v, icon: START.glance[k].icon, foot: START.glance[k].foot })))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "gd-h3" }, START.stepsTitle), /* @__PURE__ */ React.createElement("ol", { className: "gd-begin" }, steps.map((s, i) => /* @__PURE__ */ React.createElement("li", { key: s.title, className: "gd-begin__item" }, /* @__PURE__ */ React.createElement("span", { className: "gd-begin__num", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { className: "gd-begin__title" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "gd-begin__body" }, s.body)))))), /* @__PURE__ */ React.createElement("div", { className: "gd-actions" }, /* @__PURE__ */ React.createElement(Button12, { type: "button", variant: "primary", size: "lg", rightIcon: "arrow-right", onClick: () => navigate(hrefFor("overview")) }, START.primary), /* @__PURE__ */ React.createElement("a", { className: "gd-link gd-link--go", href: hrefFor("guide", { query: { s: "tour" } }) }, START.tourLink, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-down", "aria-hidden": "true" }))));
+  }
+  function TourSection({ estate, f }) {
+    const t = estate.totals;
+    const { flag, contract, cap, clause, doc } = f.top;
+    const attention = estate.radar.attention.length;
+    const startHead = f.start.totals.totalGBP !== t.totalGBP ? TEXT5.startingNote(fmtGBPCompact(f.start.totals.totalGBP)) : null;
+    const steps = [
+      {
+        key: "headline",
+        ...TOUR.steps.headline,
+        where: hrefFor("overview"),
+        lines: [headlineSentence(t), sumLine(t)],
+        note: startHead,
+        links: [{ href: hrefFor("overview") }]
+      },
+      {
+        key: "radar",
+        ...TOUR.steps.radar,
+        where: hrefFor("renewals"),
+        lines: [TOUR.steps.radar.needs(attention), radarSummaryLine("m3", estate.radar.groups.m3)],
+        links: [{ href: hrefFor("renewals") }]
+      },
+      {
+        key: "cap",
+        ...TOUR.steps.cap,
+        where: flag ? hrefFor("opportunities", { query: { flag: flag.id } }) : hrefFor("opportunities"),
+        lines: cap && clause ? [TOUR.steps.cap.paid(fmtGBPCompact(cap.spendAgainstCap), fmtGBPCompact(cap.capGBP)), TOUR.steps.cap.clause(clause.clauseRef, clause.page, doc && doc.pageCount)] : ["Open the top flag to see its clause and page."],
+        links: [{ href: flag ? hrefFor("opportunities", { query: { flag: flag.id } }) : hrefFor("opportunities") }],
+        clause: clause && contract ? { contractId: clause.contractId, extractionId: clause.extractionId, page: clause.page, context: contract.title } : null
+      },
+      {
+        key: "close",
+        ...TOUR.steps.close,
+        say: COPY.closePanel.spoken,
+        where: hrefFor("overview"),
+        lines: [COPY.closePanel.heading],
+        links: [{ href: hrefFor("overview") }]
+      }
+    ];
+    return /* @__PURE__ */ React.createElement(Section2, { id: "tour" }, /* @__PURE__ */ React.createElement(Callout, { title: TOUR.note.title }, /* @__PURE__ */ React.createElement("p", null, TOUR.note.body), /* @__PURE__ */ React.createElement("p", { className: "gd-callout__pill" }, f.moved ? /* @__PURE__ */ React.createElement(Pill, { tone: "info", icon: "pen" }, TOUR.pillChanged) : /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: "circle-check" }, TOUR.pillStart))), /* @__PURE__ */ React.createElement("ol", { className: "gd-steps" }, steps.map((s, i) => /* @__PURE__ */ React.createElement("li", { key: s.key, className: "gd-step" }, /* @__PURE__ */ React.createElement("div", { className: "gd-step__top" }, /* @__PURE__ */ React.createElement("span", { className: "gd-step__num", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("div", { className: "gd-step__titles" }, /* @__PURE__ */ React.createElement("h3", { className: "gd-step__title" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "gd-step__where" }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, TEXT5.where, ": "), /* @__PURE__ */ React.createElement("code", { className: "gd-code" }, s.where)))), /* @__PURE__ */ React.createElement("dl", { className: "gd-step__facts" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, TEXT5.doThis), /* @__PURE__ */ React.createElement("dd", null, s.do)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, TEXT5.say), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("q", null, s.say)))), /* @__PURE__ */ React.createElement(Expect, { lines: s.lines, note: s.note }), /* @__PURE__ */ React.createElement("div", { className: "gd-step__links" }, s.links.map((l) => /* @__PURE__ */ React.createElement(GoLink, { key: l.href, href: l.href, sr: `${i + 1}, ${s.title.toLowerCase()}` }, TEXT5.openStep)), s.clause && /* @__PURE__ */ React.createElement(ClauseLink, { ...s.clause, from: "opportunities" }))))));
+  }
+  function ScreensSection({ f }) {
+    const cards = screens(f);
+    return /* @__PURE__ */ React.createElement(Section2, { id: "screens" }, /* @__PURE__ */ React.createElement("ul", { className: "gd-screens" }, cards.map((c) => /* @__PURE__ */ React.createElement("li", { key: c.id, className: "gd-screen" }, /* @__PURE__ */ React.createElement("div", { className: "gd-screen__head" }, /* @__PURE__ */ React.createElement("span", { className: "gd-screen__icon", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: c.icon })), /* @__PURE__ */ React.createElement("h3", { className: "gd-screen__title" }, c.title)), /* @__PURE__ */ React.createElement("dl", { className: "gd-screen__facts" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "Answers"), /* @__PURE__ */ React.createElement("dd", null, c.answers)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "Who uses it"), /* @__PURE__ */ React.createElement("dd", null, c.who))), c.tabs && /* @__PURE__ */ React.createElement("p", { className: "gd-screen__tabs" }, c.tabs), /* @__PURE__ */ React.createElement("ul", { className: "gd-screen__links" }, c.links.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.href }, /* @__PURE__ */ React.createElement(GoLink, { href: l.href }, l.label))))))));
+  }
+  function TrySection({ estate, f, ui, actions }) {
+    const [theme, setTheme2] = useTheme();
+    const { flag, clause } = f.top;
+    const gbp2 = fmtGBPCompact;
+    const rows = [];
+    rows.push({
+      key: "theme",
+      icon: "circle-half-stroke",
+      ...TRY.theme,
+      see: [TRY.theme.see, TRY.theme.now(theme)],
+      action: /* @__PURE__ */ React.createElement(Button12, { type: "button", variant: "outline", leftIcon: theme === "dark" ? "sun" : "moon", onClick: () => setTheme2(theme === "dark" ? "light" : "dark") }, theme === "dark" ? COPY.toasts.themeToLight : COPY.toasts.themeToDark)
+    });
+    if (f.explain && flag) {
+      const e = f.explain;
+      rows.push({
+        key: "explain",
+        icon: "circle-check",
+        title: TRY.explain.title,
+        body: e.explained ? TRY.explain.bodyDone : TRY.explain.body,
+        see: [e.explained ? TRY.explain.rise(gbp2(e.now.totalGBP), gbp2(e.other.totalGBP)) : TRY.explain.fall(gbp2(e.now.totalGBP), gbp2(e.other.totalGBP), excludedNote(e.other))],
+        action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("opportunities", { query: { flag: flag.id } }) }, TRY.explain.link)
+      });
+    }
+    if (f.match) {
+      const m = f.match;
+      rows.push({
+        key: "match",
+        icon: "link",
+        title: TRY.match.title,
+        body: m.confirmed ? TRY.match.bodyDone : m.decision === "reject" ? TRY.match.bodyRejected : TRY.match.body(m.payee),
+        see: [TRY.match.moves(
+          m.contract.title,
+          `${fmtPct(m.before.cap.utilisation)} of its cap (${capStateLabel(m.before.cap)})`,
+          `${fmtPct(m.after.cap.utilisation)} (${capStateLabel(m.after.cap)})`,
+          gbp2(m.before.totals.totalGBP),
+          gbp2(m.after.totals.totalGBP)
+        )],
+        action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("spend", { seg: ["matches"] }) }, TRY.match.link)
+      });
+    }
+    const r = f.rate;
+    rows.push({
+      key: "rate",
+      icon: "sliders",
+      title: TRY.rate.title,
+      body: TRY.rate.body(fmtPct(r.target, 0), fmtPct(r.now, 0), fmtPct(DEFAULTS.renewalRate, 0)),
+      see: [TRY.rate.moves(gbp2(r.nowTotals.byType.renewal), gbp2(r.afterTotals.byType.renewal), gbp2(r.nowTotals.totalGBP), gbp2(r.afterTotals.totalGBP))],
+      action: /* @__PURE__ */ React.createElement(Button12, { type: "button", variant: "outline", leftIcon: "gear", onClick: (e) => ui.openSettings(e.currentTarget) }, TRY.rate.button)
+    });
+    if (clause) {
+      rows.push({
+        key: "handcheck",
+        icon: "clipboard-check",
+        ...TRY.handcheck,
+        see: [TRY.handcheck.now(handcheckLine(f.handcheck.checked, f.handcheck.total))],
+        action: /* @__PURE__ */ React.createElement(LinkButton, { icon: "file-lines", href: hrefFor("source", { seg: [clause.contractId, clause.extractionId], query: { from: "opportunities" } }) }, `Open ${clause.clauseRef.replace(/^Clause/, "clause")}, page ${clause.page}`)
+      });
+    }
+    rows.push({
+      key: "share",
+      icon: "share-nodes",
+      ...TRY.share,
+      see: [TRY.share.see],
+      action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("opportunities", { query: { type: "overCap" } }) }, TRY.share.link)
+    });
+    const resetAll = async (e) => {
+      if (!f.changes.length) {
+        ui.toast({ tone: "info", title: "Nothing to reset.", description: "You have not changed anything yet." });
+        return;
+      }
+      const ok = await ui.confirm({ title: COPY.resetDialog.title, description: COPY.resetDialog.body, confirmLabel: COPY.resetDialog.confirm, cancelLabel: COPY.resetDialog.cancel, destructive: true });
+      if (!ok) return;
+      actions.resetAll();
+      const [what, ...rest] = COPY.toasts.resetDone.split(new RegExp("(?<=\\.)\\s+"));
+      ui.toast({ tone: "success", title: what, description: rest.join(" ") });
+    };
+    rows.push({
+      key: "reset",
+      icon: "rotate-left",
+      title: TRY.reset.title,
+      body: TRY.reset.body,
+      see: [TRY.reset.see(gbp2(f.start.totals.totalGBP))],
+      status: f.changes.length ? TRY.reset.changed(f.changes) : TRY.reset.nothing,
+      action: /* @__PURE__ */ React.createElement(Button12, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)
+    });
+    return /* @__PURE__ */ React.createElement(Section2, { id: "try" }, /* @__PURE__ */ React.createElement("div", { className: "kx-card gd-try-card" }, /* @__PURE__ */ React.createElement("ul", { className: "gd-try-list" }, rows.map((row) => /* @__PURE__ */ React.createElement("li", { key: row.key, className: "gd-try", "data-try": row.key }, /* @__PURE__ */ React.createElement("span", { className: "gd-try__icon", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + row.icon })), /* @__PURE__ */ React.createElement("div", { className: "gd-try__main" }, /* @__PURE__ */ React.createElement("h3", { className: "gd-try__title" }, row.title), /* @__PURE__ */ React.createElement("p", { className: "gd-try__body" }, row.body), row.status && /* @__PURE__ */ React.createElement("p", { className: "gd-try__status" }, row.status), /* @__PURE__ */ React.createElement(Expect, { inline: true, lines: row.see })), /* @__PURE__ */ React.createElement("div", { className: "gd-try__action" }, row.action))))));
+  }
+  function NumbersSection({ estate, f }) {
+    const t = estate.totals;
+    const cards = breakdownCards(t);
+    const rate = fmtPct(estate.opts.renewalRate, 0);
+    const near = fmtPct(estate.opts.nearCapThreshold, 0);
+    const explain = { overCap: NUMBERS.bases.overCap, nearCap: NUMBERS.bases.nearCap, renewal: NUMBERS.bases.renewal(rate), uplift: NUMBERS.bases.uplift };
+    const confidenceLead = COPY.method.find((m) => m.id === "confidence").lead;
+    const noticeLead = COPY.method.find((m) => m.id === "notice").lead;
+    const excluded = excludedNote(t);
+    return /* @__PURE__ */ React.createElement(Section2, { id: "numbers" }, /* @__PURE__ */ React.createElement(Callout, { tone: "warning", title: NUMBERS.notSavings.title }, /* @__PURE__ */ React.createElement("p", null, COPY.caveat.long), /* @__PURE__ */ React.createElement("p", { className: "gd-callout__links" }, /* @__PURE__ */ React.createElement(MethodLink, { section: "indicative" }), " ", /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("evidence") }, "Read the cases on the evidence page"))), /* @__PURE__ */ React.createElement(Callout, { title: NUMBERS.indicative.title }, /* @__PURE__ */ React.createElement("p", null, COPY.caveat.tooltip), /* @__PURE__ */ React.createElement("p", null, NUMBERS.indicative.extra)), /* @__PURE__ */ React.createElement(
+      Panel,
+      {
+        as: "h3",
+        title: NUMBERS.bases.title,
+        description: NUMBERS.bases.intro,
+        padded: 20,
+        footer: /* @__PURE__ */ React.createElement("div", { className: "gd-sum" }, /* @__PURE__ */ React.createElement("p", { className: "gd-sum__label" }, NUMBERS.bases.addsUp), /* @__PURE__ */ React.createElement("p", { className: "gd-sum__line tnum" }, sumLine(t)), /* @__PURE__ */ React.createElement("p", { className: "gd-sum__note" }, NUMBERS.bases.once, excluded ? ` ${excluded}` : ""))
+      },
+      /* @__PURE__ */ React.createElement("ul", { className: "gd-bases" }, cards.map((c) => /* @__PURE__ */ React.createElement("li", { key: c.type, className: "gd-basis", "data-basis": c.type }, /* @__PURE__ */ React.createElement("h4", { className: "gd-basis__title" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: c.type, label: c.title })), /* @__PURE__ */ React.createElement("p", { className: "gd-basis__value tnum" }, c.value), /* @__PURE__ */ React.createElement("p", { className: "gd-basis__sub" }, c.sub), /* @__PURE__ */ React.createElement("p", { className: "gd-basis__text" }, explain[c.type]))))
+    ), /* @__PURE__ */ React.createElement("div", { className: "gd-pair" }, /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: NUMBERS.confidence.title, padded: 20 }, /* @__PURE__ */ React.createElement("ul", { className: "gd-rows" }, /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(ConfidencePill, { band: "high" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.confidence.high)), /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(ConfidencePill, { band: "medium" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.confidence.medium)), /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(ConfidencePill, { band: "review" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.confidence.review))), /* @__PURE__ */ React.createElement("p", { className: "gd-small" }, confidenceLead), /* @__PURE__ */ React.createElement("p", { className: "gd-small gd-small--strong" }, NUMBERS.confidence.live(f.flagsToReview, f.counts.ranked), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" }))), /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: NUMBERS.notice.title, padded: 20 }, /* @__PURE__ */ React.createElement("p", { className: "gd-text" }, NUMBERS.notice.body), /* @__PURE__ */ React.createElement("p", { className: "gd-text" }, noticeLead), /* @__PURE__ */ React.createElement("p", { className: "gd-text" }, NUMBERS.notice.miss), /* @__PURE__ */ React.createElement("p", { className: "gd-text" }, NUMBERS.notice.radar), /* @__PURE__ */ React.createElement("p", { className: "gd-small gd-links" }, /* @__PURE__ */ React.createElement(MethodLink, { section: "notice" }), /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("renewals") }, "Open renewal radar")))), /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: NUMBERS.cap.title, padded: 20 }, /* @__PURE__ */ React.createElement("ul", { className: "gd-rows gd-rows--cap" }, /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(CapStatePill, { state: "over" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.cap.over(fmtPct(1, 0)))), /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(CapStatePill, { state: "near" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.cap.near(near, fmtPct(1, 0)))), /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(CapStatePill, { state: "ok" }), /* @__PURE__ */ React.createElement("span", null, NUMBERS.cap.within(near))), /* @__PURE__ */ React.createElement("li", null, /* @__PURE__ */ React.createElement(Pill, { tone: "warning", icon: "triangle-exclamation" }, NUMBERS.cap.estimate), /* @__PURE__ */ React.createElement("span", null, NUMBERS.cap.estimateBody))), /* @__PURE__ */ React.createElement("p", { className: "gd-small gd-small--strong" }, NUMBERS.cap.live(f.capStates.over, f.capStates.near, f.capStates.ok), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "cap" }))));
+  }
+  function RealSection({ estate }) {
+    const notBuilt = roadmap.statusRows.filter((r) => r.notInPrototype).map((r) => r.feature.charAt(0).toLowerCase() + r.feature.slice(1));
+    const item = (x, extra) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("strong", null, x.lead), " ", x.body, extra);
+    const lists = {
+      real: [
+        item(REAL.real.calc, /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(MethodLink, null))),
+        item(REAL.real.cases(evidence.length), /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("evidence") }, "Read why this matters"))),
+        item(REAL.real.sources)
+      ],
+      made: [item(REAL.made.council), item(REAL.made.text), item(REAL.made.payments), item(REAL.made.date(fmtDateLong(estate.asOf)))],
+      not: [
+        item(REAL.not.stage2(joinList(notBuilt)), /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("roadmap") }, "Open roadmap"))),
+        item(REAL.not.ingestion),
+        item(REAL.not.ownData)
+      ]
+    };
+    return /* @__PURE__ */ React.createElement(Section2, { id: "real" }, /* @__PURE__ */ React.createElement("ul", { className: "gd-real" }, REAL.groups.map((g) => /* @__PURE__ */ React.createElement("li", { key: g.id, className: "gd-real__col gd-real__col--" + g.id }, /* @__PURE__ */ React.createElement("h3", { className: "gd-real__title" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + g.icon, "aria-hidden": "true" }), g.title), /* @__PURE__ */ React.createElement("ul", { className: "gd-bullets" }, lists[g.id].map((item2, i) => /* @__PURE__ */ React.createElement("li", { key: i }, item2)))))));
+  }
+  function GlossarySection() {
+    return /* @__PURE__ */ React.createElement(Section2, { id: "glossary" }, /* @__PURE__ */ React.createElement("dl", { className: "gd-glossary" }, GLOSSARY.map(([term, def]) => /* @__PURE__ */ React.createElement("div", { key: term, className: "gd-term" }, /* @__PURE__ */ React.createElement("dt", null, term), /* @__PURE__ */ React.createElement("dd", null, def)))));
+  }
+  function KeysSection({ f }) {
+    const list = addresses(f);
+    return /* @__PURE__ */ React.createElement(Section2, { id: "keys" }, /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: KEYS2.moving.title, padded: 20 }, /* @__PURE__ */ React.createElement("dl", { className: "gd-keys" }, KEYS2.moving.rows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.keys.join("-") + r.text.slice(0, 12), className: "gd-keys__row" }, /* @__PURE__ */ React.createElement("dt", null, r.keys.map((k, i) => /* @__PURE__ */ React.createElement("span", { key: k + i }, i > 0 && /* @__PURE__ */ React.createElement("span", { className: "gd-keys__sep" }, ", "), /* @__PURE__ */ React.createElement(Kbd, null, k)))), /* @__PURE__ */ React.createElement("dd", null, r.text))))), /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: KEYS2.addresses.title, description: KEYS2.addresses.intro, padded: 20 }, /* @__PURE__ */ React.createElement("ul", { className: "gd-addr" }, list.map((a) => /* @__PURE__ */ React.createElement("li", { key: a.pattern, className: "gd-addr__item" }, /* @__PURE__ */ React.createElement("code", { className: "gd-code gd-code--block" }, a.pattern), /* @__PURE__ */ React.createElement("p", { className: "gd-addr__what" }, a.what), /* @__PURE__ */ React.createElement("a", { className: "gd-link gd-link--go", href: a.example }, "Open example", /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ": ", a.pattern), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })))))), /* @__PURE__ */ React.createElement(Panel, { as: "h3", title: KEYS2.back.title, padded: 20 }, /* @__PURE__ */ React.createElement("p", { className: "gd-text" }, KEYS2.back.body)));
+  }
+  function FaqSection({ estate, f, ui }) {
+    const t = estate.totals;
+    const cov = estate.coverage;
+    const council = estate.council;
+    const head = fmtGBPCompact(t.totalGBP);
+    const m = f.match;
+    const roadmapNames = roadmap.statusRows.filter((r) => r.notInPrototype).map((r) => r.feature.charAt(0).toLowerCase() + r.feature.slice(1));
+    const gbp2 = fmtGBPCompact;
+    const items = [
+      {
+        q: `Why is the headline ${head} and not a bigger number?`,
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "The headline adds up only what a rule flags: money already paid above a cap, the part of close-to-cap spend that is projected to land above it, ", fmtPct(estate.opts.renewalRate, 0), " of each renewal's annual value, and price increases above a cap. It does not add up contract values or total spend. ", headlineShareText(t, cov)), /* @__PURE__ */ React.createElement("p", null, "It also leaves out ", fmtGBP(cov.noContractGBP), " paid to ", plural(cov.noContract.length, "payee"), " with no contract on the register, because there is no clause to test it against. Payments with a suggested supplier match are left out until you confirm them. ", /* @__PURE__ */ React.createElement(MethodLink, { section: "indicative" })))
+      },
+      {
+        q: 'Why do some contracts show "At least"?',
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, COPY.partialCoverageNote(council.spendDataFrom), " In this sample, ", plural(f.partialCaps, "contract"), " started before then, so ", f.partialCaps === 1 ? "its figure shows" : "their figures show", " At least: the real spend may be higher."), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("spend") }, "Open cap vs spend")))
+      },
+      {
+        q: "Why does confirming a match change the headline?",
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "A payment counts against a contract only when its payee name is matched to the contract's supplier. A similar name gets a score from 0 to 1. ", DEFAULTS.autoAcceptScore.toFixed(2), " or more is accepted, ", DEFAULTS.suggestScore.toFixed(2), " to ", (DEFAULTS.autoAcceptScore - 0.01).toFixed(2), " is suggested for you to confirm, and anything lower is left unmatched. ", COPY.matching.notCounted), m && /* @__PURE__ */ React.createElement("p", null, "In this sample, ", plural(m.paymentCount, "payment"), " (", fmtGBP(m.totalGBP), ") paid to ", m.payee, " ", m.confirmed ? "are counted because you confirmed the match" : "are suggested and not counted yet", ".", " ", m.confirmed ? `They count towards ${m.contract.title}, which is at ${fmtPct(m.after.cap.utilisation)} of its cap (${capStateLabel(m.after.cap)}).` : `Confirm the match and they count towards ${m.contract.title}. It moves from ${fmtPct(m.before.cap.utilisation)} to ${fmtPct(m.after.cap.utilisation)} of its cap (${capStateLabel(m.after.cap)}), which adds an over cap amount, so the headline moves from ${gbp2(m.before.totals.totalGBP)} to ${gbp2(m.after.totals.totalGBP)}.`), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("spend", { seg: ["matches"] }) }, "Open supplier matches"), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "matching" })))
+      },
+      {
+        q: "Can I use my own data?",
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Not today. There is no upload and no import in this prototype."), /* @__PURE__ */ React.createElement("p", null, "The prototype reads one JSON file that is built into the page. It holds ", plural(f.counts.contracts, "contract"), ", ", plural(f.counts.answers, "extracted answer"), " with their clause and page, and ", plural(f.counts.payments, "payment"), ", in the same shape as a council's contracts and spend. Every screen and every calculation runs on whatever is in that file, in your browser."), /* @__PURE__ */ React.createElement("p", null, "Using a council's own data would mean replacing that file and rebuilding the prototype. That has not been tried with real data. The prototype does not read documents or spend files. Whether Kontor can take a batch of public PDFs without a developer is still being tested."), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("button", { type: "button", className: "gd-link", onClick: (e) => ui.openAbout(e.currentTarget) }, TEXT5.aboutThisData), " ", /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("roadmap") }, "Open roadmap")))
+      },
+      {
+        q: 'What does "Needs review" mean?',
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Kontor is not sure about an answer that a flag relies on, or about a supplier match. Read the clause before you rely on the figure. ", COPY.method.find((x) => x.id === "confidence").lead), /* @__PURE__ */ React.createElement("p", null, "In this sample, ", plural(f.flagsToReview, "flag"), " of ", fmtNumber(f.counts.ranked), " ", f.flagsToReview === 1 ? "needs" : "need", " review, and ", plural(f.answersToReview, "answer"), " of ", fmtNumber(f.counts.answers), " ", f.answersToReview === 1 ? "is" : "are", " marked Needs review. ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" })))
+      },
+      {
+        q: "What is not covered yet?",
+        a: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, "Stage 2 and the not-yet items are not built: ", joinList(roadmapNames), ". Reading contracts is not shown either. This prototype starts after document ingestion, so every answer appears already extracted."), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("a", { className: "gd-link", href: hrefFor("roadmap") }, "Open roadmap")))
+      }
+    ];
+    return /* @__PURE__ */ React.createElement(Section2, { id: "faq" }, /* @__PURE__ */ React.createElement("div", { className: "gd-faq" }, items.map((it) => /* @__PURE__ */ React.createElement("details", { key: it.q, className: "gd-q" }, /* @__PURE__ */ React.createElement("summary", null, /* @__PURE__ */ React.createElement("span", null, it.q), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-chevron-down", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement("div", { className: "gd-q__a" }, it.a)))));
+  }
+  function Guide() {
+    const { estate, state, actions } = useEstate();
+    const ui = useUI();
+    const route = useRoute();
+    const wanted = route.query.get("s");
+    const [active, setActive] = (0, import_react42.useState)(SECTION_IDS[0]);
+    const f = (0, import_react42.useMemo)(() => guideFacts(estate, state), [estate, state]);
+    const first = (0, import_react42.useRef)(true);
+    (0, import_react42.useEffect)(() => {
+      if (!wanted || !SECTION_IDS.includes(wanted)) {
+        first.current = false;
+        return void 0;
+      }
+      const el = document.getElementById(wanted);
+      if (!el) return void 0;
+      const behavior = first.current ? "auto" : scrollBehavior();
+      first.current = false;
+      scrollMainTo2(el, behavior);
+      setActive(wanted);
+      let r2 = 0;
+      const r1 = requestAnimationFrame(() => {
+        r2 = requestAnimationFrame(() => el.focus({ preventScroll: true }));
+      });
+      return () => {
+        cancelAnimationFrame(r1);
+        cancelAnimationFrame(r2);
+      };
+    }, [wanted]);
+    (0, import_react42.useEffect)(() => {
+      const main = document.getElementById("shell-main");
+      if (!main) return void 0;
+      let raf = 0;
+      const update = () => {
+        raf = 0;
+        const box = main.getBoundingClientRect();
+        const line = box.top + 140;
+        const atEnd = main.scrollTop + main.clientHeight >= main.scrollHeight - 2;
+        let current = SECTION_IDS[0];
+        for (const id of SECTION_IDS) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          const top = el.getBoundingClientRect().top;
+          if (top <= line || atEnd && top < box.bottom - 48) current = id;
+        }
+        setActive(current);
+      };
+      const onScroll = () => {
+        if (!raf) raf = requestAnimationFrame(update);
+      };
+      main.addEventListener("scroll", onScroll, { passive: true });
+      return () => {
+        main.removeEventListener("scroll", onScroll);
+        if (raf) cancelAnimationFrame(raf);
+      };
+    }, []);
+    return /* @__PURE__ */ React.createElement("div", { className: "page gd-page" }, /* @__PURE__ */ React.createElement(PageHeader, { eyebrow: TEXT5.eyebrow, title: "Guide", asAt: true, description: /* @__PURE__ */ React.createElement("p", null, TEXT5.pageIntro) }), /* @__PURE__ */ React.createElement("div", { className: "gd-layout" }, /* @__PURE__ */ React.createElement(Toc, { active, wanted }), /* @__PURE__ */ React.createElement("div", { className: "gd-content" }, /* @__PURE__ */ React.createElement(StartSection, { estate, f, ui }), /* @__PURE__ */ React.createElement(TourSection, { estate, f }), /* @__PURE__ */ React.createElement(ScreensSection, { f }), /* @__PURE__ */ React.createElement(TrySection, { estate, f, ui, actions }), /* @__PURE__ */ React.createElement(NumbersSection, { estate, f }), /* @__PURE__ */ React.createElement(RealSection, { estate }), /* @__PURE__ */ React.createElement(GlossarySection, null), /* @__PURE__ */ React.createElement(KeysSection, { f }), /* @__PURE__ */ React.createElement(FaqSection, { estate, f, ui }))));
+  }
+
   // src/shell/rail.js
   init_react_shim();
   var RAIL = [
@@ -5887,7 +6728,9 @@
     },
     method: { title: "How this is calculated", rail: null, component: Method, maxSeg: 0 },
     roadmap: { title: "Roadmap", rail: "roadmap", component: Roadmap, maxSeg: 0 },
-    evidence: { title: "Evidence", rail: null, component: Evidence, maxSeg: 0 }
+    evidence: { title: "Evidence", rail: null, component: Evidence, maxSeg: 0 },
+    // The Guide is a header tab, not a rail item: the rail highlights nothing and AppFrame marks the Guide tab active (?s=<section> deep links).
+    guide: { title: "Guide", rail: null, component: Guide, maxSeg: 0 }
   };
   var NOT_FOUND = { title: "Page not found", rail: null, component: NotFound };
   function resolveRoute(route) {
@@ -5917,47 +6760,6 @@
 
   // src/shell/ThemeToggle.jsx
   init_react_shim();
-
-  // src/lib/theme.js
-  init_react_shim();
-  var import_react41 = __toESM(require_react(), 1);
-  var THEME_KEY = KEYS.theme;
-  var THEME_EVENT = "kontor-theme";
-  function getTheme() {
-    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
-  }
-  function setTheme(next) {
-    const t = next === "light" ? "light" : "dark";
-    const root = document.documentElement;
-    root.setAttribute("data-theme", t);
-    const meta = document.querySelector('meta[name="color-scheme"]');
-    if (meta) meta.setAttribute("content", t);
-    setItem(THEME_KEY, t);
-    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: t }));
-    return t;
-  }
-  function useTheme() {
-    const [theme, setLocal] = (0, import_react41.useState)(getTheme);
-    (0, import_react41.useEffect)(() => {
-      const sync = () => setLocal(getTheme());
-      const onStorage = (e) => {
-        if (e.key === THEME_KEY && (e.newValue === "light" || e.newValue === "dark")) {
-          document.documentElement.setAttribute("data-theme", e.newValue);
-          sync();
-        }
-      };
-      window.addEventListener(THEME_EVENT, sync);
-      window.addEventListener("storage", onStorage);
-      sync();
-      return () => {
-        window.removeEventListener(THEME_EVENT, sync);
-        window.removeEventListener("storage", onStorage);
-      };
-    }, []);
-    return [theme, setTheme];
-  }
-
-  // src/shell/ThemeToggle.jsx
   function ThemeToggle({ Tip: Tip2 }) {
     const [theme] = useTheme();
     const dark = theme === "dark";
@@ -5994,6 +6796,8 @@
     appShortName,
     appBadge,
     onCloseApp,
+    appActive = true,
+    appHref,
     tabs = DEFAULT_TABS,
     railItems = [],
     activeRail,
@@ -6011,7 +6815,12 @@
       const m = document.getElementById("shell-main");
       if (m) m.focus();
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("a", { className: "shell__skip", href: "#shell-main", onClick: skip }, "Skip to content"), /* @__PURE__ */ React.createElement("header", { className: "shell__header" }, /* @__PURE__ */ React.createElement("div", { className: "shell__left" }, /* @__PURE__ */ React.createElement(WMark, null), /* @__PURE__ */ React.createElement("nav", { className: "shell__tabs", "aria-label": "Workspace" }, tabs.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, type: "button", className: "shell__tab", onClick: t.onSelect }, icon(t.icon), /* @__PURE__ */ React.createElement("span", { className: "shell__tab-label" }, t.label))), /* @__PURE__ */ React.createElement("div", { className: "shell__apptab" }, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-chip", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: appIcon })), /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name", "aria-current": "page" }, appShortName ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name-full" }, appName), /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name-short", "aria-hidden": "true" }, appShortName)) : appName), appBadge && /* @__PURE__ */ React.createElement("span", { className: "shell__badge" }, appBadge), onCloseApp && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(Tip, { label: "Close app", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__apptab-close", "aria-label": `Close ${appName}`, onClick: onCloseApp }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("div", { className: "shell__right" }, headerRight, actions.map((a) => /* @__PURE__ */ React.createElement("span", { key: a.id, className: "shell__slot" + (a.optional ? " shell__slot--optional" : "") }, /* @__PURE__ */ React.createElement(Tip, { label: a.label, side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": a.label, onClick: a.onClick }, icon(a.icon))))), onMenu && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--phone-only" }, /* @__PURE__ */ React.createElement(Tip, { label: "Menu", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": "Menu", "aria-haspopup": "menu", onClick: (e) => onMenu(e.currentTarget) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-bars", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__avatar", "aria-label": user.name ? `Account: ${user.name}` : "Account", onClick: user.onClick }, user.initials))), /* @__PURE__ */ React.createElement("div", { className: "shell__body" }, /* @__PURE__ */ React.createElement("nav", { className: "shell__rail", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement("ul", { className: "shell__rail-list" }, railItems.map((it) => {
+    const nameInner = appShortName ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name-full" }, appName), /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name-short", "aria-hidden": "true" }, appShortName)) : appName;
+    return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("a", { className: "shell__skip", href: "#shell-main", onClick: skip }, "Skip to content"), /* @__PURE__ */ React.createElement("header", { className: "shell__header" }, /* @__PURE__ */ React.createElement("div", { className: "shell__left" }, /* @__PURE__ */ React.createElement(WMark, null), /* @__PURE__ */ React.createElement("nav", { className: "shell__tabs", "aria-label": "Workspace" }, tabs.map((t) => {
+      const body = /* @__PURE__ */ React.createElement(React.Fragment, null, icon(t.icon), /* @__PURE__ */ React.createElement("span", { className: "shell__tab-label" }, t.label), t.active && /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" }));
+      const cls = "shell__tab" + (t.active ? " is-active" : "");
+      return t.href ? /* @__PURE__ */ React.createElement("a", { key: t.id, className: cls, href: t.href, "aria-current": t.active ? "page" : void 0 }, body) : /* @__PURE__ */ React.createElement("button", { key: t.id, type: "button", className: cls, onClick: t.onSelect }, body);
+    }), /* @__PURE__ */ React.createElement("div", { className: "shell__apptab" + (appActive ? "" : " is-inactive") }, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-chip", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: appIcon })), appActive || !appHref ? /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name", "aria-current": appActive ? "page" : void 0 }, nameInner) : /* @__PURE__ */ React.createElement("a", { className: "shell__apptab-name shell__apptab-link", href: appHref }, nameInner), appBadge && /* @__PURE__ */ React.createElement("span", { className: "shell__badge" }, appBadge), onCloseApp && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(Tip, { label: "Close app", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__apptab-close", "aria-label": `Close ${appName}`, onClick: onCloseApp }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" })))), appActive && /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("div", { className: "shell__right" }, headerRight, actions.map((a) => /* @__PURE__ */ React.createElement("span", { key: a.id, className: "shell__slot" + (a.optional ? " shell__slot--optional" : "") }, /* @__PURE__ */ React.createElement(Tip, { label: a.label, side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": a.label, onClick: a.onClick }, icon(a.icon))))), onMenu && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--phone-only" }, /* @__PURE__ */ React.createElement(Tip, { label: "Menu", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": "Menu", "aria-haspopup": "menu", onClick: (e) => onMenu(e.currentTarget) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-bars", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__avatar", "aria-label": user.name ? `Account: ${user.name}` : "Account", onClick: user.onClick }, user.initials))), /* @__PURE__ */ React.createElement("div", { className: "shell__body" }, /* @__PURE__ */ React.createElement("nav", { className: "shell__rail", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement("ul", { className: "shell__rail-list" }, railItems.map((it) => {
       const active = it.id === activeRail;
       return /* @__PURE__ */ React.createElement("li", { key: it.id }, /* @__PURE__ */ React.createElement(Tip, { label: it.label, side: "right" }, /* @__PURE__ */ React.createElement(
         "button",
@@ -6030,7 +6839,7 @@
 
   // src/components/ToastHost.jsx
   init_react_shim();
-  var import_react42 = __toESM(require_react(), 1);
+  var import_react43 = __toESM(require_react(), 1);
   function ToastHost2() {
     const { toasts } = useUIState();
     const { dismissToast } = useUI();
@@ -6038,7 +6847,7 @@
   }
   function ToastBridge({ children }) {
     const ui = useUI();
-    const api = (0, import_react42.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
+    const api = (0, import_react43.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
     return /* @__PURE__ */ React.createElement(ToastContext.Provider, { value: api }, children);
   }
 
@@ -6104,7 +6913,11 @@
       const ok = await copyText(window.location.href);
       ui.toast(ok ? { tone: "success", title: "Link copied to your clipboard.", description: "It opens this screen with the same filters." } : { tone: "error", title: "Link not copied.", description: "Your browser blocked clipboard access. Copy the address from the address bar instead." });
     };
-    const tabs = DEFAULT_TABS.map((t) => ({ ...t, onSelect: inert(t.label) }));
+    const onGuide = route.name === "guide";
+    const tabs = [
+      ...DEFAULT_TABS.map((t) => ({ ...t, onSelect: inert(t.label) })),
+      { id: "guide", label: "Guide", icon: "fa-solid fa-book-open", href: "#/guide", active: onGuide }
+    ];
     const actions = DEFAULT_ACTIONS.map((a) => ({
       ...a,
       optional: a.id === "notifications" ? true : a.optional,
@@ -6119,6 +6932,8 @@
         appBadge: "Sample",
         banner: /* @__PURE__ */ React.createElement(SampleBanner, null),
         tabs,
+        appActive: !onGuide,
+        appHref: "#/overview",
         actions,
         user: { ...USER, onClick: inert("Account") },
         railItems: RAIL,
@@ -6142,7 +6957,7 @@
 
   // src/components/FlagDrawer.jsx
   init_react_shim();
-  var import_react43 = __toESM(require_react(), 1);
+  var import_react44 = __toESM(require_react(), 1);
 
   // src/data/reasons.js
   init_react_shim();
@@ -6210,8 +7025,8 @@
   }
 
   // src/components/FlagDrawer.jsx
-  var { Select: Select3 } = ds_default;
-  var TEXT5 = {
+  var { Select: Select4 } = ds_default;
+  var TEXT6 = {
     why: "Why this is flagged",
     how: "How this is calculated",
     confidence: "Confidence",
@@ -6248,8 +7063,8 @@
     const contract = flag ? estate.contractsById[flag.contractId] : null;
     const derived = flag ? estate.derived[flag.contractId] : null;
     const open = !!(flag && contract && derived);
-    const wasOpen = (0, import_react43.useRef)(false);
-    (0, import_react43.useEffect)(() => {
+    const wasOpen = (0, import_react44.useRef)(false);
+    (0, import_react44.useEffect)(() => {
       if (open) {
         wasOpen.current = true;
         return void 0;
@@ -6264,7 +7079,7 @@
       }, 30);
       return () => clearTimeout(t);
     }, [open]);
-    (0, import_react43.useEffect)(() => {
+    (0, import_react44.useEffect)(() => {
       if (!open) return void 0;
       let frames = 0;
       let raf = 0;
@@ -6288,7 +7103,7 @@
       const doc = estate.data.documents && estate.data.documents[contract.documentId];
       const from = RAIL_IDS.has(route.name) ? route.name : "opportunities";
       const reasons2 = reasonsFor(flag);
-      const hint = flag.indicativeGBP === 0 ? TEXT5.zeroValue : reviewed ? TEXT5.excluded(flag.indicativeGBP) : TEXT5.counted;
+      const hint = flag.indicativeGBP === 0 ? TEXT6.zeroValue : reviewed ? TEXT6.excluded(flag.indicativeGBP) : TEXT6.counted;
       const onTriage = (value) => {
         const next = { ...state.triage };
         if (value === "to_investigate") delete next[flag.id];
@@ -6298,8 +7113,8 @@
         const [title, ...rest] = triageToast(contract, value, totals).split(new RegExp("(?<=\\.)\\s+"));
         ui.toast({ tone: "success", title, description: rest.join(" ") });
       };
-      body = /* @__PURE__ */ React.createElement("div", { className: "flag-drawer__content" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum__pills" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: flag.type, label: flagTypeLabel(flag), muted: reviewed }), /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence }), status !== "to_investigate" && /* @__PURE__ */ React.createElement(ReviewBadge, { status, label: reviewStatusLabel(status) })), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__label kx-eyebrow" }, TEXT5.indicative), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__value" }, /* @__PURE__ */ React.createElement("span", { className: "kx-kpi", "data-flag-value": true }, fmtGBP(flag.indicativeGBP)), /* @__PURE__ */ React.createElement("span", { className: "flag-sum__basis" }, basisLabel(flag))), flag.actionBy && /* @__PURE__ */ React.createElement("p", { className: "flag-sum__date" }, actionByLabel(flag), " ", /* @__PURE__ */ React.createElement("time", { dateTime: flag.actionBy }, actionByText(flag)), ", ", relativeText(flag.actionBy).toLowerCase(), "."), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__caveat" }, COPY.caveat.short)), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT5.why), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasonFor(flag, contract, derived))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT5.how), /* @__PURE__ */ React.createElement("p", { className: "flag-block__rule" }, ruleFor(flag, derived)), /* @__PURE__ */ React.createElement("ol", { className: "flag-calc", "aria-label": TEXT5.how }, flag.breakdown.map((b, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flag-calc__row" + (b.kind === "result" ? " is-result" : ""), ...b.kind === "result" ? { "data-flag-result": "" } : {} }, /* @__PURE__ */ React.createElement("span", { className: "flag-calc__n", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__label" }, b.label, b.note && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, b.note), b.kind === "result" && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, TEXT5.resultNote)), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__value" }, breakdownValueText(b))))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(MethodLink, { section: methodSection(flag) }, TEXT5.methodLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT5.confidence), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence })), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, confidenceReason(flag), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" }, TEXT5.confidenceLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT5.source), targets.map((t, i) => /* @__PURE__ */ React.createElement("figure", { className: "flag-evidence", key: t.extractionId }, /* @__PURE__ */ React.createElement("figcaption", { className: "flag-evidence__ref" }, /* @__PURE__ */ React.createElement("span", { className: "kx-mono" }, t.clauseRef), /* @__PURE__ */ React.createElement("span", null, TEXT5.pageOf(t.page, doc && doc.pageCount)), /* @__PURE__ */ React.createElement("span", null, sentence3(fieldLabel(t.fieldKey)))), /* @__PURE__ */ React.createElement("blockquote", { className: "flag-evidence__quote" }, t.quote), i > 0 && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: t.contractId, extractionId: t.extractionId, page: t.page, from }))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__small" }, COPY.illustrativeLabel), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement("a", { className: "flag-textlink", href: hrefFor("contracts", { seg: [contract.id] }) }, /* @__PURE__ */ React.createElement("i", { className: "fa-regular fa-folder-open", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "flag-textlink__t" }, TEXT5.openContract, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", contract.title))))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, reasons2.heading || REASONS_HEADING), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasons2.intro), /* @__PURE__ */ React.createElement("ul", { className: "flag-reasons" }, reasons2.items.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.id }, r.text)))));
-      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT5.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT5.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select3, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
+      body = /* @__PURE__ */ React.createElement("div", { className: "flag-drawer__content" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum__pills" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: flag.type, label: flagTypeLabel(flag), muted: reviewed }), /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence }), status !== "to_investigate" && /* @__PURE__ */ React.createElement(ReviewBadge, { status, label: reviewStatusLabel(status) })), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__label kx-eyebrow" }, TEXT6.indicative), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__value" }, /* @__PURE__ */ React.createElement("span", { className: "kx-kpi", "data-flag-value": true }, fmtGBP(flag.indicativeGBP)), /* @__PURE__ */ React.createElement("span", { className: "flag-sum__basis" }, basisLabel(flag))), flag.actionBy && /* @__PURE__ */ React.createElement("p", { className: "flag-sum__date" }, actionByLabel(flag), " ", /* @__PURE__ */ React.createElement("time", { dateTime: flag.actionBy }, actionByText(flag)), ", ", relativeText(flag.actionBy).toLowerCase(), "."), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__caveat" }, COPY.caveat.short)), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.why), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasonFor(flag, contract, derived))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.how), /* @__PURE__ */ React.createElement("p", { className: "flag-block__rule" }, ruleFor(flag, derived)), /* @__PURE__ */ React.createElement("ol", { className: "flag-calc", "aria-label": TEXT6.how }, flag.breakdown.map((b, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flag-calc__row" + (b.kind === "result" ? " is-result" : ""), ...b.kind === "result" ? { "data-flag-result": "" } : {} }, /* @__PURE__ */ React.createElement("span", { className: "flag-calc__n", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__label" }, b.label, b.note && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, b.note), b.kind === "result" && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, TEXT6.resultNote)), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__value" }, breakdownValueText(b))))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(MethodLink, { section: methodSection(flag) }, TEXT6.methodLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.confidence), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence })), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, confidenceReason(flag), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" }, TEXT6.confidenceLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.source), targets.map((t, i) => /* @__PURE__ */ React.createElement("figure", { className: "flag-evidence", key: t.extractionId }, /* @__PURE__ */ React.createElement("figcaption", { className: "flag-evidence__ref" }, /* @__PURE__ */ React.createElement("span", { className: "kx-mono" }, t.clauseRef), /* @__PURE__ */ React.createElement("span", null, TEXT6.pageOf(t.page, doc && doc.pageCount)), /* @__PURE__ */ React.createElement("span", null, sentence3(fieldLabel(t.fieldKey)))), /* @__PURE__ */ React.createElement("blockquote", { className: "flag-evidence__quote" }, t.quote), i > 0 && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: t.contractId, extractionId: t.extractionId, page: t.page, from }))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__small" }, COPY.illustrativeLabel), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement("a", { className: "flag-textlink", href: hrefFor("contracts", { seg: [contract.id] }) }, /* @__PURE__ */ React.createElement("i", { className: "fa-regular fa-folder-open", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "flag-textlink__t" }, TEXT6.openContract, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", contract.title))))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, reasons2.heading || REASONS_HEADING), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasons2.intro), /* @__PURE__ */ React.createElement("ul", { className: "flag-reasons" }, reasons2.items.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.id }, r.text)))));
+      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT6.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT6.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select4, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
     }
     return /* @__PURE__ */ React.createElement(
       Drawer,
@@ -6318,8 +7133,8 @@
 
   // src/components/overlays/AboutDialog.jsx
   init_react_shim();
-  var { Button: Button12 } = ds_default;
-  var TEXT6 = {
+  var { Button: Button13 } = ds_default;
+  var TEXT7 = {
     moreLabel: "More on this",
     method: "How this is calculated",
     roadmap: "See what comes next"
@@ -6336,18 +7151,18 @@
         title: COPY.about.title,
         size: "wide",
         className: "ovl-about",
-        footer: /* @__PURE__ */ React.createElement(Button12, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
+        footer: /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
       },
       /* @__PURE__ */ React.createElement("dl", { className: "ovl-about__list" }, COPY.about.sections.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.heading, className: "ovl-about__item" }, /* @__PURE__ */ React.createElement("dt", null, s.heading), /* @__PURE__ */ React.createElement("dd", null, s.body)))),
-      /* @__PURE__ */ React.createElement("p", { className: "ovl-about__more" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-about__morelabel" }, TEXT6.moreLabel), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/method", onClick: close }, TEXT6.method), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/roadmap", onClick: close }, TEXT6.roadmap))
+      /* @__PURE__ */ React.createElement("p", { className: "ovl-about__more" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-about__morelabel" }, TEXT7.moreLabel), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/method", onClick: close }, TEXT7.method), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/roadmap", onClick: close }, TEXT7.roadmap))
     );
   }
 
   // src/components/overlays/FeedbackDialog.jsx
   init_react_shim();
-  var import_react44 = __toESM(require_react(), 1);
-  var { Button: Button13, Textarea } = ds_default;
-  var TEXT7 = {
+  var import_react45 = __toESM(require_react(), 1);
+  var { Button: Button14, Textarea } = ds_default;
+  var TEXT8 = {
     savedTitle: "Saved on this device",
     none: "No comment",
     copyFailed: { title: "Feedback not copied.", description: "Your browser blocked clipboard access. Select the saved comments on this screen and copy them by hand." },
@@ -6386,12 +7201,12 @@
   function FeedbackDialog({ open, onClose }) {
     const { state, actions } = useEstate();
     const ui = useUI();
-    const [answer, setAnswer] = (0, import_react44.useState)("");
-    const [comment, setComment] = (0, import_react44.useState)("");
-    const [error, setError] = (0, import_react44.useState)(null);
-    const group = (0, import_react44.useRef)(null);
+    const [answer, setAnswer] = (0, import_react45.useState)("");
+    const [comment, setComment] = (0, import_react45.useState)("");
+    const [error, setError] = (0, import_react45.useState)(null);
+    const group = (0, import_react45.useRef)(null);
     const saved2 = state.feedback;
-    (0, import_react44.useEffect)(() => {
+    (0, import_react45.useEffect)(() => {
       if (open) {
         setAnswer("");
         setComment("");
@@ -6418,7 +7233,7 @@
       const entries = saved2.slice();
       if (error === "storage_blocked" && answer) entries.push({ at: (/* @__PURE__ */ new Date()).toISOString(), answer, comment: comment.trim(), asOf: AS_OF });
       const ok = await copyText2(feedbackText(entries));
-      ui.toast(ok ? { tone: "success", title: COPY.toasts.feedbackCopied } : { tone: "error", ...TEXT7.copyFailed });
+      ui.toast(ok ? { tone: "success", title: COPY.toasts.feedbackCopied } : { tone: "error", ...TEXT8.copyFailed });
     };
     const showCopy = saved2.length > 0 || error === "storage_blocked";
     const errorText = error === "no_answer" ? COPY.errors.feedbackNoAnswer : error === "storage_blocked" ? COPY.errors.feedbackBlocked : null;
@@ -6430,7 +7245,7 @@
         title: COPY.feedback.title,
         size: "md",
         className: "ovl-feedback",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
       },
       /* @__PURE__ */ React.createElement("form", { className: "ovl-feedback__form", onSubmit: (e) => e.preventDefault(), noValidate: true }, /* @__PURE__ */ React.createElement(
         "fieldset",
@@ -6457,15 +7272,15 @@
             ...i === 0 ? { "data-autofocus": "" } : {}
           }
         )))
-      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
-      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT7.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT7.answerIcons[e.answer], size: "sm" }, TEXT7.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT7.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT7.none)))))
+      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
+      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT8.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT8.answerIcons[e.answer], size: "sm" }, TEXT8.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT8.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT8.none)))))
     );
   }
 
   // src/components/overlays/SettingsDrawer.jsx
   init_react_shim();
-  var { Button: Button14 } = ds_default;
-  var TEXT8 = {
+  var { Button: Button15 } = ds_default;
+  var TEXT9 = {
     title: "Settings",
     subtitle: "Assumptions, appearance and the demo reset",
     assumptions: "Assumptions",
@@ -6497,7 +7312,7 @@
     };
     const options = (key) => ASSUMPTION_OPTIONS[key].map((v) => ({ value: String(v), label: pct2(v) }));
     const choose = (key) => (value) => actions.setAssumption(key, Number(value));
-    const helpFor = (key, v) => [key === "renewalRate" ? TEXT8.renewalHelp : TEXT8.nearCapHelp, TEXT8.notes[key] && TEXT8.notes[key][v] || ""].filter(Boolean).join(" ");
+    const helpFor = (key, v) => [key === "renewalRate" ? TEXT9.renewalHelp : TEXT9.nearCapHelp, TEXT9.notes[key] && TEXT9.notes[key][v] || ""].filter(Boolean).join(" ");
     const isDefault = (key) => Math.abs(estate.opts[key] - DEFAULTS[key]) < 1e-9;
     const resetAll = async () => {
       const ok = await ui.confirm({
@@ -6524,22 +7339,22 @@
       {
         open,
         onClose: close,
-        title: TEXT8.title,
-        subtitle: TEXT8.subtitle,
+        title: TEXT9.title,
+        subtitle: TEXT9.subtitle,
         size: "md",
         className: "ovl-settings",
-        footer: /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "primary", onClick: close }, TEXT8.close)
+        footer: /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "primary", onClick: close }, TEXT9.close)
       },
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-assump" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-assump" }, TEXT8.assumptions), /* @__PURE__ */ React.createElement("p", { className: "ovl-banner", role: "note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, COPY.settings.assumptionsBanner)), [["renewalRate", COPY.settings.renewalRate], ["nearCapThreshold", COPY.settings.nearCap]].map(([key, label]) => /* @__PURE__ */ React.createElement("div", { className: "ovl-group", key }, /* @__PURE__ */ React.createElement("div", { className: "ovl-group__head" }, /* @__PURE__ */ React.createElement("p", { className: "ovl-label", "aria-hidden": "true" }, label), isDefault(key) ? /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", size: "sm" }, TEXT8.isDefault) : /* @__PURE__ */ React.createElement(Pill, { tone: "info", size: "sm", icon: "pen" }, TEXT8.isChanged)), /* @__PURE__ */ React.createElement(Segmented, { label, size: "lg", value: String(estate.opts[key]), onChange: choose(key), options: options(key) }), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, helpFor(key, estate.opts[key])))), /* @__PURE__ */ React.createElement("p", { className: "ovl-now", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-now__label" }, TEXT8.headlineNow), /* @__PURE__ */ React.createElement("span", { className: "ovl-now__value" }, headlineSentence(estate.totals)))),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-look" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-look" }, TEXT8.appearance), /* @__PURE__ */ React.createElement(SwitchField, { checked: theme === "dark", onChange: (on) => setTheme2(on ? "dark" : "light"), label: TEXT8.darkMode, description: TEXT8.darkHelp })),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT8.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT8.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT8.changed(counts) : TEXT8.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-assump" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-assump" }, TEXT9.assumptions), /* @__PURE__ */ React.createElement("p", { className: "ovl-banner", role: "note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, COPY.settings.assumptionsBanner)), [["renewalRate", COPY.settings.renewalRate], ["nearCapThreshold", COPY.settings.nearCap]].map(([key, label]) => /* @__PURE__ */ React.createElement("div", { className: "ovl-group", key }, /* @__PURE__ */ React.createElement("div", { className: "ovl-group__head" }, /* @__PURE__ */ React.createElement("p", { className: "ovl-label", "aria-hidden": "true" }, label), isDefault(key) ? /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", size: "sm" }, TEXT9.isDefault) : /* @__PURE__ */ React.createElement(Pill, { tone: "info", size: "sm", icon: "pen" }, TEXT9.isChanged)), /* @__PURE__ */ React.createElement(Segmented, { label, size: "lg", value: String(estate.opts[key]), onChange: choose(key), options: options(key) }), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, helpFor(key, estate.opts[key])))), /* @__PURE__ */ React.createElement("p", { className: "ovl-now", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-now__label" }, TEXT9.headlineNow), /* @__PURE__ */ React.createElement("span", { className: "ovl-now__value" }, headlineSentence(estate.totals)))),
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-look" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-look" }, TEXT9.appearance), /* @__PURE__ */ React.createElement(SwitchField, { checked: theme === "dark", onChange: (on) => setTheme2(on ? "dark" : "light"), label: TEXT9.darkMode, description: TEXT9.darkHelp })),
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT9.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT9.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT9.changed(counts) : TEXT9.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
     );
   }
 
   // src/components/overlays/DemoGuideDrawer.jsx
   init_react_shim();
-  var { Button: Button15 } = ds_default;
-  var TEXT9 = {
+  var { Button: Button16 } = ds_default;
+  var TEXT10 = {
     title: "Demo guide",
     subtitle: "Four steps, about five minutes, in dark mode",
     steps: "The four steps",
@@ -6557,27 +7372,27 @@
       if (onClose) onClose();
     };
     const steps = COPY.demoSteps(estate);
-    const notes = [TEXT9.fictionalNote, ...COPY.presenterNotes(estate)];
+    const notes = [TEXT10.fictionalNote, ...COPY.presenterNotes(estate)];
     return /* @__PURE__ */ React.createElement(
       Drawer,
       {
         open,
         onClose: close,
-        title: TEXT9.title,
-        subtitle: TEXT9.subtitle,
+        title: TEXT10.title,
+        subtitle: TEXT10.subtitle,
         size: "md",
         className: "ovl-guide",
-        footer: /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", onClick: close }, TEXT9.close)
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: "#/guide", onClick: close, style: { marginRight: "auto", alignSelf: "center" } }, "Open the full guide", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", onClick: close }, TEXT10.close))
       },
-      /* @__PURE__ */ React.createElement("section", { "aria-labelledby": "ovl-dg-steps" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3 ovl-sr", id: "ovl-dg-steps" }, TEXT9.steps), /* @__PURE__ */ React.createElement("ol", { className: "ovl-steps" }, steps.map((s) => /* @__PURE__ */ React.createElement("li", { key: s.n, className: "ovl-step" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-step__n", "aria-hidden": "true" }, s.n), /* @__PURE__ */ React.createElement("div", { className: "ovl-step__body" }, /* @__PURE__ */ React.createElement("h4", { className: "ovl-h4" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, s.text), s.link.href ? /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: s.link.href, onClick: close }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "ovl-link ovl-link--go", onClick: (e) => ui.openFeedback(e.currentTarget) }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }))))))),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-dg-extras" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-extras" }, TEXT9.extras), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, demoExtras.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t)))),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section ovl-notes", "aria-labelledby": "ovl-dg-notes" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-notes__head" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-notes" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clipboard-list", "aria-hidden": "true" }), TEXT9.notes), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, TEXT9.notesHelp)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, notes.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t))))
+      /* @__PURE__ */ React.createElement("section", { "aria-labelledby": "ovl-dg-steps" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3 ovl-sr", id: "ovl-dg-steps" }, TEXT10.steps), /* @__PURE__ */ React.createElement("ol", { className: "ovl-steps" }, steps.map((s) => /* @__PURE__ */ React.createElement("li", { key: s.n, className: "ovl-step" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-step__n", "aria-hidden": "true" }, s.n), /* @__PURE__ */ React.createElement("div", { className: "ovl-step__body" }, /* @__PURE__ */ React.createElement("h4", { className: "ovl-h4" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, s.text), s.link.href ? /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: s.link.href, onClick: close }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "ovl-link ovl-link--go", onClick: (e) => ui.openFeedback(e.currentTarget) }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }))))))),
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-dg-extras" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-extras" }, TEXT10.extras), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, demoExtras.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t)))),
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section ovl-notes", "aria-labelledby": "ovl-dg-notes" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-notes__head" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-notes" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-clipboard-list", "aria-hidden": "true" }), TEXT10.notes), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, TEXT10.notesHelp)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, notes.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t))))
     );
   }
 
   // src/components/overlays/MenuPopover.jsx
   init_react_shim();
-  var import_react45 = __toESM(require_react(), 1);
+  var import_react46 = __toESM(require_react(), 1);
   var ITEM = '[role="menuitem"]';
   function placementFor(anchor) {
     try {
@@ -6589,16 +7404,18 @@
   }
   function MenuPopover({ open, anchor, onClose }) {
     const ui = useUI();
-    const list = (0, import_react45.useRef)(null);
-    const [ready, setReady] = (0, import_react45.useState)(false);
+    const list = (0, import_react46.useRef)(null);
+    const [ready, setReady] = (0, import_react46.useState)(false);
     const items = [
       { id: "why", label: "Why this matters", icon: "scale-balanced", href: "#/evidence" },
       { id: "how", label: "How this is calculated", icon: "calculator", href: "#/method" },
       { id: "about", label: "About this data", icon: "circle-info", onSelect: () => ui.openAbout() },
+      { id: "guide", label: "Guide", icon: "book-open", href: "#/guide" },
+      // G1: also the way to the Guide on phones, where the header tabs collapse
       { id: "demo", label: "Demo guide", icon: "compass", onSelect: () => ui.openDemoGuide() },
       { id: "feedback", label: "Give feedback", icon: "message", onSelect: () => ui.openFeedback() }
     ];
-    (0, import_react45.useEffect)(() => {
+    (0, import_react46.useEffect)(() => {
       if (!open) {
         setReady(false);
         return void 0;
@@ -6606,7 +7423,7 @@
       const raf = requestAnimationFrame(() => setReady(true));
       return () => cancelAnimationFrame(raf);
     }, [open]);
-    (0, import_react45.useEffect)(() => {
+    (0, import_react46.useEffect)(() => {
       if (!open || !ready || !list.current) return;
       const first = list.current.querySelector(ITEM);
       if (first) first.focus({ preventScroll: true });

@@ -121,13 +121,15 @@
 .gd-screen__title { margin: 0; font: 600 17px/24px var(--font-display); color: var(--fg-1); }
 .gd-screen__facts { margin: 0; display: flex; flex-direction: column; gap: 12px; }
 .gd-screen__facts dd { margin: 0; font: 400 14px/22px var(--font-sans); color: var(--fg-1); text-wrap: pretty; }
+.gd-screen__tabs { margin: auto 0 -10px; font: 500 12px/16px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-2); }
+.gd-screen__tabs + .gd-screen__links { margin-top: 0; }
 .gd-screen__links { list-style: none; margin: auto 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .gd-screen__links li { margin: 0; }
 
 /* ---------- 4. try ---------- */
 .gd-try-card { padding: 0; }
 .gd-try-list { list-style: none; margin: 0; padding: 0; }
-.gd-try { display: grid; grid-template-columns: 40px minmax(0, 1fr) 264px; gap: 8px 16px; align-items: start; padding: 20px 24px; border-top: 1px solid var(--border-1); }
+.gd-try { display: grid; grid-template-columns: 40px minmax(0, 1fr) 292px; gap: 8px 16px; align-items: start; padding: 20px 24px; border-top: 1px solid var(--border-1); }
 .gd-try:first-child { border-top: 0; }
 .gd-try__icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; box-sizing: border-box; border-radius: var(--radius-md); background: var(--bg-2); color: var(--fg-1); font-size: 16px; }
 .gd-try__main { min-width: 0; }
@@ -174,6 +176,7 @@
 .shell .gd-bullets { list-style: disc; margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 12px; font: 400 14px/22px var(--font-sans); color: var(--fg-1); }
 .gd-bullets li { padding-left: 4px; text-wrap: pretty; }
 .gd-bullets li::marker { color: var(--fg-2); }
+.gd-bullets strong { font-weight: 600; }
 
 /* ---------- 7. glossary ---------- */
 .gd-glossary { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 48px; }

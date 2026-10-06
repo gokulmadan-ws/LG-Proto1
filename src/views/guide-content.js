@@ -121,13 +121,13 @@ export function screens(f) {
       who: 'Finance partners and contract managers checking spend against the contract.',
       tabs: 'Three tabs',
       links: [
-        { label: 'Cap vs spend', href: hrefFor('spend') },
-        { label: 'Supplier matches', href: hrefFor('spend', { seg: ['matches'] }) },
-        { label: 'No contract on the register', href: hrefFor('spend', { seg: ['no-contract'] }) },
+        { label: 'Open cap vs spend', href: hrefFor('spend') },
+        { label: 'Open supplier matches', href: hrefFor('spend', { seg: ['matches'] }) },
+        { label: 'See spend with no contract', href: hrefFor('spend', { seg: ['no-contract'] }) },
       ],
     },
     {
-      id: 'contracts', title: 'Contracts', icon: 'fa-regular fa-folder-open',
+      id: 'contracts', title: 'Contracts and contract detail', icon: 'fa-regular fa-folder-open',
       answers: 'What does this one contract say, and where does each answer come from?',
       who: 'Contract managers and internal audit looking up a single contract.',
       links: [
@@ -215,7 +215,7 @@ export const TRY = {
 /* --------------------------------------------------------------------------------------------------------- numbers */
 export const NUMBERS = {
   notSavings: {
-    title: 'Read every figure as a prompt to check',
+    title: 'Opportunities to investigate, not savings',
     see: 'The cases behind this caution are on the evidence page.',
   },
   indicative: {
@@ -223,7 +223,7 @@ export const NUMBERS = {
     extra: 'Every pound figure the prototype works out is indicative. The figures that are not worked out, such as a payment or a contract value, are exact and come straight from the data.',
   },
   bases: {
-    title: 'The four kinds of figure',
+    title: 'The four bases behind the headline',
     intro: 'The headline is the sum of four kinds of figure. Each has its own basis, so read the basis before you read the number.',
     overCap: 'You have paid more than the contract says you can. The amount is the part above the cap, and it is already paid.',
     nearCap: 'Spend is close to the cap. We project it forward at the pace of the last 12 months. The amount is the part of that projection that would land above the cap.',
@@ -263,19 +263,22 @@ export const REAL = {
     { id: 'made', title: 'Made up for the demo', icon: 'pen' },
     { id: 'not', title: 'Not built yet', icon: 'hourglass-half' },
   ],
+  // each item: a short bold lead, then the rest of the sentence
   real: {
-    calc: 'The calculations. Every figure is worked out in your browser from the sample data, by the rules on the method page.',
-    cases: (n) => `The evidence. ${n} public cases from councils and the Local Government Association are summarised on the evidence page, each with a link to its source.`,
-    sources: 'The sources the design is built around. Find a Tender, the Transparency Code spend files and Contracts Finder are all public.',
+    calc: { lead: 'The calculations.', body: 'Every figure is worked out in your browser from the sample data, by the rules on the method page.' },
+    cases: (n) => ({ lead: 'The evidence.', body: `${n} public cases from councils and the Local Government Association are summarised on the evidence page, each with a link to its source.` }),
+    sources: { lead: 'The sources.', body: 'Find a Tender, the Transparency Code spend files and Contracts Finder are all public, and the design is built around them.' },
   },
   made: {
-    payments: 'The payment rows look like the files councils publish for payments over £500: date, department, supplier, purpose and amount. They are not copies of any real file.',
-    date: (long) => `The date. Every figure is calculated as at ${long}, whatever today's date is.`,
+    council: { lead: 'The council.', body: 'Marchbank Borough Council, its suppliers, contracts and payments are fictional. They were written for this demo.' },
+    text: { lead: 'The contract text.', body: 'It is illustrative text written for this demo, not a real document.' },
+    payments: { lead: 'The payment rows.', body: 'They look like the files councils publish for payments over £500: date, department, supplier, purpose and amount. They are not copies of any real file.' },
+    date: (long) => ({ lead: 'The date.', body: `Every figure is calculated as at ${long}, whatever today's date is.` }),
   },
   not: {
-    stage2: (list) => `Stage 2 and the not-yet items: ${list}.`,
-    ingestion: 'Reading documents. This prototype starts after document ingestion, so every answer is shown as already extracted.',
-    ownData: 'Your own data. You cannot load it from the screen.',
+    stage2: (list) => ({ lead: 'Stage 2 and the not-yet items.', body: `${list.charAt(0).toUpperCase()}${list.slice(1)}.` }),
+    ingestion: { lead: 'Reading documents.', body: 'This prototype starts after document ingestion, so every answer is shown as already extracted.' },
+    ownData: { lead: 'Your own data.', body: 'You cannot load it from the screen.' },
   },
 };
 
@@ -283,10 +286,10 @@ export const REAL = {
 export const GLOSSARY = [
   ['Auto-renewal', 'The contract renews by itself for a set period unless you give notice in time.'],
   ['Buying group', 'Councils that buy the same thing together to get a better price. Forming one is a Stage 2 idea on the roadmap.'],
-  ['Contract cap or maximum value', 'The most the contract says you can pay the supplier. Some contracts state a maximum. Others give only a contract value, which is an estimate and not a ceiling.'],
+  ['Contract cap or maximum value', 'The most the contract says you can pay the supplier. Some contracts give only a contract value, which is an estimate and not a ceiling.'],
   ['Contracts Finder', 'The public service for contract notices. In this project it is the source for contracts below £5m, where full documents are not published.'],
   ['Exit fee', 'A charge the supplier can make if the contract ends early.'],
-  ['Extension option', "A right to carry on beyond the first term, for example two extensions of 12 months. Some are the council's choice. Others need both sides to agree."],
+  ['Extension option', "A right to carry on beyond the first term, for example two extensions of 12 months. Some are the council's choice and others need both sides to agree."],
   ['Find a Tender', 'The central platform where councils must publish a copy of any contract over £5m, for procurements started on or after 24 February 2025.'],
   ['Framework', 'An agreement a buying body sets up with suppliers, so councils can buy from it without a new tender each time.'],
   ['Indexation', 'A rule that lets prices rise each year with an index such as CPI. Many contracts cap the rise.'],
@@ -315,7 +318,7 @@ export const KEYS = {
     intro: 'Filters, tabs and open panels are written into the address, so a copied link opens the same view. Replace the words in angle brackets with a real id.',
   },
   back: {
-    title: 'What Back does',
+    title: 'What the back button does',
     body: 'Back takes you to the last screen you opened. Moving to another screen adds a step. Changing a filter, searching, or opening a flag panel from a list does not, so one press of Back leaves the screen. A link that opens a flag panel from another screen does add a step, and Back then closes the panel and returns you to where you were.',
   },
 };
@@ -330,7 +333,7 @@ export function addresses(f) {
     { pattern: '#/<screen>?flag=<flag id>', what: 'The flag panel, on any screen.', example: hrefFor('opportunities', { query: { flag: fid } }) },
     { pattern: '#/spend?state=<state>', what: 'Cap vs spend for contracts over, close to or within the cap.', example: hrefFor('spend', { query: { state: 'over' } }) },
     { pattern: '#/spend?payments=<contract id>', what: "The payments behind a contract's spend figure.", example: hrefFor('spend', { query: { payments: cid } }) },
-    { pattern: '#/spend/matches?status=review', what: 'Supplier matches waiting for your review.', example: hrefFor('spend', { seg: ['matches'], query: { status: 'review' } }) },
+    { pattern: '#/spend/matches?status=<status>', what: 'Supplier matches by status: review, accepted, unmatched or yours.', example: hrefFor('spend', { seg: ['matches'], query: { status: 'accepted' } }) },
     { pattern: '#/contracts/<contract id>', what: 'One contract and its answers.', example: hrefFor('contracts', { seg: [cid] }) },
     { pattern: '#/source/<contract id>/<answer id>', what: 'A clause in the source viewer.', example: clause ? hrefFor('source', { seg: [clause.contractId, clause.extractionId], query: { from: 'opportunities' } }) : hrefFor('contracts') },
     { pattern: '#/method?s=<section>', what: 'A section of How this is calculated.', example: hrefFor('method', { query: { s: 'cap' } }) },
