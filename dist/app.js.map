@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/lib/react-shim.js", "globals:react-dom/client", "../src/main.jsx"],
+  "sourcesContent": ["// Classic JSX needs `React` in scope; React is a browser global (vendor/react.production.min.js).\nexport const React = window.React;\n", "module.exports = window.ReactDOM;", "import './styles/app.css';\nimport { createRoot } from 'react-dom/client';\n\nconst { Button, Badge, Card } = window.Springboard20DesignSystem_019e02;\n\nfunction Smoke() {\n  return (\n    <div style={{ padding: 32, display: 'flex', gap: 16, alignItems: 'center' }}>\n      <Button>Review contract</Button>\n      <Badge>Smoke test</Badge>\n      <i className=\"fa-solid fa-house\" aria-hidden=\"true\" />\n      <Card style={{ padding: 16 }}>Card surface</Card>\n    </div>\n  );\n}\ncreateRoot(document.getElementById('root')).render(<Smoke />);\n"],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MACa;AADb;AAAA;AACO,MAAM,QAAQ,OAAO;AAAA;AAAA;;;ACD5B;AAAA;AAAA;AAAA,aAAO,UAAU,OAAO;AAAA;AAAA;;;ACAxB;AACA,sBAA2B;AAE3B,MAAM,EAAE,QAAQ,OAAO,KAAK,IAAI,OAAO;AAEvC,WAAS,QAAQ;AACf,WACE,oCAAC,SAAI,OAAO,EAAE,SAAS,IAAI,SAAS,QAAQ,KAAK,IAAI,YAAY,SAAS,KACxE,oCAAC,cAAO,iBAAe,GACvB,oCAAC,aAAM,YAAU,GACjB,oCAAC,OAAE,WAAU,qBAAoB,eAAY,QAAO,GACpD,oCAAC,QAAK,OAAO,EAAE,SAAS,GAAG,KAAG,cAAY,CAC5C;AAAA,EAEJ;AACA,gCAAW,SAAS,eAAe,MAAM,CAAC,EAAE,OAAO,oCAAC,WAAM,CAAE;",
+  "names": []
+}

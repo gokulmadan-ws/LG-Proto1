@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/styles/app.css"],
+  "sourcesContent": ["html, body { margin: 0; height: 100%; background: var(--bg-canvas); color: var(--fg-1); font-family: var(--font-sans); }\n"],
+  "mappings": ";AAAA;AAAM;AAAO,UAAQ;AAAG,UAAQ;AAAM,cAAY,IAAI;AAAc,SAAO,IAAI;AAAS,eAAa,IAAI;AAAc;",
+  "names": []
+}

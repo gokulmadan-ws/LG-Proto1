@@ -1,0 +1,17 @@
+/* ========================================================================
+   Springboard 2.0 — Whitespace Design System
+   Global stylesheet entry point (read by the design-system compiler).
+
+   Layer order:
+   1. tokens/fig-tokens.css — complete token dump generated from the Figma
+      Variables (raw colour ramps: cool-grey, blue, red, green …; the Figma
+      semantic layer: --background-surface, --action-primary-default …;
+      plus shadcn / your-brand / breakpoint modes). Source of truth, verbatim.
+      Its semantic layer is LIGHT by default, dark under `.dark` /
+      [data-theme="dark"] — matching the Figma file's default mode.
+   2. colors_and_type.css — curated, DARK-FIRST foundation API
+      (--bg-1, --fg-1, --accent, type recipes, fonts). Use this for quick work.
+   ======================================================================== */
+
+@import './components/fig-tokens.css';
+@import './colors_and_type.css';
