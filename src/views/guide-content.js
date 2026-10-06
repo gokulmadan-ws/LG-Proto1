@@ -35,6 +35,10 @@ export const TEXT = {
 
 /* ------------------------------------------------------------------------------------------------------------ start */
 export const START = {
+  sample: {
+    title: 'Everything here is sample data',
+    body: 'Marchbank Borough Council, its suppliers, contracts and payments are fictional. They were written for this demo. Real councils appear only in the public cases, which link to their sources.',
+  },
   stepsTitle: 'Three steps to begin',
   primary: 'Open the overview',
   tourLink: 'See the five-minute tour',
@@ -184,7 +188,7 @@ export const TRY = {
   },
   rate: {
     title: 'Change the renewal rate',
-    body: (target, now, def) => `Open Settings and choose ${target} for the renewal rate. It is ${now} now. The default, ${def}, is a prototype assumption.`,
+    body: (target, now, def) => `Open Settings and choose ${target} for the renewal rate. ${now === def ? '' : `It is ${now} now. `}The default is ${def}, a prototype assumption.`,
     button: 'Open settings',
     moves: (cardA, cardB, headA, headB) => `The renewals card moves from ${cardA} to ${cardB}, and the headline from ${headA} to ${headB}.`,
   },

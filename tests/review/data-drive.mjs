@@ -64,14 +64,16 @@ try {
   await verifyAll('[confirm Larchmont]');
   const afterConfirm = await text('#shell-main'); t0.check('confirm toast/undo present and status Confirmed by you', () => { if (!/Confirmed/.test(afterConfirm)) throw new Error('no Confirmed'); });
   // undo
-  const undo = page.getByRole('button', { name: /Undo/ }); if (await undo.count()) { await undo.first().click(); await settle(300); delete st.decisions['Larchmont Grounds Maintenance']; await verifyAll('[undo confirm]'); }
+  await go(page, '#/spend/matches'); await settle(200);
+  const undo = page.getByRole('button', { name: /Undo decision/ }); if (await undo.count()) { await undo.first().click(); await settle(300); delete st.decisions['Larchmont Grounds Maintenance']; await verifyAll('[undo confirm]'); }
   await go(page, '#/spend/matches'); await settle(200);
   await page.getByRole('button', { name: /Reject match\s*,\s*Larchmont Grounds Maintenance/ }).click(); await settle(300);
   st.decisions['Larchmont Grounds Maintenance'] = 'reject';
   await verifyAll('[reject Larchmont]');
   const e2 = engine();
   t0.check('reject moves Larchmont to no-contract: 9 payees', () => { if (e2.coverage.noContract.length !== 9) throw new Error(String(e2.coverage.noContract.length)); const s = e2.coverage.noContract.reduce((a, x) => a + x.totalGBP, 0); if (s !== 24130000) throw new Error(String(s)); });
-  const undo2 = page.getByRole('button', { name: /Undo/ }); if (await undo2.count()) { await undo2.first().click(); await settle(300); delete st.decisions['Larchmont Grounds Maintenance']; await verifyAll('[undo reject]'); }
+  await go(page, '#/spend/matches'); await settle(200);
+  const undo2 = page.getByRole('button', { name: /Undo decision/ }); if (await undo2.count()) { await undo2.first().click(); await settle(300); delete st.decisions['Larchmont Grounds Maintenance']; await verifyAll('[undo reject]'); }
 
   // ---- assumptions
   await setRadio('Renewal rate', '8%'); st.assumptions.renewalRate = 0.08; await verifyAll('[rate 8%]');
