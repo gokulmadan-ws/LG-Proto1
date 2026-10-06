@@ -29,7 +29,10 @@ export const DEFAULT_ACTIONS = [
  * @param {string}   [appShortName] shown instead of appName below 700px (the full name stays for screen readers)
  * @param {string|Node} [appBadge]  small neutral pill after the app name (the prototype passes 'Sample')
  * @param {Function} [onCloseApp]   shows the x on the app tab when provided
- * @param {Array}    [tabs]         inactive tabs left of the app tab: {id,label,icon,onSelect?}. Default Apps + Chat
+ * @param {Array}    [tabs]         tabs left of the app tab: {id,label,icon,onSelect?,href?,active?}. Default Apps + Chat.
+ *                                  `href` renders the tab as a link (the Guide); `active` gives it the app tab's look (aria-current, accent underline)
+ * @param {boolean}  [appActive]    false while another tab (the Guide) is active: the app tab loses its underline and becomes a link to `appHref`
+ * @param {string}   [appHref]      where the inactive app tab goes
  * @param {Array}    railItems      {id,label,icon,short?}   (label = aria-label + tooltip, short = mobile caption)
  * @param {string}   activeRail     id of the active rail item (null/undefined = none, e.g. Method, Evidence)
  * @param {Function} [onRailChange] (id) => void
@@ -47,6 +50,8 @@ export function AppShell({
   appShortName,
   appBadge,
   onCloseApp,
+  appActive = true,
+  appHref,
   tabs = DEFAULT_TABS,
   railItems = [],
   activeRail,
@@ -61,6 +66,12 @@ export function AppShell({
 }) {
   // Skip link must NOT change location.hash (the app uses hash routing).
   const skip = (e) => { e.preventDefault(); const m = document.getElementById('shell-main'); if (m) m.focus(); };
+  const nameInner = appShortName ? (
+    <>
+      <span className="shell__apptab-name-full">{appName}</span>
+      <span className="shell__apptab-name-short" aria-hidden="true">{appShortName}</span>
+    </>
+  ) : appName;
 
   return (
     <div className="shell">
@@ -71,22 +82,24 @@ export function AppShell({
         <div className="shell__left">
           <WMark />
           <nav className="shell__tabs" aria-label="Workspace">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" className="shell__tab" onClick={t.onSelect}>
-                {icon(t.icon)}
-                <span className="shell__tab-label">{t.label}</span>
-              </button>
-            ))}
-            <div className="shell__apptab">
+            {tabs.map((t) => {
+              const body = (
+                <>
+                  {icon(t.icon)}
+                  <span className="shell__tab-label">{t.label}</span>
+                  {t.active && <span className="shell__apptab-rule" aria-hidden="true" />}
+                </>
+              );
+              const cls = 'shell__tab' + (t.active ? ' is-active' : '');
+              return t.href
+                ? <a key={t.id} className={cls} href={t.href} aria-current={t.active ? 'page' : undefined}>{body}</a>
+                : <button key={t.id} type="button" className={cls} onClick={t.onSelect}>{body}</button>;
+            })}
+            <div className={'shell__apptab' + (appActive ? '' : ' is-inactive')}>
               <span className="shell__apptab-chip" aria-hidden="true"><i className={appIcon} /></span>
-              <span className="shell__apptab-name" aria-current="page">
-                {appShortName ? (
-                  <>
-                    <span className="shell__apptab-name-full">{appName}</span>
-                    <span className="shell__apptab-name-short" aria-hidden="true">{appShortName}</span>
-                  </>
-                ) : appName}
-              </span>
+              {appActive || !appHref
+                ? <span className="shell__apptab-name" aria-current={appActive ? 'page' : undefined}>{nameInner}</span>
+                : <a className="shell__apptab-name shell__apptab-link" href={appHref}>{nameInner}</a>}
               {appBadge && <span className="shell__badge">{appBadge}</span>}
               {onCloseApp && (
                 <span className="shell__slot shell__slot--optional">
@@ -97,7 +110,7 @@ export function AppShell({
                   </Tip>
                 </span>
               )}
-              <span className="shell__apptab-rule" aria-hidden="true" />
+              {appActive && <span className="shell__apptab-rule" aria-hidden="true" />}
             </div>
           </nav>
         </div>

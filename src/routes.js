@@ -16,6 +16,7 @@ import Source from './views/Source.jsx';
 import Method from './views/Method.jsx';
 import Roadmap from './views/Roadmap.jsx';
 import Evidence from './views/Evidence.jsx';
+import Guide from './views/Guide.jsx';
 import { NotFound } from './components/NotFound.jsx';
 import { RAIL, RAIL_IDS } from './shell/rail.js';
 
@@ -52,6 +53,8 @@ export const ROUTES = {
   method: { title: 'How this is calculated', rail: null, component: Method, maxSeg: 0 },
   roadmap: { title: 'Roadmap', rail: 'roadmap', component: Roadmap, maxSeg: 0 },
   evidence: { title: 'Evidence', rail: null, component: Evidence, maxSeg: 0 },
+  // The Guide is a header tab, not a rail item: the rail highlights nothing and AppFrame marks the Guide tab active (?s=<section> deep links).
+  guide: { title: 'Guide', rail: null, component: Guide, maxSeg: 0 },
 };
 
 const NOT_FOUND = { title: 'Page not found', rail: null, component: NotFound };

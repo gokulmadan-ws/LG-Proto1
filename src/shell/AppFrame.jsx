@@ -65,7 +65,12 @@ function Frame({ route: routeProp, rail, title, overlays, children }) {
       : { tone: 'error', title: 'Link not copied.', description: 'Your browser blocked clipboard access. Copy the address from the address bar instead.' });
   };
 
-  const tabs = DEFAULT_TABS.map((t) => ({ ...t, onSelect: inert(t.label) }));
+  // The Guide is a real tab (a link to #/guide); Apps and Chat stay inert. On the Guide the app tab steps back (appActive) and the rail highlights nothing.
+  const onGuide = route.name === 'guide';
+  const tabs = [
+    ...DEFAULT_TABS.map((t) => ({ ...t, onSelect: inert(t.label) })),
+    { id: 'guide', label: 'Guide', icon: 'fa-solid fa-book-open', href: '#/guide', active: onGuide },
+  ];
   const actions = DEFAULT_ACTIONS.map((a) => ({
     ...a,
     optional: a.id === 'notifications' ? true : a.optional,       // phones: the header makes room for the Menu button instead
@@ -80,6 +85,8 @@ function Frame({ route: routeProp, rail, title, overlays, children }) {
         appBadge="Sample"
         banner={<SampleBanner />}
         tabs={tabs}
+        appActive={!onGuide}
+        appHref="#/overview"
         actions={actions}
         user={{ ...USER, onClick: inert('Account') }}
         railItems={RAIL}

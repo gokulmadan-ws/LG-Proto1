@@ -433,15 +433,15 @@ try {
   const menuBtn = mp.locator('.shell__rail-menu');
   const items = () => mp.locator('nav[aria-label="Menu"] [role="menuitem"]');
   const openMenuByKey = async () => { await menuBtn.focus(); await mp.keyboard.press('Enter'); await mp.locator('nav[aria-label="Menu"] [role="menu"]').waitFor(); await settle(mp, 120); };
-  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the five items in order; the first item has focus', async () => {
+  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the six items in order (G1 added Guide); the first item has focus', async () => {
     await openMenuByKey();
     eq(await mp.locator('nav[aria-label="Menu"]').count(), 1, 'nav landmark');
     eq(await mp.locator('nav[aria-label="Menu"] [role="menu"]').count(), 1, 'role=menu');
-    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Demo guide', 'Give feedback'], 'items');
+    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback'], 'items');
     eq((await activeInfo(mp)).label, 'Why this matters', 'first item focused');
     eq(await menuBtn.getAttribute('aria-haspopup'), 'menu', 'aria-haspopup');
     const hrefs = await items().evaluateAll((els) => els.map((e) => e.getAttribute('href')));
-    eq(hrefs, ['#/evidence', '#/method', null, null, null], 'links');
+    eq(hrefs, ['#/evidence', '#/method', null, '#/guide', null, null], 'links');
   });
   await check('Menu: ArrowDown and ArrowUp move and wrap, Home and End jump, a letter jumps to the next item that starts with it', async () => {
     await mp.keyboard.press('ArrowDown'); eq((await activeInfo(mp)).label, 'How this is calculated', 'down');
@@ -995,7 +995,7 @@ try {
     ok(box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844, 'inside the screen: ' + JSON.stringify(box));
     const bb = await btn.boundingBox();
     ok(box.y >= bb.y + bb.height - 4, 'below the button');
-    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 5, 'items');
+    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 6, 'items');
     await t.page.keyboard.press('Escape');
     ok((await axe(t.page)).length === 0, 'axe on the phone');
   });

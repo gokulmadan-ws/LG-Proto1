@@ -54,6 +54,7 @@ const ROUTES = [
   { hash: '#/method?s=cap', title: null, rail: null },
   { hash: '#/roadmap', title: 'Roadmap', rail: 'Roadmap' },
   { hash: '#/evidence', title: null, rail: null },
+  { hash: '#/guide', title: 'Guide', rail: null },
   { hash: '#/no-such-page', title: 'Page not found', rail: null },
   { hash: '#/spend/bogus', title: 'Page not found', rail: null },
 ];

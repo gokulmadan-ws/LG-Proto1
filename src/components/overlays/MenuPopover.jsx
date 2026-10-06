@@ -38,6 +38,7 @@ export default function MenuPopover({ open, anchor, onClose }) {
     { id: 'why', label: 'Why this matters', icon: 'scale-balanced', href: '#/evidence' },
     { id: 'how', label: 'How this is calculated', icon: 'calculator', href: '#/method' },
     { id: 'about', label: 'About this data', icon: 'circle-info', onSelect: () => ui.openAbout() },
+    { id: 'guide', label: 'Guide', icon: 'book-open', href: '#/guide' },   // G1: also the way to the Guide on phones, where the header tabs collapse
     { id: 'demo', label: 'Demo guide', icon: 'compass', onSelect: () => ui.openDemoGuide() },
     { id: 'feedback', label: 'Give feedback', icon: 'message', onSelect: () => ui.openFeedback() },
   ];

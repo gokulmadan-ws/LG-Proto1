@@ -48,7 +48,12 @@ export default function DemoGuideDrawer({ open, onClose }) {
       subtitle={TEXT.subtitle}
       size="md"
       className="ovl-guide"
-      footer={<Button type="button" variant="outline" onClick={close}>{TEXT.close}</Button>}
+      footer={(
+        <>
+          <a className="ovl-link ovl-link--go" href="#/guide" onClick={close} style={{ marginRight: 'auto', alignSelf: 'center' }}>Open the full guide<i className="fa-solid fa-arrow-right" aria-hidden="true" /></a>
+          <Button type="button" variant="outline" onClick={close}>{TEXT.close}</Button>
+        </>
+      )}
     >
       <section aria-labelledby="ovl-dg-steps">
         <h3 className="ovl-h3 ovl-sr" id="ovl-dg-steps">{TEXT.steps}</h3>

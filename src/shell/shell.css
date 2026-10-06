@@ -150,6 +150,13 @@ a:hover { color: var(--shell-link-hover); }
 .shell__tab:hover { color: var(--shell-tab-hover); }
 .shell__tab > i { font-size: 16px; }
 .shell__tab > svg { flex: 0 0 auto; }
+/* tab that is a link (the Guide) and its active state: same foreground and accent underline as the app tab */
+.shell__tab { position: relative; box-sizing: border-box; text-decoration: none; }
+.shell__tab.is-active, .shell__tab.is-active:hover { color: var(--shell-fg); }
+/* app tab while another tab is active: no underline, a link back to the overview, idle colours like the other tabs */
+.shell__apptab.is-inactive .shell__apptab-name { color: var(--shell-tab-idle); transition: color 150ms ease-out; }
+.shell__apptab.is-inactive .shell__apptab-name:hover { color: var(--shell-tab-hover); }
+.shell__apptab-link { display: inline-block; line-height: var(--shell-tab-h); text-decoration: none; }
 
 /* active app tab */
 .shell__apptab {
