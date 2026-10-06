@@ -20,9 +20,9 @@ import { useSyncExternalStore } from 'react';
 import { Panel, Pill, DataTable } from '../ui/index.js';
 import './Evidence.css';
 
-const PHONE = '(max-width: 699px)';
+const PHONE = '(max-width: 1099px)';   // cards below 1100px: three of these tables are too wide to read at 1024px
 const subscribe = (cb) => { const m = window.matchMedia(PHONE); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); };
-/** True below 700px wide (the width the shell switches to its phone layout). */
+/** True below 1100px wide. */
 export function useIsPhone() { return useSyncExternalStore(subscribe, () => window.matchMedia(PHONE).matches, () => false); }
 
 /**

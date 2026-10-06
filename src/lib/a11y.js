@@ -1,4 +1,5 @@
 // Small accessibility and focus helpers shared by the shell, the router and the overlays.
+import { hasModalLayer } from '../ui/layers.js';
 import { useEffect, useRef } from 'react';
 
 export const FOCUSABLE =
@@ -24,6 +25,7 @@ export function focusMain() {
 
 /** Focus the page <h1> inside main (tabIndex -1 is added when missing). Returns true when focus moved. */
 export function focusPageHeading() {
+  if (hasModalLayer()) return true;   // an open dialog or drawer owns focus (browser Back must not strand it behind the page)
   const main = document.getElementById('shell-main');
   const h1 = main && main.querySelector('h1');
   if (!h1) return false;

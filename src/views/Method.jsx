@@ -432,7 +432,7 @@ export default function Method() {
               <span className="mth-muted">Settings offers {joinList(ASSUMPTION_OPTIONS.renewalRate.map((v) => fmtPct(v, 0)))} for the renewal rate.</span>
             </div>
             <h3 className="mth-h3">Why {fmtPct(DEFAULTS.renewalRate, 0)}</h3>
-            <p>{fmtPct(DEFAULTS.renewalRate, 0)} is a prototype assumption. It is not a figure from the Kontor scope. It sits below the 8% of annual cost that the Local Government Association reported for Sheffield across seven contracts in 2012/13, because a 2019 case study at Sefton found that potential savings can shrink to nothing once the outliers are tested. Agree a rate with whoever owns the cost baseline before you use these figures with a council.</p>
+            <p>{fmtPct(DEFAULTS.renewalRate, 0)} is a prototype assumption. It is not a published figure. It sits below the 8% of annual cost that the Local Government Association reported for Sheffield across seven contracts in 2012/13, because in a 2019 case study at Sefton, potential savings shrank to possibly nil once the outliers were tested. Agree a rate with your finance team before you use these figures with a council.</p>
             <p>
               {sheffield && <a href={sheffield.url} target="_blank" rel="noopener noreferrer">Sheffield, LGA {OPENS_IN_NEW_TAB}</a>}
               {sheffield && sefton && ' · '}

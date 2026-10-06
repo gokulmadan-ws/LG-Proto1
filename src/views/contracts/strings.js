@@ -20,7 +20,7 @@ export const REGISTER = {
   handHint: 'Mark an answer correct or incorrect from its clause page.',
   handBreakdown: (correct, incorrect) => `${correct} correct, ${incorrect} incorrect`,
   sourceKey: 'Source',
-  sourceRule: 'A contract over £5m that started on or after 24 February 2025 would come from Find a Tender. The rest come from the council contracts register.',
+  sourceRule: 'Councils publish a copy of any contract over £5m on Find a Tender, for procurements started on or after 24 February 2025. Below £5m, Contracts Finder notices give context but not the full documents.',
   noMatchFilters: { title: 'No contracts match these filters.', body: 'Clear the filters to see all contracts.' },
 };
 

@@ -68,6 +68,9 @@ export function addLayer(layer) {
   };
 }
 
+/** True while a modal layer (dialog or drawer) is open. */
+export const hasModalLayer = () => layers.some((l) => l.modal);
+
 let locks = 0;
 let saved = '';
 /** Stop the document from scrolling behind a modal. Returns the unlock function. Counted, so nested modals are safe. */

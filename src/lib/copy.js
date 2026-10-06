@@ -407,7 +407,7 @@ export const COPY = {
 
   // 7.2 with blueprint decision 7: the headline caveat is generic. The 1.7m figure appears only in the evidence list beside its link.
   caveat: {
-    long: 'Indicative figures. Each one is an opportunity to investigate, not a saving. A Local Government Association case study found that potential savings can shrink to nothing once outliers are tested, because many had legitimate reasons. Check each flag against its clause before you act.',
+    long: 'Indicative figures. Each one is an opportunity to investigate, not a saving. In a 2019 Local Government Association case study, potential savings shrank to possibly nil once outliers turned out to have legitimate reasons. Check each flag against its clause before you act.',
     short: 'Indicative. An opportunity to investigate, not a saving. Test it against the contract before you act.',
     tooltip: 'Indicative means a prompt to investigate, calculated by the rules on the How this is calculated page. It is not a confirmed saving.',
     chartTooltip: 'An opportunity to investigate, not a confirmed result',

@@ -122,7 +122,7 @@ export const roadmap = {
 
   // 6. Stage 1 data sources (verbatim bullets, spec "Stage 1: data sources")
   dataSourcesTitle: 'Stage 1 data sources',
-  dataSourcesIntro: "A real Stage 1 runs entirely on public data for one council, so there's no redaction or client-data problem. This prototype uses sample data written for the demo.",
+  dataSourcesIntro: "The prototype runs entirely on sample data for one fictional council, so there's no redaction or client-data problem. A real council would use its own contracts and spend.",
   dataSources: [
     {
       title: 'Contracts:',

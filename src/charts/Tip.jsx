@@ -95,7 +95,7 @@ export function ChartTip({ api }) {
     const cx = tip.px == null ? (r.left + r.right) / 2 : clamp(tip.px, r.left, r.right);
     const left = clamp(cx - w / 2, 8, Math.max(8, vw - w - 8));
     let top = r.top - h - 10;
-    if (top < 8) top = Math.min(r.bottom + 10, vh - h - 8);   // flip below when there is no room above
+    if (top < 118) top = Math.min(r.bottom + 10, vh - h - 8);   // flip below when there is no room above
     setPos({ left, top });
   }, [tip]);
   if (!tip) return null;

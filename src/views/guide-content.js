@@ -30,7 +30,7 @@ export const TEXT = {
   doThis: 'Do',
   where: 'Where',
   startingNote: (value) => `Starting value ${value}`,
-  aboutThisData: 'About this data',
+  aboutThisData: 'Read about this data',
 };
 
 /* ------------------------------------------------------------------------------------------------------------ start */

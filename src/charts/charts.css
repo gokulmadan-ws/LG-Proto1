@@ -110,7 +110,7 @@ a.kviz-textlink:hover { color: var(--viz-accent-text); }
 .kviz-key--diamond { width: 9px; height: 9px; transform: rotate(45deg); background: var(--c); margin: 0 1px; }
 .kviz-key--tick { width: 2px; height: 14px; background: var(--c); }
 
-.kviz-tablewrap { overflow: auto; max-height: 420px; border: 1px solid var(--viz-grid); border-radius: var(--radius-lg); }
+.kviz-tablewrap { position: relative; overflow: auto; max-height: 420px; border: 1px solid var(--viz-grid); border-radius: var(--radius-lg); }
 .kviz-table { width: 100%; border-collapse: collapse; font: 400 13px/18px var(--font-sans); color: var(--viz-ink); }
 .kviz-table th { position: sticky; top: 0; background: var(--bg-2); text-align: left; font-weight: 500; color: var(--viz-ink-2); padding: 10px 12px; white-space: nowrap; }
 .kviz-table td { padding: 10px 12px; border-top: 1px solid var(--viz-grid); }

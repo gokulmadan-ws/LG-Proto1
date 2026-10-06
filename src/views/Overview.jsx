@@ -26,6 +26,7 @@ const { Button } = DS;
 const TEXT = {
   breakdownTitle: 'Where the total comes from',
   sumLabel: 'The four cards add up to the headline',
+  countsNote: (contracts, multi, cards) => `${contracts} contracts in all. ${multi} ${multi === 1 ? 'contract carries' : 'contracts carry'} more than one flag, so the card counts add to ${cards}.`,
   reviewedLink: 'See reviewed opportunities',
   radarTitle: 'Renewals coming up',
   radarDesc: 'Contracts by the date you must give notice.',
@@ -67,6 +68,10 @@ export default function Overview() {
   const ui = useUI();
   const hp = headlineProps(estate);
   const excluded = excludedNote(estate.totals);
+  const perContract = {};
+  estate.ranked.forEach((f) => { if (f.indicativeGBP > 0 && (f.status === 'to_investigate' || f.status === 'under_review')) perContract[f.contractId] = (perContract[f.contractId] || 0) + 1; });
+  const multiFlag = Object.values(perContract).filter((n) => n > 1).length;
+  const cardCounts = Object.values(estate.totals.countByType || {}).reduce((a, b) => a + b, 0);
   const cov = coverageProps(estate);
 
   return (
@@ -92,6 +97,7 @@ export default function Overview() {
           footer={(
             <div className="ov-sum">
               <p className="ov-sum__line"><span className="ov-sum__label">{TEXT.sumLabel}</span><span className="ov-sum__eq">{sumLine(estate.totals)}</span></p>
+              {multiFlag > 0 && <p className="ov-sum__line ov-sum__counts">{TEXT.countsNote(estate.totals.contractCount, multiFlag, cardCounts)}</p>}
               {excluded && (
                 <p className="ov-sum__note" role="status">
                   <i className="fa-solid fa-circle-info" aria-hidden="true" />
