@@ -71,6 +71,9 @@ export function buildMatches(decisions, opts) {
   return out;
 }
 const accepted = (s) => s === 'auto_accepted' || s === 'confirmed';
+// NOTE: requirements 5.9 uses the raw similarity score (0.73) as the match confidence even after the user confirms it.
+// The build deliberately treats a confirmed match as certain (docs/foundation-status.md section 5, ruling on A2). We follow the build here and
+// report the deviation separately, so that every other number in the confirm scenario can be compared exactly.
 
 export function attribute(matches) {
   const bySupplier = new Map();
@@ -81,12 +84,12 @@ export function attribute(matches) {
     if (!m || !accepted(m.status)) { out.push({ payment: p, supplierId: null, contractId: null, period: 'unmatched', matchScore: m ? m.score : 0 }); continue; }
     const cs = bySupplier.get(m.supplierId) || [];
     const inRange = cs.filter((c) => p.date >= c.startDate && p.date <= c.endDate);
-    if (inRange.length === 1) out.push({ payment: p, supplierId: m.supplierId, contractId: inRange[0].id, period: 'in_term', matchScore: m.score });
-    else if (inRange.length > 1) out.push({ payment: p, supplierId: m.supplierId, contractId: null, period: 'ambiguous', matchScore: m.score });
+    if (inRange.length === 1) out.push({ payment: p, supplierId: m.supplierId, contractId: inRange[0].id, period: 'in_term', matchScore: m.status === 'confirmed' ? 1 : m.score });
+    else if (inRange.length > 1) out.push({ payment: p, supplierId: m.supplierId, contractId: null, period: 'ambiguous', matchScore: m.status === 'confirmed' ? 1 : m.score });
     else {
       const after = cs.filter((c) => p.date > c.endDate).sort((a, b) => (a.endDate < b.endDate ? 1 : -1))[0];
-      if (after) out.push({ payment: p, supplierId: m.supplierId, contractId: after.id, period: 'after_end', matchScore: m.score });
-      else out.push({ payment: p, supplierId: m.supplierId, contractId: null, period: cs.length ? 'before_start' : 'no_contract', matchScore: m.score });
+      if (after) out.push({ payment: p, supplierId: m.supplierId, contractId: after.id, period: 'after_end', matchScore: m.status === 'confirmed' ? 1 : m.score });
+      else out.push({ payment: p, supplierId: m.supplierId, contractId: null, period: cs.length ? 'before_start' : 'no_contract', matchScore: m.status === 'confirmed' ? 1 : m.score });
     }
   }
   return out;
