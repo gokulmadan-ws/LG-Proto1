@@ -1,4 +1,4 @@
-// V7: the rail Menu. A kit Popover anchored to the Menu button, holding a menu of seven items.
+// V7: the rail Menu. A kit Popover anchored to the Menu button, holding a menu of eight items.
 //
 // Contract
 //   default export: <MenuPopover open anchor onClose />, mounted ONCE by App.jsx, returns null while closed.
@@ -43,6 +43,7 @@ export default function MenuPopover({ open, anchor, onClose }) {
     { id: 'guide', label: 'Guide', icon: 'book-open', href: '#/guide' },   // G1: also the way to the Guide on phones, where the header tabs collapse
     { id: 'demo', label: 'Demo guide', icon: 'compass', onSelect: () => ui.openDemoGuide() },
     { id: 'feedback', label: 'Give feedback', icon: 'message', onSelect: () => ui.openFeedback() },
+    { id: 'settings', label: 'Settings', icon: 'gear', onSelect: () => ui.openSettings() },   // phones hide the header gear, so Settings lives here too
     { id: 'reset', label: 'Reset demo data', icon: 'rotate-left', onSelect: () => reset() },   // also the way to reset on phones, where the header button is hidden
   ];
 

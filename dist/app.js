@@ -7477,6 +7477,8 @@
       // G1: also the way to the Guide on phones, where the header tabs collapse
       { id: "demo", label: "Demo guide", icon: "compass", onSelect: () => ui.openDemoGuide() },
       { id: "feedback", label: "Give feedback", icon: "message", onSelect: () => ui.openFeedback() },
+      { id: "settings", label: "Settings", icon: "gear", onSelect: () => ui.openSettings() },
+      // phones hide the header gear, so Settings lives here too
       { id: "reset", label: "Reset demo data", icon: "rotate-left", onSelect: () => reset() }
       // also the way to reset on phones, where the header button is hidden
     ];

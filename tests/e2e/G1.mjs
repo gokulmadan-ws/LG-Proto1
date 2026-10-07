@@ -505,8 +505,8 @@ try {
     await q.locator('.shell__rail-menu').click();
     const items = q.locator('nav[aria-label="Menu"] [role="menuitem"]');
     await items.first().waitFor();
-    eq((await items.allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback'], 'items');
-    eq(await items.evaluateAll((els) => els.map((e) => e.getAttribute('href'))), ['#/evidence', '#/method', null, '#/guide', null, null], 'hrefs');
+    eq((await items.allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Settings', 'Reset demo data'], 'items');
+    eq(await items.evaluateAll((els) => els.map((e) => e.getAttribute('href'))), ['#/evidence', '#/method', null, '#/guide', null, null, null, null], 'hrefs');
     await q.getByRole('menuitem', { name: 'Guide', exact: true }).click();
     await q.waitForFunction(() => location.hash === '#/guide');
     await h1Is(q, 'Guide');

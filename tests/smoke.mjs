@@ -350,11 +350,11 @@ try {
       await t.page.waitForTimeout(50);
       eq(await t.page.evaluate(() => document.activeElement.className), 'sample-banner__link', 'focus after close');
     });
-    await check('rail Menu opens seven items in order (Guide added by G1, Reset demo data last); selecting one navigates; Esc returns focus to the Menu button', async () => {
+    await check('rail Menu opens eight items in order (Guide added by G1, Settings and Reset demo data last); selecting one navigates; Esc returns focus to the Menu button', async () => {
       await t.page.click('.shell__rail-foot button[aria-label="Menu"]');
       await t.page.waitForSelector('[role="menu"]');
       const items = await t.page.locator('[role="menu"] [role="menuitem"]').allInnerTexts();
-      eq(items.map((s) => s.trim()), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Reset demo data'], 'menu items');
+      eq(items.map((s) => s.trim()), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Settings', 'Reset demo data'], 'menu items');
       await t.page.keyboard.press('Escape');
       await t.page.waitForSelector('[role="menu"]', { state: 'detached' });
       await t.page.waitForTimeout(50);

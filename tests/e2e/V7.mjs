@@ -433,21 +433,21 @@ try {
   const menuBtn = mp.locator('.shell__rail-menu');
   const items = () => mp.locator('nav[aria-label="Menu"] [role="menuitem"]');
   const openMenuByKey = async () => { await menuBtn.focus(); await mp.keyboard.press('Enter'); await mp.locator('nav[aria-label="Menu"] [role="menu"]').waitFor(); await settle(mp, 120); };
-  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the seven items in order (G1 added Guide, Reset demo data is last); the first item has focus', async () => {
+  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the eight items in order (G1 added Guide; Settings and Reset demo data are last); the first item has focus', async () => {
     await openMenuByKey();
     eq(await mp.locator('nav[aria-label="Menu"]').count(), 1, 'nav landmark');
     eq(await mp.locator('nav[aria-label="Menu"] [role="menu"]').count(), 1, 'role=menu');
-    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Reset demo data'], 'items');
+    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Settings', 'Reset demo data'], 'items');
     eq((await activeInfo(mp)).label, 'Why this matters', 'first item focused');
     eq(await menuBtn.getAttribute('aria-haspopup'), 'menu', 'aria-haspopup');
     const hrefs = await items().evaluateAll((els) => els.map((e) => e.getAttribute('href')));
-    eq(hrefs, ['#/evidence', '#/method', null, '#/guide', null, null, null], 'links');
+    eq(hrefs, ['#/evidence', '#/method', null, '#/guide', null, null, null, null], 'links');
   });
   await check('Menu: ArrowDown and ArrowUp move and wrap, Home and End jump, a letter jumps to the next item that starts with it', async () => {
     await mp.keyboard.press('ArrowDown'); eq((await activeInfo(mp)).label, 'How this is calculated', 'down');
-    await mp.keyboard.press('End'); eq((await activeInfo(mp)).label, 'Give feedback', 'end');
+    await mp.keyboard.press('End'); eq((await activeInfo(mp)).label, 'Reset demo data', 'end');
     await mp.keyboard.press('ArrowDown'); eq((await activeInfo(mp)).label, 'Why this matters', 'wrap down');
-    await mp.keyboard.press('ArrowUp'); eq((await activeInfo(mp)).label, 'Give feedback', 'wrap up');
+    await mp.keyboard.press('ArrowUp'); eq((await activeInfo(mp)).label, 'Reset demo data', 'wrap up');
     await mp.keyboard.press('Home'); eq((await activeInfo(mp)).label, 'Why this matters', 'home');
     await mp.keyboard.press('d'); eq((await activeInfo(mp)).label, 'Demo guide', 'letter d');
     await mp.keyboard.press('a'); eq((await activeInfo(mp)).label, 'About this data', 'letter a');
@@ -955,7 +955,7 @@ try {
       'Feedback saved list': async () => { await p.evaluate(() => localStorage.setItem('kontor-feedback', JSON.stringify(['yes', 'maybe', 'no', 'yes', 'maybe', 'no'].map((answer, i) => ({ at: `2026-10-06T10:0${i}:00.000Z`, answer, comment: 'Seeded comment number ' + i + ', long enough to wrap onto a second line in the saved list of the dialog.', asOf: '2026-10-06' }))))); await visit(t, '#/overview'); await opens.Feedback(); },
       Settings: async () => { await p.locator('button[aria-label="Settings"]').click(); await dialog(p, 'Settings').waitFor(); },
       'Settings changed': async () => { await p.evaluate(() => localStorage.setItem('kontor-assumptions', JSON.stringify({ renewalRate: 0.08, nearCapThreshold: 0.9 }))); await visit(t, '#/overview'); await opens.Settings(); },
-      'Settings confirm': async () => { await opens.Settings(); await p.getByRole('button', { name: 'Reset demo data' }).click(); await p.getByRole('alertdialog').waitFor(); },
+      'Settings confirm': async () => { await opens.Settings(); await dialog(p, 'Settings').getByRole('button', { name: 'Reset demo data' }).click(); await p.getByRole('alertdialog').waitFor(); },
       'Demo guide': async () => { await p.getByRole('button', { name: 'Open demo guide' }).click(); await dialog(p, 'Demo guide').waitFor(); },
     };
     for (const [name, open] of Object.entries(opens)) {
@@ -995,7 +995,7 @@ try {
     ok(box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844, 'inside the screen: ' + JSON.stringify(box));
     const bb = await btn.boundingBox();
     ok(box.y >= bb.y + bb.height - 4, 'below the button');
-    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 7, 'items');
+    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 8, 'items');
     await t.page.keyboard.press('Escape');
     ok((await axe(t.page)).length === 0, 'axe on the phone');
   });

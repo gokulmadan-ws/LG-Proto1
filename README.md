@@ -19,7 +19,7 @@ Open the **Guide** tab in the header. It has the tour, things to try, how to rea
 3. **Opportunities.** Click the top row, then "View clause, page 23". You land on clause 14.3 of the Highways contract: the £5,000,000 cap that £8,350,000 has been paid against.
 4. **Close.** "This is one council's contracts and spend. Imagine your full estate."
 
-To run the demo again, click **Reset demo data** in the header (also in the Menu and in Settings). It asks first, clears every change, returns to the Overview and brings the headline back to £6.1m.
+To run the demo again, click **Reset demo data** in the top right of the header (also in the rail Menu and in Settings). **Settings** is the gear in the header, or Menu → Settings on a phone. It asks first, clears every change, returns to the Overview and brings the headline back to £6.1m.
 
 Things worth trying live: mark a flag "Explained" and watch the headline fall to £2.8m; confirm the suggested supplier match for Larchmont Grounds Maintenance on **Cap vs spend → Supplier matches**; change the renewal rate in **Settings**.
 
