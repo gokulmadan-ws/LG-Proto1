@@ -59,7 +59,7 @@ const NOT_IN = 'Not in this prototype';
 const HEADLINE = '£6.1m across 15 contracts flagged as opportunities to investigate';
 const FEEDBACK_NO_ANSWER = "Feedback not saved. You haven't chosen an answer. Choose Yes, Maybe or No and try again.";
 const FEEDBACK_BLOCKED = 'Feedback not saved. Your browser is blocking local storage. Copy your comments instead.';
-const RESET_TOAST = 'Changes reset. The demo is back to its starting numbers.';
+const RESET_TOAST = 'Demo data reset. The demo is back to its starting numbers.';
 const ASSUMPTIONS_BANNER = 'Changing assumptions changes every indicative figure.';
 const inert = (name) => `${name} isn't part of this prototype. It sits outside Stage 1. Use the left rail to explore the demo.`;
 
@@ -433,15 +433,15 @@ try {
   const menuBtn = mp.locator('.shell__rail-menu');
   const items = () => mp.locator('nav[aria-label="Menu"] [role="menuitem"]');
   const openMenuByKey = async () => { await menuBtn.focus(); await mp.keyboard.press('Enter'); await mp.locator('nav[aria-label="Menu"] [role="menu"]').waitFor(); await settle(mp, 120); };
-  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the six items in order (G1 added Guide); the first item has focus', async () => {
+  await check('Menu: the Menu button opens a popover inside <nav aria-label="Menu"> with the seven items in order (G1 added Guide, Reset demo data is last); the first item has focus', async () => {
     await openMenuByKey();
     eq(await mp.locator('nav[aria-label="Menu"]').count(), 1, 'nav landmark');
     eq(await mp.locator('nav[aria-label="Menu"] [role="menu"]').count(), 1, 'role=menu');
-    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback'], 'items');
+    eq((await items().allInnerTexts()).map(norm), ['Why this matters', 'How this is calculated', 'About this data', 'Guide', 'Demo guide', 'Give feedback', 'Reset demo data'], 'items');
     eq((await activeInfo(mp)).label, 'Why this matters', 'first item focused');
     eq(await menuBtn.getAttribute('aria-haspopup'), 'menu', 'aria-haspopup');
     const hrefs = await items().evaluateAll((els) => els.map((e) => e.getAttribute('href')));
-    eq(hrefs, ['#/evidence', '#/method', null, '#/guide', null, null], 'links');
+    eq(hrefs, ['#/evidence', '#/method', null, '#/guide', null, null, null], 'links');
   });
   await check('Menu: ArrowDown and ArrowUp move and wrap, Home and End jump, a letter jumps to the next item that starts with it', async () => {
     await mp.keyboard.press('ArrowDown'); eq((await activeInfo(mp)).label, 'How this is calculated', 'down');
@@ -715,7 +715,7 @@ try {
   await visit(rs, '#/overview');
   const rsp = rs.page;
   const radio2 = (page, group, name) => dialog(page, 'Settings').getByRole('radiogroup', { name: group }).getByRole('radio', { name, exact: true }).getAttribute('aria-checked');
-  await check('R63 Reset demo changes: the confirm dialog opens first with Cancel focused; Cancel (and Escape) change nothing; the line in the drawer says what has been changed', async () => {
+  await check('R63 Reset demo data: the confirm dialog opens first with Cancel focused; Cancel (and Escape) change nothing; the line in the drawer says what has been changed', async () => {
     await rsp.evaluate(() => {
       localStorage.setItem('kontor-triage', JSON.stringify({ 'F-C-005-overCap': 'explained' }));
       localStorage.setItem('kontor-assumptions', JSON.stringify({ renewalRate: 0.08 }));
@@ -729,31 +729,31 @@ try {
     await dr.waitFor();
     const line = await text(dr.locator('.ovl-changed'));
     ok(line.startsWith('Changed on this device:') && line.includes('1 review') && line.includes('1 feedback entry') && line.includes('1 assumption'), line);
-    await dr.getByRole('button', { name: 'Reset demo changes' }).click();
-    const c = rsp.getByRole('alertdialog', { name: 'Reset your changes?' });
+    await dr.getByRole('button', { name: 'Reset demo data' }).click();
+    const c = rsp.getByRole('alertdialog', { name: 'Reset demo data?' });
     await c.waitFor();
     ok((await text(c)).includes('This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device.'), 'description');
     eq((await activeInfo(rsp)).label, 'Cancel', 'Cancel is focused first');
-    eq((await c.locator('button').allInnerTexts()).map(norm), ['Cancel', 'Reset changes'], 'buttons');
+    eq((await c.locator('button').allInnerTexts()).map(norm), ['Cancel', 'Reset demo data'], 'buttons');
     await c.getByRole('button', { name: 'Cancel' }).click(); await settle(rsp, 250);
     eq(await c.count(), 0, 'closed by Cancel');
     ok(!!(await stored(rsp, 'kontor-triage')) && !!(await stored(rsp, 'kontor-assumptions')) && !!(await stored(rsp, 'kontor-feedback')), 'Cancel changed nothing in storage');
     eq(await h1Text(rsp), changed, 'headline unchanged');
-    eq((await activeInfo(rsp)).label, 'Reset demo changes', 'focus back on the Reset button');
+    eq((await activeInfo(rsp)).label, 'Reset demo data', 'focus back on the Reset button');
     eq(await toasts(rsp).count(), 0, 'no toast after Cancel');
-    await dr.getByRole('button', { name: 'Reset demo changes' }).click(); await c.waitFor();
+    await dr.getByRole('button', { name: 'Reset demo data' }).click(); await c.waitFor();
     await rsp.keyboard.press('Escape'); await settle(rsp, 250);
     eq(await c.count(), 0, 'Escape closed only the confirm');
     eq(await dr.count(), 1, 'the drawer is still open');
     ok(!!(await stored(rsp, 'kontor-triage')), 'Escape changed nothing');
   });
-  await check('R63 confirming "Reset changes" clears reviews, assumptions and feedback (the theme stays), restores £6.1m and shows "Changes reset. The demo is back to its starting numbers."', async () => {
+  await check('R63 confirming "Reset demo data" clears reviews, assumptions and feedback (the theme stays), restores £6.1m and shows "Demo data reset. The demo is back to its starting numbers."', async () => {
     const dr = dialog(rsp, 'Settings');
-    await dr.getByRole('button', { name: 'Reset demo changes' }).click();
-    const c = rsp.getByRole('alertdialog', { name: 'Reset your changes?' });
+    await dr.getByRole('button', { name: 'Reset demo data' }).click();
+    const c = rsp.getByRole('alertdialog', { name: 'Reset demo data?' });
     await c.waitFor();
-    eq(await c.getByRole('button', { name: 'Reset changes' }).evaluate((b) => getComputedStyle(b).backgroundColor !== getComputedStyle(document.body).backgroundColor), true, 'a filled destructive button');
-    await c.getByRole('button', { name: 'Reset changes' }).click(); await settle(rsp, 350);
+    eq(await c.getByRole('button', { name: 'Reset demo data' }).evaluate((b) => getComputedStyle(b).backgroundColor !== getComputedStyle(document.body).backgroundColor), true, 'a filled destructive button');
+    await c.getByRole('button', { name: 'Reset demo data' }).click(); await settle(rsp, 350);
     eq(await c.count(), 0, 'closed');
     ok((await toastText(rsp)).includes(RESET_TOAST), 'toast: ' + await toastText(rsp));
     eq(await toasts(rsp).first().evaluate((e) => e.className.includes('kx-toast--success')), true, 'success tone');
@@ -761,13 +761,13 @@ try {
     eq(await stored(rsp, 'kontor-theme'), 'dark', 'the theme is kept');
     eq(await h1Text(rsp), HEADLINE, 'headline restored');
     eq(await text(dr.locator('.ovl-changed')), 'Nothing has been changed yet.', 'the line says so');
-    eq((await activeInfo(rsp)).label, 'Reset demo changes', 'focus stays in the drawer');
+    eq((await activeInfo(rsp)).label, 'Reset demo data', 'focus stays in the drawer');
     eq(await radio2(rsp, 'Renewal rate', '5%'), 'true', '5% selected again');
   });
   await check('R73 the reset is the only destructive action: the Reset button is outline, the destructive variant appears only inside the confirm dialog', async () => {
     const dr = dialog(rsp, 'Settings');
     eq(await primaries(rsp, '[role="dialog"]'), ['Close settings'], 'filled buttons in the drawer');
-    const bg = await dr.getByRole('button', { name: 'Reset demo changes' }).evaluate((b) => getComputedStyle(b).backgroundColor);
+    const bg = await dr.getByRole('button', { name: 'Reset demo data' }).evaluate((b) => getComputedStyle(b).backgroundColor);
     ok(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent', 'the Reset trigger is outline: ' + bg);
   });
   await check('Settings: copy lint (no exclamation mark, no emoji, no "saving"), sentence-case headings, buttons are [Verb]+[Object]', async () => {
@@ -955,7 +955,7 @@ try {
       'Feedback saved list': async () => { await p.evaluate(() => localStorage.setItem('kontor-feedback', JSON.stringify(['yes', 'maybe', 'no', 'yes', 'maybe', 'no'].map((answer, i) => ({ at: `2026-10-06T10:0${i}:00.000Z`, answer, comment: 'Seeded comment number ' + i + ', long enough to wrap onto a second line in the saved list of the dialog.', asOf: '2026-10-06' }))))); await visit(t, '#/overview'); await opens.Feedback(); },
       Settings: async () => { await p.locator('button[aria-label="Settings"]').click(); await dialog(p, 'Settings').waitFor(); },
       'Settings changed': async () => { await p.evaluate(() => localStorage.setItem('kontor-assumptions', JSON.stringify({ renewalRate: 0.08, nearCapThreshold: 0.9 }))); await visit(t, '#/overview'); await opens.Settings(); },
-      'Settings confirm': async () => { await opens.Settings(); await p.getByRole('button', { name: 'Reset demo changes' }).click(); await p.getByRole('alertdialog').waitFor(); },
+      'Settings confirm': async () => { await opens.Settings(); await p.getByRole('button', { name: 'Reset demo data' }).click(); await p.getByRole('alertdialog').waitFor(); },
       'Demo guide': async () => { await p.getByRole('button', { name: 'Open demo guide' }).click(); await dialog(p, 'Demo guide').waitFor(); },
     };
     for (const [name, open] of Object.entries(opens)) {
@@ -995,7 +995,7 @@ try {
     ok(box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844, 'inside the screen: ' + JSON.stringify(box));
     const bb = await btn.boundingBox();
     ok(box.y >= bb.y + bb.height - 4, 'below the button');
-    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 6, 'items');
+    eq(await t.page.locator('nav[aria-label="Menu"] [role="menuitem"]').count(), 7, 'items');
     await t.page.keyboard.press('Escape');
     ok((await axe(t.page)).length === 0, 'axe on the phone');
   });

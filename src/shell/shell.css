@@ -210,6 +210,26 @@ a:hover { color: var(--shell-link-hover); }
 }
 .shell__circle:hover { background: var(--shell-circle-hover-bg); }
 .shell__circle > i { font-size: 14px; }
+/* Reset demo data: a labelled pill, an icon-only circle below 1100px, hidden on phones (the Menu has it) */
+.shell__reset {
+  position: relative; height: 32px; padding: 0 12px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 8px;
+  border-radius: 9999px; border: 1px solid var(--shell-circle-border);
+  background: transparent; color: var(--shell-fg); cursor: pointer;
+  font: 500 13px/1 var(--font-sans); white-space: nowrap;
+  transition: background-color 150ms ease-out;
+}
+.shell__reset:hover { background: var(--shell-circle-hover-bg); }
+.shell__reset > i { font-size: 13px; }
+.shell__reset::after { content: ""; position: absolute; inset: -6px; border-radius: 9999px; }   /* 44px hit area */
+.shell__reset.has-changes::before {                                                              /* something to reset */
+  content: ""; position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 9999px;
+  background: var(--accent); border: 2px solid var(--shell-page-bg, var(--bg-canvas));
+}
+@media (max-width: 1099px) {
+  .shell__reset { width: 32px; padding: 0; justify-content: center; }
+  .shell__reset-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 .shell__circle > svg { width: 18px; height: 28px; }
 .shell__circle::after { content: ""; position: absolute; inset: -6px; border-radius: 9999px; }   /* 44px hit area */
 .shell__avatar {

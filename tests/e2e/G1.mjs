@@ -406,7 +406,7 @@ try {
     eq(await rows.locator('h3').allInnerTexts(), ['Switch between dark and light', 'Mark a flag as Explained', 'Confirm a suggested supplier match', 'Change the renewal rate', 'Check an answer by hand', 'Share a link', 'Reset your changes'], 'titles');
     eq(await rows.locator('.gd-expect').count(), 7, 'every row says what you should see');
     const acts = await rows.locator('.gd-try__action').evaluateAll((els) => els.map((e) => [...e.querySelectorAll('a,button')].map((x) => [x.tagName, x.textContent.trim(), x.getAttribute('href')])));
-    eq(acts.map((a) => a[0][1]), ['Switch to light mode', 'Open the top spend over cap flag', 'Open supplier matches', 'Open settings', 'Open clause 14.3, page 23', 'Open spend over cap', 'Reset demo changes'], 'actions');
+    eq(acts.map((a) => a[0][1]), ['Switch to light mode', 'Open the top spend over cap flag', 'Open supplier matches', 'Open settings', 'Open clause 14.3, page 23', 'Open spend over cap', 'Reset demo data'], 'actions');
     eq(acts[1][0][2], `#/opportunities?flag=${top.id}`, 'explain link'); eq(acts[2][0][2], '#/spend/matches', 'matches link'); eq(acts[5][0][2], '#/opportunities?type=overCap', 'share link');
     has(await sec(p, 'try'), 'Open the top spend over cap flag. In the panel, set Review status to Explained.', 'explain steps');
   });
@@ -449,27 +449,27 @@ try {
     ok((await hashOf(p)).includes('type=overCap'), 'filtered list');
   });
 
-  await check('try: Reset demo changes with nothing to reset says so; with changes it asks first (Cancel focused, Escape changes nothing), then clears the changes and toasts', async () => {
+  await check('try: Reset demo data with nothing to reset says so; with changes it asks first (Cancel focused, Escape changes nothing), then clears the changes and toasts', async () => {
     const t = await fresh({ hangExternal: true });
     await visit(t, '#/guide?s=try');
     const q = t.page;
-    await q.getByRole('button', { name: 'Reset demo changes' }).click();
+    await q.locator('#shell-main').getByRole('button', { name: 'Reset demo data' }).click();
     await q.locator('.kx-toast').first().waitFor();
     has(await toastText(q), 'Nothing to reset.', 'nothing to reset');
     await seed(t, SEED);
     await visit(t, '#/guide?s=try');
-    await q.getByRole('button', { name: 'Reset demo changes' }).click();
+    await q.locator('#shell-main').getByRole('button', { name: 'Reset demo data' }).click();
     const dlg = q.getByRole('alertdialog');
     await dlg.waitFor();
-    has(await text(dlg), 'Reset your changes?', 'title');
+    has(await text(dlg), 'Reset demo data?', 'title');
     eq((await active(q)).label, 'Cancel', 'Cancel is focused first');
     await q.keyboard.press('Escape'); await settle(q, 300);
     eq(await q.getByRole('alertdialog').count(), 0, 'closed');
     eq(await q.evaluate(() => localStorage.getItem('kontor-triage')), JSON.stringify(SEED.triage), 'Escape changed nothing');
-    await q.getByRole('button', { name: 'Reset demo changes' }).click();
+    await q.locator('#shell-main').getByRole('button', { name: 'Reset demo data' }).click();
     await q.getByRole('alertdialog').waitFor();
-    await q.getByRole('button', { name: 'Reset changes' }).click();
-    await q.locator('.kx-toast', { hasText: 'Changes reset.' }).waitFor();
+    await q.getByRole('alertdialog').getByRole('button', { name: 'Reset demo data' }).click();
+    await q.locator('.kx-toast', { hasText: 'Demo data reset.' }).waitFor();
     has(await toastText(q), 'The demo is back to its starting numbers.', 'toast');
     const left = await q.evaluate(() => ['kontor-triage', 'kontor-matches', 'kontor-assumptions'].map((k) => localStorage.getItem(k)));
     ok(left.every((x) => x === null || x === '{}' || x === '[]'), 'storage cleared: ' + JSON.stringify(left));

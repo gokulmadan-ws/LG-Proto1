@@ -19,6 +19,7 @@ import { UIProvider, useUI } from '../lib/ui-context.jsx';
 import { useRoute, useRouteEffects, navigate } from '../lib/router.js';
 import { AppShell, DEFAULT_TABS, DEFAULT_ACTIONS } from './AppShell.jsx';
 import { RAIL } from './rail.js';
+import { ResetDemoButton } from './ResetDemoButton.jsx';
 import { SampleBanner } from '../components/SampleBanner.jsx';
 import { ToastHost, ToastBridge } from '../components/ToastHost.jsx';
 import { ConfirmHost } from '../components/ConfirmHost.jsx';
@@ -87,6 +88,7 @@ function Frame({ route: routeProp, rail, title, overlays, children }) {
         tabs={tabs}
         appActive={!onGuide}
         appHref="#/overview"
+        headerLead={<ResetDemoButton />}
         actions={actions}
         user={{ ...USER, onClick: inert('Account') }}
         railItems={RAIL}

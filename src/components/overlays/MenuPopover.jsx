@@ -1,4 +1,4 @@
-// V7: the rail Menu. A kit Popover anchored to the Menu button, holding a menu of five items.
+// V7: the rail Menu. A kit Popover anchored to the Menu button, holding a menu of seven items.
 //
 // Contract
 //   default export: <MenuPopover open anchor onClose />, mounted ONCE by App.jsx, returns null while closed.
@@ -15,6 +15,7 @@
 //   Popover (placement, outside press, Escape, layer order) and the kit's menu classes (kx-menu), with the same key handling as the kit Menu.
 import { useEffect, useRef, useState } from 'react';
 import { Popover, focusIn } from '../../ui/index.js';
+import { useResetDemo } from '../../lib/useResetDemo.js';
 import { useUI } from '../../lib/ui-context.jsx';
 import './overlays.css';
 
@@ -31,6 +32,7 @@ function placementFor(anchor) {
 
 export default function MenuPopover({ open, anchor, onClose }) {
   const ui = useUI();
+  const { reset } = useResetDemo();
   const list = useRef(null);
   const [ready, setReady] = useState(false);
 
@@ -41,6 +43,7 @@ export default function MenuPopover({ open, anchor, onClose }) {
     { id: 'guide', label: 'Guide', icon: 'book-open', href: '#/guide' },   // G1: also the way to the Guide on phones, where the header tabs collapse
     { id: 'demo', label: 'Demo guide', icon: 'compass', onSelect: () => ui.openDemoGuide() },
     { id: 'feedback', label: 'Give feedback', icon: 'message', onSelect: () => ui.openFeedback() },
+    { id: 'reset', label: 'Reset demo data', icon: 'rotate-left', onSelect: () => reset() },   // also the way to reset on phones, where the header button is hidden
   ];
 
   // The popover measures and places itself on its first frame; focus the first item after that (a hidden element cannot take focus).

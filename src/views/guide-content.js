@@ -51,7 +51,7 @@ export const START = {
   steps: {
     headline: (headline) => ({ title: 'Read the headline', body: `Open the overview. The number at the top is the total of every opportunity to investigate. It reads ${headline}.` }),
     clause: (page) => ({ title: 'Follow one flag to its clause', body: `Open Opportunities and select the top row. Then choose View clause${page ? `, page ${page}` : ''}. You land on the contract text with the clause highlighted.` }),
-    change: { title: 'Change something', body: 'Mark a flag as Explained, or confirm a supplier match, and watch the numbers move. Reset your changes in Settings whenever you like.' },
+    change: { title: 'Change something', body: 'Mark a flag as Explained, or confirm a supplier match, and watch the numbers move. Use Reset demo data in the header whenever you like.' },
   },
 };
 
@@ -59,7 +59,7 @@ export const START = {
 export const TOUR = {
   note: {
     title: 'The numbers below are live',
-    body: 'They move if you change a review status, confirm a supplier match or change an assumption. If your demo shows different numbers from these, someone has made a change. Reset your changes in Settings to get the starting numbers back.',
+    body: 'They move if you change a review status, confirm a supplier match or change an assumption. If your demo shows different numbers from these, someone has made a change. Use Reset demo data in the header to get the starting numbers back.',
   },
   pillStart: 'Showing the starting numbers',
   pillChanged: 'Showing your changes',
@@ -205,7 +205,7 @@ export const TRY = {
   },
   reset: {
     title: 'Reset your changes',
-    body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. You can also do it in Settings, with Reset demo changes.',
+    body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. The button is in the header, in the Menu and in Settings.',
     nothing: 'Nothing has been changed yet.',
     changed: (parts) => `Changed on this device: ${parts.join(', ')}.`,
     see: (head) => `A confirm dialog asks first. After you confirm, the headline is back to ${head}.`,

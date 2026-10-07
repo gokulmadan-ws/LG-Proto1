@@ -1587,14 +1587,14 @@
     toasts: {
       feedbackSaved: "Feedback saved on this device. Thank you.",
       feedbackCopied: "Feedback copied to your clipboard.",
-      resetDone: "Changes reset. The demo is back to its starting numbers.",
+      resetDone: "Demo data reset. The demo is back to its starting numbers.",
       inert: (name) => `${name} isn't part of this prototype. It sits outside Stage 1. Use the left rail to explore the demo.`,
       handcheck: { correct: "Answer marked correct.", incorrect: "Answer marked incorrect." },
       linkCopied: "Link copied to your clipboard.",
       themeToDark: "Switch to dark mode",
       themeToLight: "Switch to light mode"
     },
-    resetDialog: { title: "Reset your changes?", body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.", cancel: "Cancel", confirm: "Reset changes" },
+    resetDialog: { title: "Reset demo data?", body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.", cancel: "Cancel", confirm: "Reset demo data" },
     feedback: {
       title: "Tell us what you think",
       question: "Would you use this on your own contracts?",
@@ -1605,7 +1605,7 @@
       cancel: "Cancel",
       copy: "Copy feedback"
     },
-    settings: { assumptionsBanner: "Changing assumptions changes every indicative figure.", renewalRate: "Renewal rate", nearCap: "Close to cap threshold", reset: "Reset demo changes" },
+    settings: { assumptionsBanner: "Changing assumptions changes every indicative figure.", renewalRate: "Renewal rate", nearCap: "Close to cap threshold", reset: "Reset demo data" },
     buttons: {
       viewOpportunities: "View opportunities",
       viewClause: "View clause",
@@ -1622,8 +1622,8 @@
       rejectMatch: "Reject match",
       clearFilters: "Clear filters",
       clearSearch: "Clear search",
-      resetDemoChanges: "Reset demo changes",
-      resetChanges: "Reset changes",
+      resetDemoChanges: "Reset demo data",
+      resetChanges: "Reset demo data",
       previousAnswer: "Previous answer",
       nextAnswer: "Next answer",
       markCorrect: "Mark answer as correct",
@@ -6069,13 +6069,13 @@
     steps: {
       headline: (headline) => ({ title: "Read the headline", body: `Open the overview. The number at the top is the total of every opportunity to investigate. It reads ${headline}.` }),
       clause: (page) => ({ title: "Follow one flag to its clause", body: `Open Opportunities and select the top row. Then choose View clause${page ? `, page ${page}` : ""}. You land on the contract text with the clause highlighted.` }),
-      change: { title: "Change something", body: "Mark a flag as Explained, or confirm a supplier match, and watch the numbers move. Reset your changes in Settings whenever you like." }
+      change: { title: "Change something", body: "Mark a flag as Explained, or confirm a supplier match, and watch the numbers move. Use Reset demo data in the header whenever you like." }
     }
   };
   var TOUR = {
     note: {
       title: "The numbers below are live",
-      body: "They move if you change a review status, confirm a supplier match or change an assumption. If your demo shows different numbers from these, someone has made a change. Reset your changes in Settings to get the starting numbers back."
+      body: "They move if you change a review status, confirm a supplier match or change an assumption. If your demo shows different numbers from these, someone has made a change. Use Reset demo data in the header to get the starting numbers back."
     },
     pillStart: "Showing the starting numbers",
     pillChanged: "Showing your changes",
@@ -6235,7 +6235,7 @@
     },
     reset: {
       title: "Reset your changes",
-      body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. You can also do it in Settings, with Reset demo changes.",
+      body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. The button is in the header, in the Menu and in Settings.",
       nothing: "Nothing has been changed yet.",
       changed: (parts2) => `Changed on this device: ${parts2.join(", ")}.`,
       see: (head) => `A confirm dialog asks first. After you confirm, the headline is back to ${head}.`
@@ -6803,6 +6803,7 @@
     activeRail,
     onRailChange,
     onMenu,
+    headerLead = null,
     headerRight = /* @__PURE__ */ React.createElement(ThemeToggle, { Tip }),
     actions = DEFAULT_ACTIONS,
     user = { initials: "JS" },
@@ -6820,7 +6821,7 @@
       const body = /* @__PURE__ */ React.createElement(React.Fragment, null, icon(t.icon), /* @__PURE__ */ React.createElement("span", { className: "shell__tab-label" }, t.label), t.active && /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" }));
       const cls = "shell__tab" + (t.active ? " is-active" : "");
       return t.href ? /* @__PURE__ */ React.createElement("a", { key: t.id, className: cls, href: t.href, "aria-current": t.active ? "page" : void 0 }, body) : /* @__PURE__ */ React.createElement("button", { key: t.id, type: "button", className: cls, onClick: t.onSelect }, body);
-    }), /* @__PURE__ */ React.createElement("div", { className: "shell__apptab" + (appActive ? "" : " is-inactive") }, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-chip", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: appIcon })), appActive || !appHref ? /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name", "aria-current": appActive ? "page" : void 0 }, nameInner) : /* @__PURE__ */ React.createElement("a", { className: "shell__apptab-name shell__apptab-link", href: appHref }, nameInner), appBadge && /* @__PURE__ */ React.createElement("span", { className: "shell__badge" }, appBadge), onCloseApp && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(Tip, { label: "Close app", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__apptab-close", "aria-label": `Close ${appName}`, onClick: onCloseApp }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" })))), appActive && /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("div", { className: "shell__right" }, headerRight, actions.map((a) => /* @__PURE__ */ React.createElement("span", { key: a.id, className: "shell__slot" + (a.optional ? " shell__slot--optional" : "") }, /* @__PURE__ */ React.createElement(Tip, { label: a.label, side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": a.label, onClick: a.onClick }, icon(a.icon))))), onMenu && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--phone-only" }, /* @__PURE__ */ React.createElement(Tip, { label: "Menu", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": "Menu", "aria-haspopup": "menu", onClick: (e) => onMenu(e.currentTarget) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-bars", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__avatar", "aria-label": user.name ? `Account: ${user.name}` : "Account", onClick: user.onClick }, user.initials))), /* @__PURE__ */ React.createElement("div", { className: "shell__body" }, /* @__PURE__ */ React.createElement("nav", { className: "shell__rail", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement("ul", { className: "shell__rail-list" }, railItems.map((it) => {
+    }), /* @__PURE__ */ React.createElement("div", { className: "shell__apptab" + (appActive ? "" : " is-inactive") }, /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-chip", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: appIcon })), appActive || !appHref ? /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-name", "aria-current": appActive ? "page" : void 0 }, nameInner) : /* @__PURE__ */ React.createElement("a", { className: "shell__apptab-name shell__apptab-link", href: appHref }, nameInner), appBadge && /* @__PURE__ */ React.createElement("span", { className: "shell__badge" }, appBadge), onCloseApp && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(Tip, { label: "Close app", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__apptab-close", "aria-label": `Close ${appName}`, onClick: onCloseApp }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" })))), appActive && /* @__PURE__ */ React.createElement("span", { className: "shell__apptab-rule", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("div", { className: "shell__right" }, headerLead, headerRight, actions.map((a) => /* @__PURE__ */ React.createElement("span", { key: a.id, className: "shell__slot" + (a.optional ? " shell__slot--optional" : "") }, /* @__PURE__ */ React.createElement(Tip, { label: a.label, side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": a.label, onClick: a.onClick }, icon(a.icon))))), onMenu && /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--phone-only" }, /* @__PURE__ */ React.createElement(Tip, { label: "Menu", side: "bottom" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__circle", "aria-label": "Menu", "aria-haspopup": "menu", onClick: (e) => onMenu(e.currentTarget) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-bars", "aria-hidden": "true" })))), /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__avatar", "aria-label": user.name ? `Account: ${user.name}` : "Account", onClick: user.onClick }, user.initials))), /* @__PURE__ */ React.createElement("div", { className: "shell__body" }, /* @__PURE__ */ React.createElement("nav", { className: "shell__rail", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement("ul", { className: "shell__rail-list" }, railItems.map((it) => {
       const active = it.id === activeRail;
       return /* @__PURE__ */ React.createElement("li", { key: it.id }, /* @__PURE__ */ React.createElement(Tip, { label: it.label, side: "right" }, /* @__PURE__ */ React.createElement(
         "button",
@@ -6837,9 +6838,69 @@
     })), onMenu && /* @__PURE__ */ React.createElement("div", { className: "shell__rail-foot" }, /* @__PURE__ */ React.createElement(Tip, { label: "Menu", side: "right" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "shell__rail-menu", "aria-label": "Menu", "aria-haspopup": "menu", onClick: (e) => onMenu(e.currentTarget) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-bars", "aria-hidden": "true" }))))), /* @__PURE__ */ React.createElement("div", { className: "shell__content" }, banner, /* @__PURE__ */ React.createElement("main", { id: "shell-main", className: "shell__main", tabIndex: -1, "aria-label": mainLabel }, children))));
   }
 
-  // src/components/ToastHost.jsx
+  // src/shell/ResetDemoButton.jsx
+  init_react_shim();
+
+  // src/lib/useResetDemo.js
   init_react_shim();
   var import_react43 = __toESM(require_react(), 1);
+  function useResetDemo() {
+    const ui = useUI();
+    const { state, actions } = useEstate();
+    const changeCount = Object.keys(state.triage || {}).length + Object.keys(state.decisions || {}).length + Object.keys(state.assumptions || {}).length + Object.keys(state.handcheck || {}).length + (state.feedback || []).length;
+    const reset = (0, import_react43.useCallback)(async () => {
+      const start = computeEstate({});
+      const headline = fmtGBPCompact(start.totals.totalGBP);
+      const contracts = start.totals.contractCount;
+      const goHome = () => {
+        ui.closeMenu();
+        ui.closeSettings();
+        ui.closeFeedback();
+        ui.closeAbout();
+        ui.closeDemoGuide();
+        navigate("#/overview");
+      };
+      if (!changeCount) {
+        goHome();
+        ui.toast({ tone: "info", title: "Already at the starting numbers.", description: `Nothing has changed. The headline is ${headline} across ${contracts} contracts.` });
+        return;
+      }
+      const ok = await ui.confirm({
+        title: COPY.resetDialog.title,
+        description: COPY.resetDialog.body,
+        confirmLabel: COPY.resetDialog.confirm,
+        cancelLabel: COPY.resetDialog.cancel,
+        destructive: true
+      });
+      if (!ok) return;
+      actions.resetAll();
+      goHome();
+      ui.toast({ tone: "success", title: "Demo data reset.", description: `The headline is back to ${headline} across ${contracts} contracts. You are on the Overview.` });
+    }, [ui, actions, changeCount]);
+    return { reset, changeCount };
+  }
+
+  // src/shell/ResetDemoButton.jsx
+  function ResetDemoButton() {
+    const { reset, changeCount } = useResetDemo();
+    const label = "Reset demo data";
+    return /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "shell__reset" + (changeCount ? " has-changes" : ""),
+        "aria-label": changeCount ? `${label}. You have ${changeCount} ${changeCount === 1 ? "change" : "changes"}.` : label,
+        title: label,
+        onClick: reset
+      },
+      /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-rotate-left", "aria-hidden": "true" }),
+      /* @__PURE__ */ React.createElement("span", { className: "shell__reset-label" }, label)
+    ));
+  }
+
+  // src/components/ToastHost.jsx
+  init_react_shim();
+  var import_react44 = __toESM(require_react(), 1);
   function ToastHost2() {
     const { toasts } = useUIState();
     const { dismissToast } = useUI();
@@ -6847,7 +6908,7 @@
   }
   function ToastBridge({ children }) {
     const ui = useUI();
-    const api = (0, import_react43.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
+    const api = (0, import_react44.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
     return /* @__PURE__ */ React.createElement(ToastContext.Provider, { value: api }, children);
   }
 
@@ -6934,6 +6995,7 @@
         tabs,
         appActive: !onGuide,
         appHref: "#/overview",
+        headerLead: /* @__PURE__ */ React.createElement(ResetDemoButton, null),
         actions,
         user: { ...USER, onClick: inert("Account") },
         railItems: RAIL,
@@ -6957,7 +7019,7 @@
 
   // src/components/FlagDrawer.jsx
   init_react_shim();
-  var import_react44 = __toESM(require_react(), 1);
+  var import_react45 = __toESM(require_react(), 1);
 
   // src/data/reasons.js
   init_react_shim();
@@ -7063,8 +7125,8 @@
     const contract = flag ? estate.contractsById[flag.contractId] : null;
     const derived = flag ? estate.derived[flag.contractId] : null;
     const open = !!(flag && contract && derived);
-    const wasOpen = (0, import_react44.useRef)(false);
-    (0, import_react44.useEffect)(() => {
+    const wasOpen = (0, import_react45.useRef)(false);
+    (0, import_react45.useEffect)(() => {
       if (open) {
         wasOpen.current = true;
         return void 0;
@@ -7079,7 +7141,7 @@
       }, 30);
       return () => clearTimeout(t);
     }, [open]);
-    (0, import_react44.useEffect)(() => {
+    (0, import_react45.useEffect)(() => {
       if (!open) return void 0;
       let frames = 0;
       let raf = 0;
@@ -7160,7 +7222,7 @@
 
   // src/components/overlays/FeedbackDialog.jsx
   init_react_shim();
-  var import_react45 = __toESM(require_react(), 1);
+  var import_react46 = __toESM(require_react(), 1);
   var { Button: Button14, Textarea } = ds_default;
   var TEXT8 = {
     savedTitle: "Saved on this device",
@@ -7201,12 +7263,12 @@
   function FeedbackDialog({ open, onClose }) {
     const { state, actions } = useEstate();
     const ui = useUI();
-    const [answer, setAnswer] = (0, import_react45.useState)("");
-    const [comment, setComment] = (0, import_react45.useState)("");
-    const [error, setError] = (0, import_react45.useState)(null);
-    const group = (0, import_react45.useRef)(null);
+    const [answer, setAnswer] = (0, import_react46.useState)("");
+    const [comment, setComment] = (0, import_react46.useState)("");
+    const [error, setError] = (0, import_react46.useState)(null);
+    const group = (0, import_react46.useRef)(null);
     const saved2 = state.feedback;
-    (0, import_react45.useEffect)(() => {
+    (0, import_react46.useEffect)(() => {
       if (open) {
         setAnswer("");
         setComment("");
@@ -7392,7 +7454,7 @@
 
   // src/components/overlays/MenuPopover.jsx
   init_react_shim();
-  var import_react46 = __toESM(require_react(), 1);
+  var import_react47 = __toESM(require_react(), 1);
   var ITEM = '[role="menuitem"]';
   function placementFor(anchor) {
     try {
@@ -7404,8 +7466,9 @@
   }
   function MenuPopover({ open, anchor, onClose }) {
     const ui = useUI();
-    const list = (0, import_react46.useRef)(null);
-    const [ready, setReady] = (0, import_react46.useState)(false);
+    const { reset } = useResetDemo();
+    const list = (0, import_react47.useRef)(null);
+    const [ready, setReady] = (0, import_react47.useState)(false);
     const items = [
       { id: "why", label: "Why this matters", icon: "scale-balanced", href: "#/evidence" },
       { id: "how", label: "How this is calculated", icon: "calculator", href: "#/method" },
@@ -7413,9 +7476,11 @@
       { id: "guide", label: "Guide", icon: "book-open", href: "#/guide" },
       // G1: also the way to the Guide on phones, where the header tabs collapse
       { id: "demo", label: "Demo guide", icon: "compass", onSelect: () => ui.openDemoGuide() },
-      { id: "feedback", label: "Give feedback", icon: "message", onSelect: () => ui.openFeedback() }
+      { id: "feedback", label: "Give feedback", icon: "message", onSelect: () => ui.openFeedback() },
+      { id: "reset", label: "Reset demo data", icon: "rotate-left", onSelect: () => reset() }
+      // also the way to reset on phones, where the header button is hidden
     ];
-    (0, import_react46.useEffect)(() => {
+    (0, import_react47.useEffect)(() => {
       if (!open) {
         setReady(false);
         return void 0;
@@ -7423,7 +7488,7 @@
       const raf = requestAnimationFrame(() => setReady(true));
       return () => cancelAnimationFrame(raf);
     }, [open]);
-    (0, import_react46.useEffect)(() => {
+    (0, import_react47.useEffect)(() => {
       if (!open || !ready || !list.current) return;
       const first = list.current.querySelector(ITEM);
       if (first) first.focus({ preventScroll: true });

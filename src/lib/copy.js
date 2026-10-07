@@ -476,27 +476,27 @@ export const COPY = {
   toasts: {
     feedbackSaved: 'Feedback saved on this device. Thank you.',
     feedbackCopied: 'Feedback copied to your clipboard.',
-    resetDone: 'Changes reset. The demo is back to its starting numbers.',
+    resetDone: 'Demo data reset. The demo is back to its starting numbers.',
     inert: (name) => `${name} isn't part of this prototype. It sits outside Stage 1. Use the left rail to explore the demo.`,
     handcheck: { correct: 'Answer marked correct.', incorrect: 'Answer marked incorrect.' },
     linkCopied: 'Link copied to your clipboard.',
     themeToDark: 'Switch to dark mode', themeToLight: 'Switch to light mode',
   },
 
-  resetDialog: { title: 'Reset your changes?', body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.', cancel: 'Cancel', confirm: 'Reset changes' },
+  resetDialog: { title: 'Reset demo data?', body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.', cancel: 'Cancel', confirm: 'Reset demo data' },
 
   feedback: {
     title: 'Tell us what you think', question: 'Would you use this on your own contracts?', options: ['Yes', 'Maybe', 'No'],
     comment: 'What would make it more useful?', helper: 'Your answer stays on this device unless you copy it.', save: 'Save feedback', cancel: 'Cancel', copy: 'Copy feedback',
   },
 
-  settings: { assumptionsBanner: 'Changing assumptions changes every indicative figure.', renewalRate: 'Renewal rate', nearCap: 'Close to cap threshold', reset: 'Reset demo changes' },
+  settings: { assumptionsBanner: 'Changing assumptions changes every indicative figure.', renewalRate: 'Renewal rate', nearCap: 'Close to cap threshold', reset: 'Reset demo data' },
 
   buttons: {
     viewOpportunities: 'View opportunities', viewClause: 'View clause', viewClausePage: (n) => `View clause, page ${n}`, openContract: 'Open contract', openDemoGuide: 'Open demo guide',
     openRenewalRadar: 'Open renewal radar', giveFeedback: 'Give feedback', saveFeedback: 'Save feedback', copyFeedback: 'Copy feedback', seeWhatComesNext: 'See what comes next',
     exportOpportunities: 'Export opportunities', confirmMatch: 'Confirm match', rejectMatch: 'Reject match', clearFilters: 'Clear filters', clearSearch: 'Clear search',
-    resetDemoChanges: 'Reset demo changes', resetChanges: 'Reset changes', previousAnswer: 'Previous answer', nextAnswer: 'Next answer', markCorrect: 'Mark answer as correct',
+    resetDemoChanges: 'Reset demo data', resetChanges: 'Reset demo data', previousAnswer: 'Previous answer', nextAnswer: 'Next answer', markCorrect: 'Mark answer as correct',
     markIncorrect: 'Mark answer as incorrect', backToOpportunity: 'Back to opportunity', showAllCases: 'Show all cases', showAll9Cases: 'Show all 9 cases', closeDialog: 'Close dialog', cancel: 'Cancel',
     seeCalculation: 'See calculation', showAllContracts: 'Show all 24 contracts',
   },

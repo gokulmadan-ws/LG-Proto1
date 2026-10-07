@@ -38,6 +38,7 @@ export const DEFAULT_ACTIONS = [
  * @param {Function} [onRailChange] (id) => void
  * @param {Function} [onMenu]       "Menu" button; called with the button element so a popover can anchor to it. Bottom of the rail on
  *                                  desktop, in the header on phones (the bottom bar has no room). Omit to hide both
+ * @param {Node}     [headerLead]   rendered before headerRight in the right cluster (the Reset demo data button)
  * @param {Node}     [headerRight]  rendered first in the right cluster. Default = <ThemeToggle/>. Pass null to omit.
  * @param {Array}    [actions]      header circle buttons {id,label,icon,onClick?,optional?}. Default Share/Notifications/Settings
  * @param {{initials:string,name?:string,onClick?:Function}} [user]
@@ -57,6 +58,7 @@ export function AppShell({
   activeRail,
   onRailChange,
   onMenu,
+  headerLead = null,
   headerRight = <ThemeToggle Tip={Tip} />,
   actions = DEFAULT_ACTIONS,
   user = { initials: 'JS' },
@@ -116,6 +118,7 @@ export function AppShell({
         </div>
 
         <div className="shell__right">
+          {headerLead}
           {headerRight}
           {actions.map((a) => (
             <span key={a.id} className={'shell__slot' + (a.optional ? ' shell__slot--optional' : '')}>
