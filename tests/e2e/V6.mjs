@@ -203,7 +203,7 @@ try {
     const src = (await t.page.locator('[data-testid="source-note"]').innerText()).replace(/\s+/g, ' ');
     has(src, 'Source: Council contracts register, PDF', 'Source chip');
     has(src, '24 contracts', 'count per source');
-    has(src, 'A contract over £5m that started on or after 24 February 2025 would come from Find a Tender.', 'the rule');
+    has(src, 'Councils publish a copy of any contract over £5m on Find a Tender, for procurements started on or after 24 February 2025.', 'the rule');
     eq(data.contracts.filter((c) => c.source !== 'register_pdf').length, 0, 'sample: all 24 contracts come from the register PDF');
   });
 

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en-GB" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How this prototype was built | Run report</title>
+<meta name="description" content="Numbers and a picture of the AI agent team that built the Kontor financial layer prototype.">
+<script>(function(){var t='dark';try{var s=localStorage.getItem('run-report-theme');if(s==='light'||s==='dark')t=s}catch(e){}document.documentElement.setAttribute('data-theme',t)})()</script>
+<style>
+:root{--bg:#0E0F12;--surface:#1A1B22;--surface2:#121417;--line:#28292F;--fg:#fff;--fg2:#ADAFB7;--accent:#1F6FEB;--accent-fg:#fff;--link:#6CA6FF;
+ --blue:#4C8DF6;--purple:#B07CFF;--teal:#2BC0B0;--green:#4CBF63;--amber:#E0A82E;--red:#F0605D;--slate:#8E96A8;color-scheme:dark}
+:root[data-theme=light]{--bg:#F2F3F7;--surface:#fff;--surface2:#F9FAFB;--line:#C1C1CC;--fg:#1A1B22;--fg2:#4A4B53;--accent:#0969DA;--link:#0A58B8;
+ --blue:#0B5BC4;--purple:#6C2BD9;--teal:#0A7A70;--green:#1E7B35;--amber:#8A5A00;--red:#B3242A;--slate:#4F586B;color-scheme:light}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--link)}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 24px 72px}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 0 24px}
+.brand{font-weight:600;letter-spacing:.02em;color:var(--fg2);font-size:14px;text-transform:uppercase}
+button.theme{white-space:nowrap;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:10px 16px;min-height:44px;font:inherit;font-size:14px;cursor:pointer}
+button.theme:hover{background:var(--surface)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1{font-size:clamp(34px,5.2vw,60px);line-height:1.05;margin:0 0 12px;font-weight:700;letter-spacing:-.02em}
+.lead{font-size:clamp(18px,2.2vw,22px);color:var(--fg2);max-width:46ch;margin:0 0 8px}
+.when{color:var(--fg2);font-size:14px}
+h2{font-size:clamp(24px,3vw,34px);margin:64px 0 8px;letter-spacing:-.01em}
+h2+p.intro{margin:0 0 24px;color:var(--fg2);max-width:60ch;font-size:18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-top:32px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.tile .big{font-size:clamp(34px,4vw,46px);font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tile .cap{margin-top:10px;font-weight:600}
+.tile .sub{margin-top:4px;color:var(--fg2);font-size:14px}
+/* team */
+.boss{display:flex;justify-content:center;margin:8px 0 0}
+.boss .node{background:var(--accent);color:var(--accent-fg);border-radius:12px;padding:14px 22px;text-align:center;max-width:560px}
+.boss .node b{display:block;font-size:18px}
+.boss .node span{font-size:14px;opacity:.95}
+.stem{width:2px;height:28px;background:var(--line);margin:0 auto}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;position:relative}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.lane h3{margin:0 0 8px;font-size:20px}
+.lane-stats{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--fg2);font-size:13px;margin-bottom:12px}
+.lane-stats b{color:var(--fg);font-size:15px}
+.chips{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.chip{display:grid;grid-template-columns:10px 1fr;gap:2px 8px;align-items:start;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.chip .dot{grid-row:1/3;margin-top:5px}
+.chip .nm{font-weight:600;overflow-wrap:anywhere}
+.chip .rl{color:var(--fg2);font-size:12px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--slate);margin-right:8px;flex:0 0 auto}
+.c-blue .dot,.dot.c-blue{background:var(--blue)}.c-purple .dot,.dot.c-purple{background:var(--purple)}.c-teal .dot,.dot.c-teal{background:var(--teal)}
+.c-green .dot,.dot.c-green{background:var(--green)}.c-amber .dot,.dot.c-amber{background:var(--amber)}.c-red .dot,.dot.c-red{background:var(--red)}.c-slate .dot,.dot.c-slate{background:var(--slate)}
+.flowlabel{color:var(--fg2);font-size:14px;text-align:center;margin:12px 0 0}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:24px 0 0;padding:0;list-style:none}
+.rules li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.rules b{display:block;margin-bottom:2px}
+/* gantt */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;overflow:hidden}
+#gantt svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0 0;padding:0;list-style:none;font-size:13px;color:var(--fg2)}
+.legend li{display:flex;align-items:center}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--link);min-height:44px;display:flex;align-items:center}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+thead th{color:var(--fg2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+td.what{color:var(--fg2);min-width:240px}
+td,th[scope=row]{font-variant-numeric:tabular-nums}
+th[scope=row]{display:flex;align-items:center;font-weight:600}
+.tablewrap{overflow-x:auto}
+/* bars */
+.barrow{display:grid;grid-template-columns:minmax(120px,190px) 1fr 70px;gap:10px;align-items:center;padding:4px 0;font-size:14px}
+.barrow .bar{height:14px;background:var(--surface2);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.barrow .bar i{display:block;height:100%;background:var(--accent)}
+.barrow .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--fg2)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.facts{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.facts li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:2px}
+.facts strong{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg2)}
+.notes{color:var(--fg2);max-width:70ch}
+.notes li{margin:6px 0}
+footer{margin-top:64px;color:var(--fg2);font-size:13px}
+.skip{position:absolute;left:-999px}
+.skip:focus{left:8px;top:8px;background:var(--surface);padding:8px 12px;z-index:5}
+@media (max-width:600px){.wrap{padding:16px 16px 48px}.barrow{grid-template-columns:100px 1fr 56px}}
+@media print{button.theme{display:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="top"><span class="brand">Kontor financial layer · Run report</span><button class="theme" id="theme" type="button" aria-pressed="true">Dark mode</button></header>
+<main id="main">
+<h1>One spec doc.<br>A team of AI agents.<br>One working app.</h1>
+<p class="lead">This page shows how the Kontor financial layer prototype was built, in numbers and one picture.</p>
+<p class="when">Run started 06 Oct 2026, 15:37 UTC · Stats read from the session logs, not estimated.</p>
+<div class="tiles" role="list"><div class="tile"><div class="big">23</div><div class="cap">AI agents</div><div class="sub">Each one a fresh worker with one clear job.</div></div><div class="tile"><div class="big">3,085</div><div class="cap">tool calls by agents</div><div class="sub">Read a file, write a file, run a command, look at a screenshot.</div></div><div class="tile"><div class="big">13.4</div><div class="cap">agent hours</div><div class="sub">All agent run times added up.</div></div><div class="tile"><div class="big">8.4</div><div class="cap">real hours</div><div class="sub">Start to finish on the clock. Agents ran in parallel.</div></div><div class="tile"><div class="big">5</div><div class="cap">teams</div><div class="sub">One team for each phase of the work.</div></div><div class="tile"><div class="big">2,527</div><div class="cap">agent steps</div><div class="sub">Times an agent stopped to think and pick its next action.</div></div><div class="tile"><div class="big">8.1M</div><div class="cap">tokens (reported)</div><div class="sub">Small pieces of text the agents read and wrote, as the workflow tool reports it. Counted for finished teams.</div></div><div class="tile"><div class="big">34,570</div><div class="cap">lines of code and docs</div><div class="sub">Written by agents. Not counting the design system or libraries.</div></div></div>
+
+<h2>The team shape</h2>
+<p class="intro">One main session. It plans, sets rules and checks results. It starts teams. Each team is a set of agents with one job each.</p>
+<div class="boss"><div class="node"><b>Main session (the boss)</b><span>Reads the spec. Writes the plan and the rules. Starts each team. Reads the results. Commits the code.</span></div></div>
+<div class="stem" aria-hidden="true"></div>
+<div class="lanes"><article class="lane"><h3>Understand</h3><div class="lane-stats"><span><b>6</b> agents</span><span><b>1.9</b> h on the clock</span><span><b>582</b> calls</span></div><ul class="chips"><li class="chip c-blue"><span class="dot"></span><span class="nm">research:ds-inventory</span><span class="rl">Researcher</span></li><li class="chip c-blue"><span class="dot"></span><span class="nm">research:shell-analysis</span><span class="rl">Researcher</span></li><li class="chip c-blue"><span class="dot"></span><span class="nm">research:spec-requirements</span><span class="rl">Researcher</span></li><li class="chip c-blue"><span class="dot"></span><span class="nm">research:domain-data</span><span class="rl">Researcher</span></li><li class="chip c-blue"><span class="dot"></span><span class="nm">research:dataviz-recipe</span><span class="rl">Researcher</span></li><li class="chip c-purple"><span class="dot"></span><span class="nm">critic</span><span class="rl">Critic</span></li></ul></article><article class="lane"><h3>Foundation</h3><div class="lane-stats"><span><b>4</b> agents</span><span><b>1.5</b> h on the clock</span><span><b>510</b> calls</span></div><ul class="chips"><li class="chip c-teal"><span class="dot"></span><span class="nm">A2 data+engine+copy</span><span class="rl">Foundation builder</span></li><li class="chip c-teal"><span class="dot"></span><span class="nm">A1 shell+infra</span><span class="rl">Foundation builder</span></li><li class="chip c-teal"><span class="dot"></span><span class="nm">A3 ui kit+charts</span><span class="rl">Foundation builder</span></li><li class="chip c-teal"><span class="dot"></span><span class="nm">integrator</span><span class="rl">Integrator</span></li></ul></article><article class="lane"><h3>Views</h3><div class="lane-stats"><span><b>6</b> agents</span><span><b>1.7</b> h on the clock</span><span><b>790</b> calls</span></div><ul class="chips"><li class="chip c-green"><span class="dot"></span><span class="nm">V2 builder</span><span class="rl">View builder</span></li><li class="chip c-green"><span class="dot"></span><span class="nm">V3 builder</span><span class="rl">View builder</span></li><li class="chip c-green"><span class="dot"></span><span class="nm">V5 builder</span><span class="rl">View builder</span></li><li class="chip c-green"><span class="dot"></span><span class="nm">V1 builder</span><span class="rl">View builder</span></li><li class="chip c-green"><span class="dot"></span><span class="nm">V6 builder</span><span class="rl">View builder</span></li><li class="chip c-green"><span class="dot"></span><span class="nm">V7 builder</span><span class="rl">View builder</span></li></ul></article><article class="lane"><h3>Review and fix</h3><div class="lane-stats"><span><b>6</b> agents</span><span><b>2.4</b> h on the clock</span><span><b>1,050</b> calls</span></div><ul class="chips"><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:vis</span><span class="rl">Reviewer</span></li><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:fun</span><span class="rl">Reviewer</span></li><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:a11y</span><span class="rl">Reviewer</span></li><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:spec</span><span class="rl">Reviewer</span></li><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:data</span><span class="rl">Reviewer</span></li><li class="chip c-amber"><span class="dot"></span><span class="nm">r1:robust</span><span class="rl">Reviewer</span></li></ul></article><article class="lane"><h3>Extra builders</h3><div class="lane-stats"><span><b>1</b> agents</span><span><b>0.6</b> h on the clock</span><span><b>153</b> calls</span></div><ul class="chips"><li class="chip c-slate"><span class="dot"></span><span class="nm">Build Guide tab for prototype</span><span class="rl">Feature builder</span></li></ul></article></div>
+<p class="flowlabel">Each team hands files to the next: research notes → blueprint → base code → screens → reviews → fixes.</p>
+<ul class="rules">
+<li><b>Own your files.</b> Every agent had a list of files it could change. Nobody else could touch them.</li>
+<li><b>Read before you write.</b> A critic read all five research notes and found where they disagreed. That happened before any code.</li>
+<li><b>Look, then fix.</b> Agents took screenshots in dark and light and looked at them. They did not trust code alone.</li>
+<li><b>Reviewers only report.</b> They could not edit the code. One job to find faults, a different job to fix them.</li>
+<li><b>Two at a time.</b> The machine has 4 CPUs. The tool ran at most two agents of one team together.</li>
+<li><b>Design system stays pristine.</b> Nobody edited the Springboard files. Fixes went around them.</li>
+</ul>
+
+<h2>When each agent worked</h2>
+<p class="intro">Each bar is one agent. Wide bar means a long job. Bars of the same colour have the same role.</p>
+<div class="panel"><div id="gantt" role="img" aria-label="Timeline of every agent over the run, grouped by team"></div>
+<ul class="legend" id="legend"></ul>
+<details><summary>Show the same data as a table</summary><div class="tablewrap"><table><thead><tr><th>Agent</th><th>Role</th><th>Team</th><th>Minutes</th><th>Tool calls</th></tr></thead><tbody id="agentrows"></tbody></table></div></details></div>
+
+<h2>What each role did</h2>
+<p class="intro">Seven roles. Each role has one clear job.</p>
+<div class="panel tablewrap"><table><thead><tr><th>Role</th><th>Agents</th><th>Hours</th><th>Tool calls</th><th>Job</th></tr></thead><tbody><tr><th scope="row"><span class="dot c-blue"></span>Researcher</th><td>5</td><td>2.5</td><td>514</td><td class="what">Read the design system, the shell, the spec and UK council data. Wrote guides for the builders.</td></tr><tr><th scope="row"><span class="dot c-purple"></span>Critic</th><td>1</td><td>0.3</td><td>68</td><td class="what">Read all the research. Found where the guides disagreed, before any code.</td></tr><tr><th scope="row"><span class="dot c-teal"></span>Foundation builder</th><td>3</td><td>1.9</td><td>428</td><td class="what">Built the base: data and rules engine, app shell and router, UI parts and charts.</td></tr><tr><th scope="row"><span class="dot c-teal"></span>Integrator</th><td>1</td><td>0.2</td><td>82</td><td class="what">Joined the three base parts. Built, tested and fixed the joins.</td></tr><tr><th scope="row"><span class="dot c-green"></span>View builder</th><td>6</td><td>3.2</td><td>790</td><td class="what">Each one built its own screens with its own test file.</td></tr><tr><th scope="row"><span class="dot c-amber"></span>Reviewer</th><td>6</td><td>4.7</td><td>1,050</td><td class="what">Each one hunted for faults with one lens: look, function, access, spec, numbers, robustness.</td></tr><tr><th scope="row"><span class="dot c-slate"></span>Feature builder</th><td>1</td><td>0.6</td><td>153</td><td class="what">Added a late feature (the Guide tab) while the review ran.</td></tr></tbody></table></div>
+
+<h2>What the agents did with their hands</h2>
+<p class="intro">Every tool call is one action: read, write, run, search or look.</p>
+<div class="two"><div class="panel"><h3 style="margin:0 0 8px;font-size:18px">Agent tool calls</h3><div id="toolbars"></div></div>
+<div class="panel"><h3 style="margin:0 0 8px;font-size:18px">Main session tool calls (149)</h3><div id="maintools"></div></div></div>
+
+<h2>How much was built</h2>
+<p class="intro">Lines of text in the repository, by area. Without the design system and libraries.</p>
+<div class="two"><div class="panel"><div class="barrow"><span class="lbl">docs</span><span class="bar"><i style="width:100.0%"></i></span><span class="val">11,226</span></div><div class="barrow"><span class="lbl">tests</span><span class="bar"><i style="width:71.9%"></i></span><span class="val">8,075</span></div><div class="barrow"><span class="lbl">screens</span><span class="bar"><i style="width:64.4%"></i></span><span class="val">7,229</span></div><div class="barrow"><span class="lbl">kit and charts</span><span class="bar"><i style="width:35.1%"></i></span><span class="val">3,941</span></div><div class="barrow"><span class="lbl">shell and logic</span><span class="bar"><i style="width:24.6%"></i></span><span class="val">2,761</span></div><div class="barrow"><span class="lbl">build scripts</span><span class="bar"><i style="width:7.6%"></i></span><span class="val">848</span></div><div class="barrow"><span class="lbl">other</span><span class="bar"><i style="width:4.4%"></i></span><span class="val">489</span></div><div class="barrow"><span class="lbl">data</span><span class="bar"><i style="width:0.0%"></i></span><span class="val">1</span></div></div>
+<div class="panel"><h3 style="margin:0 0 8px;font-size:18px">Quality checks</h3><div class="barrow"><span class="lbl">Engine checks</span><span class="bar"><i style="width:100%"></i></span><span class="val">14,987</span></div><div class="barrow"><span class="lbl">Browser checks</span><span class="bar"><i style="width:3.6%"></i></span><span class="val">536</span></div><div class="barrow"><span class="lbl">Failures at last run</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+<p class="notes" style="margin:12px 0 0">Browser checks run in a real Chromium: routes, theme, keyboard, accessibility, numbers.</p></div></div>
+
+
+<h2>Problems caught before they shipped</h2>
+<p class="intro">The critic agent joined the five research notes and tried to build the pieces together. It found these. Fixing them early was cheap.</p>
+<ul class="facts">
+<li><strong>Blank screen offline</strong><span>The design system loads fonts from the internet. On a slow venue network the page stayed blank for 8 seconds or more. The team made an offline copy of the styles.</span></li>
+<li><strong>Two datasets</strong><span>Two research agents each made a different sample council with different numbers. One was picked. The other was kept as reference only.</span></li>
+<li><strong>Two app shells</strong><span>Two agents built two versions of the page frame. The one checked pixel by pixel against the template won.</span></li>
+<li><strong>Cards that did not add up</strong><span>Four cards added up to £6.2m under a £6.1m headline. The page now shows the exact sum under the cards.</span></li>
+<li><strong>Keyboard bug</strong><span>In a table, pressing Enter on a link inside a row opened the row instead. Mouse clicks worked, so it was easy to miss.</span></li>
+<li><strong>Wrong words for a demo</strong><span>One planned line said "public data" but the data is made up. Another showed an internal risk to customers. Both were reworded.</span></li>
+</ul>
+
+<h2>Things worth knowing</h2>
+<ul class="facts"><li><strong>Longest worker</strong><span>r1:fun ran for 1.6 hours.</span></li><li><strong>Busiest worker</strong><span>r1:vis made 427 tool calls.</span></li><li><strong>Favourite tool</strong><span>Bash: 1,880 calls. Agents like to run commands and read files.</span></li><li><strong>Most at once</strong><span>3 agents ran at the same time. The machine has 4 CPUs, so each team runs two agents at a time.</span></li><li><strong>Screenshots saved</strong><span>At least 2,005 pictures of the app, in dark and light, at four screen sizes. Agents looked at them.</span></li><li><strong>Tests</strong><span>536 browser checks and 14,987 engine checks at the last full run. No check failed.</span></li><li><strong>Reviews</strong><span>Four review reports (look, function, access, spec) found 1 blocker (an old offline file) and a handful of major issues. The clear ones were fixed. The rest are listed in docs/review.</span></li><li><strong>Stopped on purpose</strong><span>The review team was stopped early to save usage. Two of six reviewers had not finished. The build was then checked with the existing tests, once.</span></li></ul>
+
+<h2>How to read these numbers</h2>
+<ul class="notes">
+<li>Agent hours add up every agent's run time. Agents ran at the same time, so real hours are smaller.</li>
+<li>Tool calls and steps come from the logs of each agent. Tokens come from the workflow tool for finished teams.</li>
+<li>The main session also did work. It is counted on its own, not in the agent totals.</li>
+<li>The app uses made-up data. The council and suppliers are fictional. This page does not change that.</li>
+<li>Only Chromium was tested. Safari and Firefox were not.</li>
+<li>Tokens for the stopped review team are not counted, because the tool only reports tokens when a team finishes.</li><li>Agent hours include the stopped review team up to the moment it stopped.</li>
+</ul>
+<footer>Generated from the session logs. Open this file on its own: it has no outside links and works offline.</footer>
+</main>
+</div>
+<script>
+window.RUN = {"t0": 1791301056.096, "t1": 1791331295.296, "lanes": [{"key": "wf_42fc9365-a12", "name": "Understand", "tokens": 2565515}, {"key": "wf_6a3985e4-4f6", "name": "Foundation", "tokens": 1902537}, {"key": "wf_04091c1a-8c7", "name": "Views", "tokens": 3084902}, {"key": "wf_5938cd28-8c3", "name": "Review and fix", "tokens": null}, {"key": "extra", "name": "Extra builders", "tokens": null}], "agents": [{"id": "a0bd033b5df1358f0", "desc": "V1 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791316225.257, "e": 1791317585.075, "calls": 101, "turns": 80}, {"id": "a5ce9523937d2a554", "desc": "V6 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791317587.064, "e": 1791319663.299, "calls": 145, "turns": 118}, {"id": "a5ed395e7b4ea2383", "desc": "V3 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791314413.183, "e": 1791316215.533, "calls": 115, "turns": 89}, {"id": "a7cd3c243fd93bc28", "desc": "V7 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791318486.432, "e": 1791320686.507, "calls": 146, "turns": 115}, {"id": "ab167751271d15aa9", "desc": "V2 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791314411.712, "e": 1791316223.706, "calls": 142, "turns": 118}, {"id": "ad167cb76d9b16de2", "desc": "V5 builder", "role": "View builder", "wf": "wf_04091c1a-8c7", "s": 1791316217.111, "e": 1791318484.881, "calls": 141, "turns": 118}, {"id": "a63af41e6664f298e", "desc": "research:dataviz-recipe", "role": "Researcher", "wf": "wf_42fc9365-a12", "s": 1791304227.878, "e": 1791307371.857, "calls": 174, "turns": 127}, {"id": "a6a25767c6393c468", "desc": "research:ds-inventory", "role": "Researcher", "wf": "wf_42fc9365-a12", "s": 1791301421.767, "e": 1791302706.789, "calls": 91, "turns": 67}, {"id": "a6c2d5469b5878843", "desc": "critic", "role": "Critic", "wf": "wf_42fc9365-a12", "s": 1791307378.83, "e": 1791308362.697, "calls": 68, "turns": 57}, {"id": "a9e6f2e8d953d0a9e", "desc": "research:spec-requirements", "role": "Researcher", "wf": "wf_42fc9365-a12", "s": 1791302709.161, "e": 1791304218.155, "calls": 46, "turns": 45}, {"id": "ab39a72d9819e75f7", "desc": "research:shell-analysis", "role": "Researcher", "wf": "wf_42fc9365-a12", "s": 1791301422.946, "e": 1791302712.613, "calls": 85, "turns": 73}, {"id": "afc82874c37e0c87b", "desc": "research:domain-data", "role": "Researcher", "wf": "wf_42fc9365-a12", "s": 1791302718.017, "e": 1791304410.668, "calls": 118, "turns": 72}, {"id": "a6635d953ea73e280", "desc": "r1:fun", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791321127.082, "e": 1791326724.413, "calls": 147, "turns": 136}, {"id": "a6902b1db26d3b2af", "desc": "r1:robust", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791328262.54, "e": 1791329624.243, "calls": 80, "turns": 74}, {"id": "a7c87dfe31b4b737b", "desc": "r1:spec", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791326726.723, "e": 1791328260.974, "calls": 145, "turns": 138}, {"id": "ab9863733b6b894bd", "desc": "r1:vis", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791321124.866, "e": 1791323323.976, "calls": 427, "turns": 315}, {"id": "ab9db9f67d0d8db4b", "desc": "r1:a11y", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791323325.371, "e": 1791326937.437, "calls": 154, "turns": 143}, {"id": "afc213ac5bf5d4b19", "desc": "r1:data", "role": "Reviewer", "wf": "wf_5938cd28-8c3", "s": 1791326939.61, "e": 1791329624.235, "calls": 97, "turns": 94}, {"id": "a0ddc4781094ebfec", "desc": "A2 data+engine+copy", "role": "Foundation builder", "wf": "wf_6a3985e4-4f6", "s": 1791308676.162, "e": 1791310374.931, "calls": 91, "turns": 83}, {"id": "a330bc1231a47b894", "desc": "A1 shell+infra", "role": "Foundation builder", "wf": "wf_6a3985e4-4f6", "s": 1791308677.087, "e": 1791310915.001, "calls": 155, "turns": 127}, {"id": "a4ead129369a149f3", "desc": "A3 ui kit+charts", "role": "Foundation builder", "wf": "wf_6a3985e4-4f6", "s": 1791310377.332, "e": 1791313354.842, "calls": 182, "turns": 156}, {"id": "a6641bcc53df1a007", "desc": "integrator", "role": "Integrator", "wf": "wf_6a3985e4-4f6", "s": 1791313357.879, "e": 1791314227.388, "calls": 82, "turns": 70}, {"id": "a18df8d8921c4fb69", "desc": "Build Guide tab for prototype", "role": "Feature builder", "wf": "extra", "s": 1791328546.561, "e": 1791330565.61, "calls": 153, "turns": 112}], "tools": {"Bash": 1880, "Read": 843, "Write": 197, "Monitor": 51, "WebSearch": 37, "Edit": 22, "StructuredOutput": 20, "WebFetch": 15, "TaskUpdate": 5, "Grep": 5, "ToolSearch": 4, "TaskCreate": 3, "bash": 1, "Skill": 1, "SubagentHandback": 1}, "main_tools": {"Bash": 95, "Artifact": 1, "Skill": 3, "ToolSearch": 3, "mcp__Claude_Docs__guide": 1, "mcp__Claude_Docs__read": 3, "Read": 19, "Write": 5, "Workflow": 4, "ReadNotifications": 1, "Monitor": 4, "ListConnectors": 1, "SearchMcpRegistry": 2, "mcp__github__search_repositories": 1, "Agent": 1, "mcp__claude-code-remote__read_documentation": 2, "mcp__claude-code-remote__send_later": 1, "TaskStop": 1, "ListAgents": 1}, "roles": {"Researcher": {"n": 5, "secs": 8920.31299996376, "calls": 514}, "Critic": {"n": 1, "secs": 983.8670001029968, "calls": 68}, "Foundation builder": {"n": 3, "secs": 6914.193000078201, "calls": 428}, "Integrator": {"n": 1, "secs": 869.5090000629425, "calls": 82}, "View builder": {"n": 6, "secs": 11518.242000341415, "calls": 790}, "Reviewer": {"n": 6, "secs": 16989.086000204086, "calls": 1050}, "Feature builder": {"n": 1, "secs": 2019.048999786377, "calls": 153}}, "roleInfo": {"Researcher": ["blue", "Read the design system, the shell, the spec and UK council data. Wrote guides for the builders."], "Critic": ["purple", "Read all the research. Found where the guides disagreed, before any code."], "Foundation builder": ["teal", "Built the base: data and rules engine, app shell and router, UI parts and charts."], "Integrator": ["teal", "Joined the three base parts. Built, tested and fixed the joins."], "View builder": ["green", "Each one built its own screens with its own test file."], "Reviewer": ["amber", "Each one hunted for faults with one lens: look, function, access, spec, numbers, robustness."], "Triager": ["red", "Merged duplicate findings and gave each one an owner."], "Fixer": ["red", "Fixed findings in their own area of the code."], "Verifier": ["red", "Rebuilt, ran every test, looked for new faults."], "Feature builder": ["slate", "Added a late feature (the Guide tab) while the review ran."]}, "seg": [[1791301421.767, 1791301422.946, 1], [1791301422.946, 1791302706.789, 2], [1791302706.789, 1791302709.161, 1], [1791302709.161, 1791302712.613, 2], [1791302712.613, 1791302718.017, 1], [1791302718.017, 1791304218.155, 2], [1791304218.155, 1791304227.878, 1], [1791304227.878, 1791304410.668, 2], [1791304410.668, 1791307371.857, 1], [1791307371.857, 1791307378.83, 0], [1791307378.83, 1791308362.697, 1], [1791308362.697, 1791308676.162, 0], [1791308676.162, 1791308677.087, 1], [1791308677.087, 1791310374.931, 2], [1791310374.931, 1791310377.332, 1], [1791310377.332, 1791310915.001, 2], [1791310915.001, 1791313354.842, 1], [1791313354.842, 1791313357.879, 0], [1791313357.879, 1791314227.388, 1], [1791314227.388, 1791314411.712, 0], [1791314411.712, 1791314413.183, 1], [1791314413.183, 1791316215.533, 2], [1791316215.533, 1791316217.111, 1], [1791316217.111, 1791316223.706, 2], [1791316223.706, 1791316225.257, 1], [1791316225.257, 1791317585.075, 2], [1791317585.075, 1791317587.064, 1], [1791317587.064, 1791318484.881, 2], [1791318484.881, 1791318486.432, 1], [1791318486.432, 1791319663.299, 2], [1791319663.299, 1791320686.507, 1], [1791320686.507, 1791321124.866, 0], [1791321124.866, 1791321127.082, 1], [1791321127.082, 1791323323.976, 2], [1791323323.976, 1791323325.371, 1], [1791323325.371, 1791326724.413, 2], [1791326724.413, 1791326726.723, 1], [1791326726.723, 1791326937.437, 2], [1791326937.437, 1791326939.61, 1], [1791326939.61, 1791328260.974, 2], [1791328260.974, 1791328262.54, 1], [1791328262.54, 1791328546.561, 2], [1791328546.561, 1791329624.235, 3], [1791329624.235, 1791329624.243, 2], [1791329624.243, 1791330565.61, 1]], "maxc": 3};
+(function(){
+var R=window.RUN, $=function(i){return document.getElementById(i)};
+var ROLE_COLOR={'Researcher':'--blue','Critic':'--purple','Foundation builder':'--teal','Integrator':'--teal','View builder':'--green','Reviewer':'--amber','Triager':'--red','Fixer':'--red','Verifier':'--red','Feature builder':'--slate'};
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function fmt(n){return n.toLocaleString('en-GB')}
+function ns(t,a){var e=document.createElementNS('http://www.w3.org/2000/svg',t);for(var k in a)e.setAttribute(k,a[k]);return e}
+function gantt(){
+  var box=$('gantt');box.innerHTML='';
+  var W=1100,L=150,RGT=16,rowH=15,gap=3,lanePad=22,top=26,x0=L,x1=W-RGT,t0=R.t0,t1=R.t1;
+  var lanes=R.lanes.map(function(l){return {l:l,a:R.agents.filter(function(a){return a.wf===l.key}).sort(function(a,b){return a.s-b.s})}}).filter(function(x){return x.a.length});
+  var H=top+lanes.reduce(function(s,x){return s+lanePad+x.a.length*(rowH+gap)+8},0)+60;
+  var svg=ns('svg',{viewBox:'0 0 '+W+' '+H,focusable:'false'});
+  var sx=function(t){return x0+(t-t0)/(t1-t0)*(x1-x0)};
+  var hours=Math.ceil((t1-t0)/3600);
+  for(var h=0;h<=hours;h++){var x=sx(t0+h*3600);if(x>x1+1)break;
+    svg.appendChild(ns('line',{x1:x,x2:x,y1:top-6,y2:H-50,stroke:css('--line'),'stroke-width':1}));
+    var tx=ns('text',{x:x,y:top-10,'text-anchor':'middle','font-size':11,fill:css('--fg2')});tx.textContent=h+'h';svg.appendChild(tx)}
+  var y=top;
+  lanes.forEach(function(x){
+    var lt=ns('text',{x:8,y:y+14,'font-size':13,'font-weight':600,fill:css('--fg')});lt.textContent=x.l.name;svg.appendChild(lt);
+    var cnt=ns('text',{x:8,y:y+30,'font-size':11,fill:css('--fg2')});cnt.textContent=x.a.length+' agents';svg.appendChild(cnt);
+    y+=lanePad-12;
+    x.a.forEach(function(a){
+      var w=Math.max(3,sx(a.e)-sx(a.s));
+      var r=ns('rect',{x:sx(a.s),y:y,width:w,height:rowH,rx:3,fill:css(ROLE_COLOR[a.role]||'--slate')});
+      var t=ns('title',{});t.textContent=a.desc+' · '+a.role+' · '+Math.round((a.e-a.s)/60)+' min · '+a.calls+' tool calls';r.appendChild(t);svg.appendChild(r);
+      y+=rowH+gap});
+    y+=20});
+  // concurrency strip
+  var sy=y+6, sh=34;
+  var st=ns('text',{x:8,y:sy+14,'font-size':13,'font-weight':600,fill:css('--fg')});st.textContent='Agents at once';svg.appendChild(st);
+  var c2=ns('text',{x:8,y:sy+30,'font-size':11,fill:css('--fg2')});c2.textContent='most: '+R.maxc;svg.appendChild(c2);
+  svg.appendChild(ns('line',{x1:x0,x2:x1,y1:sy+sh,y2:sy+sh,stroke:css('--line')}));
+  R.seg.forEach(function(s){if(!s[2])return;var hh=s[2]/Math.max(1,R.maxc)*sh;svg.appendChild(ns('rect',{x:sx(s[0]),y:sy+sh-hh,width:Math.max(0.6,sx(s[1])-sx(s[0])),height:hh,fill:css('--accent'),opacity:.85}))});
+  svg.setAttribute('viewBox','0 0 '+W+' '+(sy+sh+14));
+  box.appendChild(svg);
+}
+function legend(){var u=$('legend');u.innerHTML='';var seen={};Object.keys(R.roles).forEach(function(r){var li=document.createElement('li');var d=document.createElement('span');d.className='dot';d.style.background=css(ROLE_COLOR[r]);li.appendChild(d);li.appendChild(document.createTextNode(r));u.appendChild(li)})}
+function bars(id,obj,limit){var box=$(id);box.innerHTML='';var ks=Object.keys(obj).sort(function(a,b){return obj[b]-obj[a]});var mx=obj[ks[0]]||1;var shown=ks.slice(0,limit);var other=ks.slice(limit).reduce(function(s,k){return s+obj[k]},0);
+  shown.forEach(function(k){row(k,obj[k],mx)});if(other)row('other tools',other,mx);
+  function row(k,v,m){var r=document.createElement('div');r.className='barrow';var nm=k.replace(/^mcp__/,'').replace(/__/g,' · ');r.innerHTML='<span class="lbl"></span><span class="bar"><i></i></span><span class="val"></span>';r.children[0].textContent=nm;r.children[1].firstChild.style.width=(v/m*100)+'%';r.children[2].textContent=fmt(v);box.appendChild(r)}}
+function rows(){var tb=$('agentrows');R.agents.slice().sort(function(a,b){return a.s-b.s}).forEach(function(a){var tr=document.createElement('tr');var lane=(R.lanes.filter(function(l){return l.key===a.wf})[0]||{}).name||'';[a.desc,a.role,lane,Math.round((a.e-a.s)/60),fmt(a.calls)].forEach(function(v){var td=document.createElement('td');td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)})}
+function draw(){gantt();legend()}
+bars('toolbars',R.tools,10);bars('maintools',R.main_tools,8);rows();draw();
+var btn=$('theme');function label(){var d=document.documentElement.getAttribute('data-theme')==='dark';btn.textContent=d?'Dark mode':'Light mode';btn.setAttribute('aria-pressed',d?'true':'false')}
+btn.addEventListener('click',function(){var n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('run-report-theme',n)}catch(e){}label();draw()});label();
+var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(draw,150)});
+})();
+</script>
+</body>
+</html>

@@ -92,7 +92,8 @@ try {
     await check('card links navigate through the real router and the rail follows the route', async () => {
       await t.page.click('a.kviz-card[href="#/opportunities?type=overCap"]');
       await t.page.waitForFunction(() => location.hash === '#/opportunities?type=overCap');
-      eq(await t.page.evaluate(() => document.querySelector('nav[aria-label="Primary"] [aria-current]').getAttribute('aria-label')), 'Opportunities', 'rail');
+      // The hash changes before React has rendered the new page, so wait for the rail instead of reading it at once.
+      await t.page.waitForFunction(() => { const el = document.querySelector('nav[aria-label="Primary"] [aria-current]'); return !!el && el.getAttribute('aria-label') === 'Opportunities'; });
       await t.page.goBack();
       await t.page.waitForFunction(() => location.hash === '#/overview');
     });
