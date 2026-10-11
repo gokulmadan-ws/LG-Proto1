@@ -8,6 +8,7 @@ A working, demo-grade prototype of the **Kontor financial layer** for one counci
 - A static front end. No server, no CDN, no sign-in. It works offline.
 
 **Live preview:** https://gokulmadan-ws.github.io/LG-Proto1/ (GitHub Pages, from this branch, root folder)
+**Pitch (3 slides):** `pitch.html`, live at https://gokulmadan-ws.github.io/LG-Proto1/pitch.html. Arrow keys or swipe to move; F for full screen.
 **How it was built:** `run-report.html` (open it in a browser, or add `/run-report.html` to the live link)
 
 ## Show it in five minutes
