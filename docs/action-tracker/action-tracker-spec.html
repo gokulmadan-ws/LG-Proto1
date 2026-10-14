@@ -150,8 +150,9 @@ a { color: var(--link); }
 .notes.plain li { grid-template-columns: 1fr; border-top: 2px solid var(--line-2); padding-top: 10px; }
 .pair { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 40px; align-items: start; }
 .pair.drawer-pair { grid-template-columns: minmax(0, 680px) minmax(0, 1fr); }
+.pair.dlg-pair { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); }
 .pair .notes { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); }
-@media (max-width: 900px) { .pair, .pair.drawer-pair { grid-template-columns: 1fr; } .pair .notes { position: static; } }
+@media (max-width: 900px) { .pair, .pair.drawer-pair, .pair.dlg-pair { grid-template-columns: 1fr; } .pair .notes { position: static; } }
 
 /* ---------- screen A: drawer footer + toast */
 .a-body { display: grid; gap: 14px; padding: 18px; }
@@ -332,6 +333,153 @@ td.muted { color: var(--fg-2); }
 
 .foot { border-top: 1px solid var(--line); padding-top: 20px; color: var(--fg-2); font-size: 13px; display: grid; gap: 4px; }
 
+/* ---------- screen 4: close dialog + results */
+.dlg { max-width: 460px; }
+.dlg-body { padding: 18px; display: grid; gap: 14px; }
+.dlg-body h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.dlg-body .sub { color: var(--fg-2); font-size: 12px; margin-top: -10px; }
+.radios { display: flex; flex-wrap: wrap; gap: 8px; }
+.radios span { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-2); border-radius: 6px; padding: 6px 10px; font-size: 13px; color: var(--fg-2); }
+.radios span::before { content: ''; width: 12px; height: 12px; border-radius: 9999px; border: 1.5px solid var(--line-2); box-sizing: border-box; }
+.radios span.on { color: var(--fg); border-color: var(--accent); background: var(--accent-soft); }
+.radios span.on::before { border: 4px solid var(--accent); }
+.money { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.money label, .dlg-body > div > label { display: block; font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.money label small { color: var(--fg-3); }
+.input { border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 10px; background: var(--surface); font-size: 13px; color: var(--fg); }
+.input.dim { color: var(--fg-3); }
+.dlg-body .hint { font-size: 12px; color: var(--fg-2); }
+.dlg-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface-2); }
+@media (max-width: 480px) { .money { grid-template-columns: 1fr; } }
+
+.res-tabs { padding: 0 20px; margin-top: 8px; }
+.res { padding: 16px 20px 20px; display: grid; gap: 16px; }
+.res-tiles { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 12px; }
+.res-tile { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 2px; }
+.res-tile.big { border-color: var(--accent); }
+.res-tile span { color: var(--fg-2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.res-tile span i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.res-tile b { font-size: 22px; font-weight: 600; }
+.res-tile.big b { font-size: 28px; }
+.res-tile em { font-style: normal; color: var(--fg-3); font-size: 12px; }
+@media (max-width: 760px) { .res-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.res-chart { border: 1px solid var(--line); border-radius: 8px; padding: 14px 14px 10px; background: var(--surface-2); display: grid; gap: 10px; }
+.res-chart-h { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.res-chart-h b { font-size: 13px; font-weight: 600; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--fg-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.plot { display: grid; grid-template-columns: 44px 1fr; gap: 8px; margin-top: 18px; }
+.yax { position: relative; height: 150px; font-size: 11px; color: var(--fg-3); }
+.yax span { position: absolute; right: 0; transform: translateY(50%); }
+.bars { position: relative; height: 150px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; align-items: end; border-bottom: 1px solid var(--line-2); }
+.bars::before { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 33.333%; pointer-events: none; }
+.bar { position: relative; display: flex; flex-direction: column-reverse; height: 100%; justify-content: flex-start; }
+.bar i { display: block; width: 100%; }
+.bar i.c { background: var(--green); }
+.bar i.a { background: var(--accent); }
+.bar i:last-of-type { border-radius: 3px 3px 0 0; }
+.bar b { position: absolute; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 600; color: var(--fg); white-space: nowrap; padding-bottom: 4px; }
+.xax { display: grid; grid-template-columns: 44px 1fr; gap: 8px; }
+.xax div { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; font-size: 11px; color: var(--fg-3); text-align: center; }
+.res-table table { min-width: 760px; font-size: 13px; }
+.res-table td, .res-table th { padding: 10px 12px; }
+.res-table td.r, .res-table th.r { text-align: right; }
+.res-table tr.fresh td { background: var(--accent-soft); }
+.res-table .s { display: block; color: var(--fg-2); font-size: 12px; }
+.ex { font-size: 11px; color: var(--fg-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+
+/* ---------- screen 5: home tab */
+.hm { padding: 20px; display: grid; gap: 16px; background: var(--bg); }
+.hm-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: start; }
+.hm-head .big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.hm-head .big b { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.hm-head .big span { color: var(--fg-2); font-size: 16px; }
+.hm-head p { color: var(--fg-2); font-size: 12px; margin-top: 6px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.panel-h { display: flex; justify-content: space-between; gap: 12px; align-items: start; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.panel-h b { display: block; font-size: 14px; font-weight: 600; }
+.panel-h span { color: var(--fg-2); font-size: 12px; }
+.panel-b { padding: 14px 16px; display: grid; gap: 12px; }
+.hm-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 14px 16px; }
+.hm-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.hm-card span { font-size: 12px; color: var(--fg-2); display: flex; align-items: center; gap: 6px; }
+.hm-card span i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.hm-card b { font-size: 20px; font-weight: 600; }
+.hm-card em { font-style: normal; font-size: 11px; color: var(--fg-3); }
+@media (max-width: 760px) { .hm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.hm-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 16px; }
+.hm-strip > div { display: grid; gap: 2px; padding-left: 12px; border-left: 3px solid var(--surface-3); }
+.hm-strip > div.w { border-color: var(--accent); }
+.hm-strip > div.s { border-color: var(--green); }
+.hm-strip span { font-size: 12px; color: var(--fg-2); }
+.hm-strip b { font-size: 20px; font-weight: 600; }
+.hm-strip em { font-style: normal; font-size: 11px; color: var(--fg-3); }
+.hm-strip a { font-size: 11px; }
+@media (max-width: 640px) { .hm-strip { grid-template-columns: 1fr; } }
+.hm-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .hm-row { grid-template-columns: 1fr; } }
+.tagnew { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-fg); background: var(--accent); border-radius: 4px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px; }
+.capsum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.capsum b { font-size: 26px; font-weight: 600; }
+.capsum span { color: var(--fg-2); font-size: 12px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.bul { display: grid; gap: 10px; }
+.bul-axis, .bul-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) 48px; gap: 10px; align-items: center; }
+.bul-axis div { position: relative; height: 14px; font-size: 10px; color: var(--fg-3); }
+.bul-axis div span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.bul-row .nm { font-size: 12px; line-height: 1.3; min-width: 0; }
+.bul-row .nm small { display: block; color: var(--fg-3); font-size: 11px; }
+.bul-row .pc { font-size: 12px; font-weight: 600; text-align: right; }
+.bul-row .pc.over { color: var(--red); }
+.bul-row .pc.near { color: var(--amber); }
+.trk { position: relative; height: 10px; background: var(--surface-3); border-radius: 2px; }
+.trk .zone { position: absolute; top: 0; bottom: 0; left: 68%; width: 12%; background: var(--amber-soft); }
+.trk .fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 2px 0 0 2px; }
+.trk .fill.over { background: var(--red); }
+.trk .fill.near { background: var(--amber); }
+.trk .hatch { position: absolute; top: 0; bottom: 0; left: 80%; background: repeating-linear-gradient(135deg, var(--red) 0 3px, transparent 3px 6px); }
+.trk .cap { position: absolute; top: -3px; bottom: -3px; left: 80%; width: 2px; background: var(--fg); }
+.trk .clip { position: absolute; right: -14px; top: -4px; font-size: 12px; color: var(--red); font-weight: 700; }
+.panel-f { padding: 0 16px 14px; font-size: 12px; }
+.rbands { display: grid; grid-template-columns: 1fr 1fr 2fr; border-bottom: 1px solid var(--line-2); }
+.rbands > div { padding: 0 8px 10px 0; display: grid; gap: 1px; min-width: 0; }
+.rbands > div + div { padding-left: 10px; border-left: 1px solid var(--line-2); }
+.rbands span { font-size: 11px; color: var(--fg-2); display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.rbands span i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); display: inline-block; }
+.rbands b { font-size: 20px; font-weight: 600; }
+.rbands b small { font-size: 11px; color: var(--fg-2); font-weight: 400; margin-left: 4px; }
+.rbands em { font-style: normal; font-size: 11px; color: var(--fg-3); }
+.rtrack { position: relative; height: 50px; }
+.rtrack .gl { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+.dia { position: absolute; width: 10px; height: 10px; background: var(--accent); transform: translate(-50%, 0) rotate(45deg); border-radius: 1px; }
+.dia.on { outline: 2px solid var(--fg); outline-offset: 2px; }
+.raxis { position: relative; height: 14px; font-size: 10px; color: var(--fg-3); margin-bottom: 128px; }
+.tip::before { content: ''; position: absolute; left: 10px; top: -6px; width: 10px; height: 10px; background: var(--surface-2); border-left: 1px solid var(--line-2); border-top: 1px solid var(--line-2); transform: rotate(45deg); }
+.raxis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.raxis span:first-child { transform: none; }
+.raxis span:last-child { transform: translateX(-100%); }
+.tip { position: absolute; z-index: 2; left: calc(6.8% - 14px); top: calc(100% + 26px); width: 236px; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: var(--shadow); padding: 10px 12px; display: grid; gap: 3px; font-size: 12px; }
+.tip b { font-size: 13px; }
+.tip span { color: var(--fg-2); }
+.tip .when { color: var(--amber); font-weight: 500; }
+.tip small { color: var(--fg-3); font-size: 11px; border-top: 1px solid var(--line); padding-top: 5px; margin-top: 3px; }
+.attn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--red); background: var(--red-soft); border-radius: 9999px; padding: 3px 10px; }
+.gone { border: 1.5px dashed var(--line-2); border-radius: 8px; padding: 14px 16px; color: var(--fg-3); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.gone s { color: var(--fg-2); font-weight: 600; }
+.hm-close { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 16px; }
+.hm-close b { font-size: 15px; font-weight: 600; }
+
+/* ---------- decisions: agreed list */
+.agreed { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; }
+.agreed li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.agreed li b { font-weight: 600; }
+.agreed li span { color: var(--fg-2); }
+.agreed .q { color: var(--fg-3); font-weight: 600; font-size: 13px; padding-top: 1px; }
+.ok { font-size: 11px; font-weight: 600; color: var(--green); background: var(--green-soft); border-radius: 4px; padding: 1px 6px; margin-left: 6px; white-space: nowrap; }
+@media (max-width: 760px) { .agreed { grid-template-columns: 1fr; } }
+.sub-h { font-size: 18px; font-weight: 600; margin-top: 8px; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -341,9 +489,10 @@ td.muted { color: var(--fg-2); }
   <header class="top">
     <p class="eyebrow">Kontor financial layer · Feature spec</p>
     <h1>Action tracker</h1>
-    <p class="lede">Today the prototype <strong>finds</strong> the money. This feature helps the council <strong>chase</strong> it.</p>
+    <p class="lede">Today the prototype <strong>finds</strong> the money. This feature helps the council <strong>chase</strong> it, and shows what came back.</p>
     <div class="meta">
-      <span class="draft">Draft 1 for review</span>
+      <span class="draft">Draft 2 for review</span>
+      <span>Includes Home tab changes</span>
       <span>From the LG Bridgehead weekly sync, 12 Oct 2026</span>
       <span>Asked for by Jonathan McCarte</span>
       <span>Sample data: Marchbank Borough Council</span>
@@ -361,7 +510,7 @@ td.muted { color: var(--fg-2); }
       <li><span class="n">2</span><b>Set "Under review"</b><small>The review status dropdown in the side drawer.</small></li>
       <li class="new"><span class="n">3</span><b>Card on the Actions board</b><small>New page. One card for each opportunity your team is working on.</small></li>
       <li class="new"><span class="n">4</span><b>Work it</b><small>Owner, due date, next steps, who to contact, draft email.</small></li>
-      <li class="new"><span class="n">5</span><b>Close with an outcome</b><small>Resolved, Explained or No action. The Overview shows the result.</small></li>
+      <li class="new"><span class="n">5</span><b>Close with an outcome</b><small>Resolved, Explained or No action. Money that came back shows in Results and on Home.</small></li>
     </ol>
     <div class="flow-key"><span><i></i>Built today</span><span><i class="new"></i>New in this feature</span></div>
   </section>
@@ -411,7 +560,7 @@ td.muted { color: var(--fg-2); }
     <div class="shot">
       <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>#/actions</span><span class="tag">Mockup · sample data</span></div>
       <div class="board-top">
-        <div><p class="eyebrow">Marchbank Borough Council</p><h3>Actions</h3><p>Opportunities your team is working on. As at 6 October 2026.</p></div>
+        <div><p class="eyebrow">Marchbank Borough Council</p><h3>Actions</h3><p>Opportunities your team is working on. As at 6 October 2026.</p><div class="tabs" style="padding:0;margin-top:10px;border:0"><span class="on">Board</span><span>Results</span></div></div>
         <div class="board-filters">
           <div class="select">Owner: Everyone</div>
           <span class="chip on">All types</span><span class="chip">Spend over cap</span><span class="chip">Close to cap</span><span class="chip">Renewals</span><span class="chip">Price increases</span>
@@ -421,7 +570,7 @@ td.muted { color: var(--fg-2); }
         <div class="stat"><span>Being worked on</span><b class="num">£5.1m</b></div>
         <div class="stat"><span>Open actions</span><b class="num">4</b></div>
         <div class="stat"><span>Due in the next 14 days</span><b class="num warn">2</b></div>
-        <div class="stat"><span>Resolved (your figures)</span><b class="num">£150,000</b></div>
+        <div class="stat"><span>Value secured to date</span><b class="num">£353,100</b></div>
       </div>
       <div class="board-scroll">
         <div class="cols">
@@ -468,19 +617,19 @@ td.muted { color: var(--fg-2); }
           </div>
           <!-- Closed -->
           <div class="col">
-            <div class="col-h"><b>Closed<em>1</em></b><span class="num">£150,000 resolved</span></div>
+            <div class="col-h"><b>Closed<em>1</em></b><span>Last 30 days</span></div>
             <div class="card">
               <div class="row"><span class="pill purple">Price increase above cap</span></div>
               <div><div class="t">Street lighting and signage maintenance</div><div class="s">Ordwell Lighting and Signs Ltd</div></div>
               <div class="row"><span class="pill green">Resolved</span><span class="av" title="Priya Raman">PR</span></div>
-              <p class="closed">£150,000 credit agreed (your figure) against £188,200 flagged. Closed 6 Oct.</p>
+              <p class="closed">£150,000 cash recovered (your figure) against £188,200 flagged. Closed 6 Oct.</p>
             </div>
           </div>
         </div>
       </div>
     </div>
     <ul class="notes plain">
-      <li><div><b>Four stages</b><span>To start, Checking internally, With supplier, Closed. Each column shows a count and a £ total.</span></div></li>
+      <li><div><b>Four stages</b><span>To start, Checking internally, With supplier, Closed. Each column shows a count and a £ total. Closed shows the last 30 days. Older ones live in Results.</span></div></li>
       <li><div><b>Cards show what to do next</b><span>Type, £ value, due date, owner, steps done, and the next step in plain words.</span></div></li>
       <li><div><b>Move cards without a mouse</b><span>Drag and drop, plus a "Move to" menu on each card for keyboard users.</span></div></li>
       <li><div><b>Click a card to work on it</b><span>It opens the same side drawer, on the Action tab.</span></div></li>
@@ -597,27 +746,180 @@ Thanks,
     </div>
   </section>
 
-  <!-- ===================================================== screen D -->
+  <!-- ===================================================== screen 4: close + results -->
   <section class="sec" aria-labelledby="h-d">
     <div class="sec-head">
-      <p class="eyebrow">Screen 4 · Change to the Overview</p>
-      <h2 id="h-d">The Overview shows progress</h2>
-      <p>A new strip under the headline. Same example state as the board.</p>
+      <p class="eyebrow">Screen 4 · Closing an action, and the Results tab</p>
+      <h2 id="h-d">Show what came back</h2>
+      <p>Money back splits two ways. <b>Cash recovered</b> is money returned, like a credit note or refund. <b>Cost avoided</b> is future spend that will not happen, like a lower rate. Together they make <b>Value secured</b>.</p>
+    </div>
+    <div class="pair dlg-pair">
+      <div class="shot dlg" role="img" aria-label="Mockup of the Close this action dialog with Resolved chosen and £150,000 cash recovered">
+        <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>Close this action</span><span class="tag">Mockup</span></div>
+        <div class="dlg-body">
+          <h4>Close this action</h4>
+          <p class="sub">Street lighting and signage maintenance · Price increase above cap · £188,200 flagged</p>
+          <div><label>Outcome</label><div class="radios"><span class="on">Resolved</span><span>Explained</span><span>No action</span></div></div>
+          <div class="money">
+            <div><label>Cash recovered <small>one-off</small></label><div class="input num">£150,000</div></div>
+            <div><label>Cost avoided <small>future spend</small></label><div class="input num dim">£0</div></div>
+          </div>
+          <div><label>What happened</label><div class="input">Credit note for the 2026 price rise above CPI.</div></div>
+          <p class="hint">Your figures. Kontor shows them as you enter them and does not check them.</p>
+        </div>
+        <div class="dlg-foot"><span class="btn">Cancel</span><span class="btn primary">Close action</span></div>
+      </div>
+      <ol class="notes">
+        <li><i class="mk">1</i><div><b>Opens when a card goes to Closed</b><span>By drag, by "Move to", or by choosing Resolved, Explained or No action in the drawer.</span></div></li>
+        <li><i class="mk">2</i><div><b>Resolved asks for the money</b><span>Cash recovered, cost avoided, or both. Explained and No action ask only for the one line.</span></div></li>
+        <li><i class="mk">3</i><div><b>Labelled as the council's own figures</b><span>The tool never claims a saving. It reports what the team entered.</span></div></li>
+      </ol>
+    </div>
+
+    <div class="shot">
+      <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>#/actions/results</span><span class="tag">Mockup · sample data</span></div>
+      <div class="board-top" style="padding-bottom:0">
+        <div><p class="eyebrow">Marchbank Borough Council</p><h3>Actions</h3><p>What your team has closed, and what it brought back. Your figures.</p></div>
+      </div>
+      <div class="tabs res-tabs"><span>Board</span><span class="on">Results</span></div>
+      <div class="res">
+        <div class="res-tiles">
+          <div class="res-tile big"><span>Value secured</span><b class="num">£353,100</b><em>Since May 2026</em></div>
+          <div class="res-tile"><span><i style="background:var(--green)"></i>Cash recovered</span><b class="num">£267,900</b><em>4 actions</em></div>
+          <div class="res-tile"><span><i style="background:var(--accent)"></i>Cost avoided</span><b class="num">£85,200</b><em>2 actions</em></div>
+          <div class="res-tile"><span>Actions closed</span><b class="num">6</b><em>4 resolved · 1 explained · 1 no action</em></div>
+        </div>
+        <div class="res-chart" role="img" aria-label="Value secured by month closed, April to October 2026. May £43,600, June £75,500, July £84,000, October £150,000. Other months nothing.">
+          <div class="res-chart-h"><b>Value secured, by month closed</b><div class="legend"><span><i style="background:var(--green)"></i>Cash recovered</span><span><i style="background:var(--accent)"></i>Cost avoided</span></div></div>
+          <div class="plot">
+            <div class="yax"><span style="bottom:0">£0</span><span style="bottom:33.333%">£50k</span><span style="bottom:66.667%">£100k</span><span style="bottom:100%">£150k</span></div>
+            <div class="bars">
+              <div class="bar"></div>
+              <div class="bar"><i class="c" style="height:8.27%"></i><i class="a" style="height:20.8%"></i><b style="bottom:29.07%">£43.6k</b></div>
+              <div class="bar"><i class="c" style="height:14.33%"></i><i class="a" style="height:36%"></i><b style="bottom:50.33%">£75.5k</b></div>
+              <div class="bar"><i class="c" style="height:56%"></i><b style="bottom:56%">£84k</b></div>
+              <div class="bar"></div>
+              <div class="bar"></div>
+              <div class="bar"><i class="c" style="height:100%"></i><b style="bottom:100%">£150k</b></div>
+            </div>
+          </div>
+          <div class="xax"><span></span><div><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div></div>
+        </div>
+        <div class="tbl-wrap res-table">
+          <table>
+            <thead><tr><th>Closed</th><th>Contract</th><th>Outcome</th><th class="r">Cash recovered</th><th class="r">Cost avoided</th><th>Owner</th></tr></thead>
+            <tbody>
+              <tr class="fresh"><td class="num">6 Oct 2026</td><td><b>Street lighting and signage maintenance</b><span class="s">Price increase above cap · Credit note for the 2026 rise above CPI</span></td><td><span class="pill green">Resolved</span></td><td class="r num">£150,000</td><td class="r muted">None</td><td>Priya Raman</td></tr>
+              <tr><td class="num">3 Sep 2026</td><td><b>School meals catering</b><span class="ex">Example</span><span class="s">Spend over cap · Extra holiday club meals, approved and grant funded</span></td><td><span class="pill grey">No action</span></td><td class="r muted">None</td><td class="r muted">None</td><td>Tom Ellery</td></tr>
+              <tr><td class="num">14 Jul 2026</td><td><b>Housing repairs and voids</b><span class="ex">Example</span><span class="s">Spend over cap · Duplicate invoices credited</span></td><td><span class="pill green">Resolved</span></td><td class="r num">£84,000</td><td class="r muted">None</td><td>Priya Raman</td></tr>
+              <tr><td class="num">19 Jun 2026</td><td><b>Civic buildings cleaning</b><span class="ex">Example</span><span class="s">Price increase above cap · Overcharge refunded, rate corrected</span></td><td><span class="pill green">Resolved</span></td><td class="r num">£21,500</td><td class="r num">£54,000</td><td>Sam Adeyemi</td></tr>
+              <tr><td class="num">9 Jun 2026</td><td><b>Leisure centres management</b><span class="ex">Example</span><span class="s">Close to cap · A 2024 variation raised the cap</span></td><td><span class="pill grey">Explained</span></td><td class="r muted">None</td><td class="r muted">None</td><td>Jo Whitfield</td></tr>
+              <tr><td class="num">22 May 2026</td><td><b>Contact centre telephony</b><span class="ex">Example</span><span class="s">Price increase above cap · Rise cut back to CPI, refund paid</span></td><td><span class="pill green">Resolved</span></td><td class="r num">£12,400</td><td class="r num">£31,200</td><td>Tom Ellery</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="cap">State at the end of the demo. Rows marked "Example" are pre-loaded history (D8). They are on contracts with no flag today, so the £6.1m headline does not change.</p>
+  </section>
+
+  <!-- ===================================================== screen 5: home tab -->
+  <section class="sec" aria-labelledby="h-home">
+    <div class="sec-head">
+      <p class="eyebrow">Screen 5 · Changes to the Home tab</p>
+      <h2 id="h-home">A simpler Home: two panels, one for each tab</h2>
+      <p>State at the start of the demo. New and changed parts are marked.</p>
     </div>
     <div class="shot">
       <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>#/overview</span><span class="tag">Mockup · sample data</span></div>
-      <div class="ov">
-        <div class="ov-h"><b class="num">£6.0m</b><span>across 15 contracts flagged as opportunities to investigate</span></div>
-        <div class="ov-strip">
-          <div class="ov-tile"><span>Not started</span><b class="num">£0.9m</b><i>14 flags with no action yet</i></div>
-          <div class="ov-tile new"><span>Being worked on</span><b class="num">£5.1m</b><i>4 actions. 2 due in the next 14 days.</i></div>
-          <div class="ov-tile new"><span>Resolved</span><b class="num">£150,000</b><i>1 action. Your figures, not counted in the headline.</i></div>
+      <div class="hm">
+        <div class="hm-head">
+          <div><p class="eyebrow">Marchbank Borough Council</p><div class="big"><b class="num">£6.1m</b><span>across 15 contracts flagged as opportunities to investigate</span></div><p>Indicative figures. As at 6 October 2026.</p></div>
+          <span class="btn">Open demo guide</span>
         </div>
-        <div class="ov-bar" aria-hidden="true"><span style="width:85%"></span></div>
-        <div class="ov-legend"><span><i style="background:var(--accent)"></i>Being worked on, 85% of the headline</span><span><i style="background:var(--surface-3);border:1px solid var(--line-2)"></i>Not started</span><span><a href="#h-b">Open the Actions board</a></span></div>
+
+        <div class="panel">
+          <div class="hm-cards">
+            <div class="hm-card"><span><i style="background:var(--red)"></i>Spend over cap</span><b class="num">£4.2m</b><em>3 contracts</em></div>
+            <div class="hm-card"><span><i style="background:var(--amber)"></i>Close to cap</span><b class="num">£0.6m</b><em>1 contract</em></div>
+            <div class="hm-card"><span><i style="background:var(--blue)"></i>Renewals</span><b class="num">£1.1m</b><em>12 contracts</em></div>
+            <div class="hm-card"><span><i style="background:var(--purple)"></i>Price increases above cap</span><b class="num">£0.3m</b><em>3 contracts</em></div>
+          </div>
+        </div>
+
+        <div class="panel" style="border-color:var(--accent)">
+          <div class="panel-h"><div><b>Action progress<span class="tagnew">NEW</span></b><span>From the Actions board.</span></div><span class="btn">Open Actions</span></div>
+          <div class="hm-strip">
+            <div><span>Not started</span><b class="num">£4.2m</b><em>15 flags with no action yet</em></div>
+            <div class="w"><span>Being worked on</span><b class="num">£1.9m</b><em>4 actions. 1 due in the next 14 days.</em></div>
+            <div class="s"><span>Value secured</span><b class="num">£203,100</b><em>3 actions resolved since May. Your figures. <a href="#h-d">See results</a></em></div>
+          </div>
+        </div>
+
+        <div class="hm-row">
+          <!-- Cap vs spend -->
+          <div class="panel" style="border-color:var(--accent)">
+            <div class="panel-h"><div><b>Cap vs spend<span class="tagnew">NEW</span></b><span>What you have paid against the most each contract allows.</span></div><span class="btn">Open cap vs spend</span></div>
+            <div class="panel-b">
+              <div class="pills"><span class="pill red">Over cap 3</span><span class="pill amber">Close to cap 3</span><span class="pill blue">Within cap 18</span></div>
+              <div class="capsum"><b class="num">£4,172,000</b><span>paid above the cap, across 3 contracts</span></div>
+              <div class="bul" role="img" aria-label="Top five contracts by share of cap used: Highways 167%, ICT 114.1%, Legal services panel 113.8%, Integrated facilities management 94.8%, Mobile voice and data 90.8%">
+                <div class="bul-axis"><span></span><div><span style="left:0;transform:none">0%</span><span style="left:40%">50%</span><span style="left:68%">85%</span><span style="left:80%">Cap</span></div><span></span></div>
+                <div class="bul-row"><div class="nm">Highways reactive maintenance<small>Fennimore Highways Ltd</small></div><div class="trk"><i class="zone"></i><i class="fill over" style="width:80%"></i><i class="hatch" style="width:20%"></i><i class="cap"></i><i class="clip">»</i></div><span class="pc over num">167%</span></div>
+                <div class="bul-row"><div class="nm">ICT managed service<small>Pellam Digital Ltd</small></div><div class="trk"><i class="zone"></i><i class="fill over" style="width:80%"></i><i class="hatch" style="width:11.28%"></i><i class="cap"></i></div><span class="pc over num">114%</span></div>
+                <div class="bul-row"><div class="nm">Legal services panel<small>Per contract year</small></div><div class="trk"><i class="zone"></i><i class="fill over" style="width:80%"></i><i class="hatch" style="width:11.04%"></i><i class="cap"></i></div><span class="pc over num">114%</span></div>
+                <div class="bul-row"><div class="nm">Integrated facilities management<small>Kestrelvale Facilities</small></div><div class="trk"><i class="zone"></i><i class="fill near" style="width:75.84%"></i><i class="cap"></i></div><span class="pc near num">95%</span></div>
+                <div class="bul-row"><div class="nm">Mobile voice and data<small>Zennor Telecom Ltd</small></div><div class="trk"><i class="zone"></i><i class="fill near" style="width:72.64%"></i><i class="cap"></i></div><span class="pc near num">91%</span></div>
+              </div>
+            </div>
+            <p class="panel-f"><a href="#h-home">See all 24 contracts</a></p>
+          </div>
+
+          <!-- Renewals -->
+          <div class="panel">
+            <div class="panel-h"><div><b>Renewals coming up</b><span>Contracts by the date you must give notice.</span></div><span class="btn">Open renewal radar</span></div>
+            <div class="panel-b">
+              <div class="pills" style="align-items:center"><span class="attn">Needs attention now 3</span><span style="font-size:12px;color:var(--fg-2)">Contract value, a year</span></div>
+              <div class="rbands">
+                <div><span><i></i>Next 3 months</span><b class="num">£6.9m<small>a year</small></b><em>3 contracts</em></div>
+                <div><span><i></i>3 to 6 months</span><b class="num">£7.3m<small>a year</small></b><em>4 contracts</em></div>
+                <div><span><i></i>6 to 12 months</span><b class="num">£2.2m<small>a year</small></b><em>2 contracts</em></div>
+              </div>
+              <div class="rtrack">
+                <i class="gl" style="left:25%"></i><i class="gl" style="left:50%"></i>
+                <i class="dia on" style="left:6.8%;top:8px"></i>
+                <i class="dia" style="left:15.3%;top:22px"></i>
+                <i class="dia" style="left:23.7%;top:36px"></i>
+                <i class="dia" style="left:32%;top:8px"></i>
+                <i class="dia" style="left:39.6%;top:22px"></i>
+                <i class="dia" style="left:39.6%;top:36px"></i>
+                <i class="dia" style="left:48.7%;top:8px"></i>
+                <i class="dia" style="left:56.7%;top:22px"></i>
+                <i class="dia" style="left:73.4%;top:36px"></i>
+                <div class="tip" role="tooltip">
+                  <b>Waste collection and recycling</b>
+                  <span>Quillon Waste Services Ltd</span>
+                  <span class="when">Give notice by 31 Oct 2026, in 25 days</span>
+                  <span>£6.2m a year · ends 31 Jan 2027</span>
+                  <small>Click to open the opportunity</small>
+                </div>
+              </div>
+              <div class="raxis"><span style="left:0">Now</span><span style="left:25%">3 months</span><span style="left:50%">6 months</span><span style="left:100%">12 months</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gone"><s>Why this matters</s><span>Removed from Home. The 9 public cases stay in Menu → Why this matters.</span></div>
+
+        <div class="panel hm-close"><b>This is one council's contracts and spend. Imagine your full estate.</b><span class="btn primary">Give feedback</span></div>
       </div>
     </div>
-    <p class="cap">The headline falls from £6.1m to £6.0m because the closed Street lighting card left it. "Resolved" is shown next to the headline, never added to it.</p>
+    <ul class="notes plain">
+      <li><div><b>"Why this matters" removed</b><span>The evidence cases leave Home. The page stays, reached from the Menu.</span></div></li>
+      <li><div><b>Cap vs spend replaces "Spend linked to contracts"</b><span>Top 5 contracts by cap used, drawn like the Cap vs spend page. Each row opens that contract's opportunity. The 84% linked figure stays on Cap vs spend, in the "No contract on the register" tab.</span></div></li>
+      <li><div><b>Two equal halves</b><span>Cap vs spend on the left, Renewals on the right, each half the width. On a phone they stack, with Cap vs spend first. Same order as the rail.</span></div></li>
+      <li><div><b>Diamond tooltips</b><span>Hover, tab to or tap a diamond to see the contract, supplier, notice date, value and end date. Two contracts that share a date get one tooltip each.</span></div></li>
+    </ul>
   </section>
 
   <!-- ===================================================== rules -->
@@ -632,7 +934,7 @@ Thanks,
         <tbody>
           <tr><td><span class="pill grey">To investigate</span></td><td class="muted">Not on the board</td><td>Counted</td><td class="muted">Default. No change from today.</td></tr>
           <tr><td><span class="pill blue">Under review</span></td><td>To start, Checking internally or With supplier</td><td>Counted</td><td class="muted">Choosing it adds the card in To start.</td></tr>
-          <tr><td><span class="pill green">Resolved</span><span class="newtag">NEW</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for the £ figure agreed. Shown as "Resolved" on the Overview.</td></tr>
+          <tr><td><span class="pill green">Resolved</span><span class="newtag">NEW</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for cash recovered and cost avoided. Adds to Value secured.</td></tr>
           <tr><td><span class="pill grey">Explained</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for a one-line reason, for example "Variation found".</td></tr>
           <tr><td><span class="pill grey">No action</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for a one-line reason.</td></tr>
         </tbody>
@@ -649,10 +951,10 @@ Thanks,
         <thead><tr><th>Place</th><th>Change</th></tr></thead>
         <tbody>
           <tr><td><b>Rail</b></td><td>New "Actions" item after Opportunities. Seven items in all.</td></tr>
-          <tr><td><b>Actions</b><span class="newtag">NEW</span></td><td>The board (Screen 2). A list view on phones, grouped by stage.</td></tr>
-          <tr><td><b>Side drawer</b></td><td>Details and Action tabs. "Resolved" added to the review status. A closing reason or £ figure when you close.</td></tr>
+          <tr><td><b>Actions</b><span class="newtag">NEW</span></td><td>Board and Results tabs (Screens 2 and 4). A list view on phones, grouped by stage.</td></tr>
+          <tr><td><b>Side drawer</b></td><td>Details and Action tabs. "Resolved" added to the review status. The close dialog when you close.</td></tr>
           <tr><td><b>Opportunities</b></td><td>Rows being worked on show the stage and the owner's initials.</td></tr>
-          <tr><td><b>Overview</b></td><td>Progress strip under the headline (Screen 4).</td></tr>
+          <tr><td><b>Home</b></td><td>"Why this matters" removed. Action progress strip added. Cap vs spend and Renewals side by side, equal width, Cap vs spend first. Diamond tooltips (Screen 5).</td></tr>
           <tr><td><b>Contract detail</b></td><td>Shows both named representatives, with clause links.</td></tr>
           <tr><td><b>Roadmap</b></td><td>New row: "Action tracker", built. Plus one "Not yet" row: suggested next steps, learned from closed actions.</td></tr>
           <tr><td><b>Guide and Reset</b></td><td>A new tour step. "Reset demo data" also resets the board.</td></tr>
@@ -674,12 +976,13 @@ Thanks,
           <li><b>A staff list.</b> About 8 fictional council people with roles and departments.</li>
           <li><b>Named representatives.</b> A new extracted answer for each contract: both sides' contacts, with clause and page.</li>
           <li><b>Step lists and email templates</b> for each flag type: over cap, close to cap, renewal and price increase.</li>
+          <li><b>Example history.</b> 5 closed actions from May to September 2026, on contracts with no flag today.</li>
         </ul>
       </div>
       <div class="need">
         <h3>New saved state</h3>
         <ul>
-          <li><b>One record for each action:</b> stage, owner, due date, steps ticked, notes, log, outcome.</li>
+          <li><b>One record for each action:</b> stage, owner, due date, steps ticked, notes, log, outcome, cash recovered and cost avoided.</li>
           <li><b>Kept in the browser</b>, like the review status today. Each viewer has their own board.</li>
           <li><b>Four example cards</b> come pre-loaded, all open. Reset puts them back.</li>
         </ul>
@@ -687,7 +990,7 @@ Thanks,
       <div class="need">
         <h3>Rules that stay true</h3>
         <ul>
-          <li><b>£6.1m at the start.</b> The example cards are all open, so the demo headline does not move.</li>
+          <li><b>£6.1m at the start.</b> The example cards are all open, and the example history is on contracts with no flag, so the demo headline does not move.</li>
           <li><b>No new claims.</b> "Resolved" amounts are the user's own figures, labelled that way.</li>
           <li><b>Works offline.</b> No server, no AI calls, no email sent.</li>
         </ul>
@@ -698,72 +1001,58 @@ Thanks,
   <!-- ===================================================== demo -->
   <section class="sec" aria-labelledby="h-demo">
     <div class="sec-head">
-      <h2 id="h-demo">The demo in 60 seconds</h2>
-      <p>Follows the current 5-minute tour, after "Opportunities".</p>
+      <h2 id="h-demo">The demo in 90 seconds</h2>
+      <p>Follows the current 5-minute tour, after "Opportunities". On Home before that, hover a renewal diamond to show which contract it is.</p>
     </div>
     <ol class="script">
       <li><b>Start it</b><span>Open Highways (£3.35m over cap). Set "Under review". <q>Now someone owns it.</q></span></li>
       <li><b>See the board</b><span>Click "Open in Actions". The card is in To start, next to four others already in progress.</span></li>
       <li><b>Know who to call</b><span>Open the card. Set Dana Okafor as owner. Show the representatives, pulled from clause 3 of the contract.</span></li>
-      <li><b>Make the first move</b><span>Copy the draft email. <q>Ten seconds, and the contract facts are already in it.</q></span></li>
-      <li><b>Close the loop</b><span>Drag Street lighting to Closed. Choose Resolved and enter £150,000, the credit the supplier agreed. The Overview shows £150,000 resolved.</span></li>
+      <li><b>Make the first move</b><span>Copy the draft email. <q>Ten seconds, and the contract facts are already in it.</q> Mention that templates could be swapped for AI drafts later.</span></li>
+      <li><b>Close the loop</b><span>Drag Street lighting to Closed. Choose Resolved and enter £150,000 cash recovered, the credit the supplier agreed.</span></li>
+      <li><b>Show what came back</b><span>Open Results. Value secured goes from £203,100 to £353,100. <q>This is the number your finance director asks for.</q></span></li>
     </ol>
   </section>
 
   <!-- ===================================================== decisions -->
   <section class="sec" aria-labelledby="h-dec">
     <div class="sec-head">
-      <h2 id="h-dec">Decisions for you</h2>
-      <p>My recommendation is marked. Tell me what to change and I will update this page.</p>
+      <h2 id="h-dec">Decisions</h2>
+      <p>D1 to D6 are agreed. D7 to D9 are new in this draft. My recommendation is marked.</p>
     </div>
+    <ul class="agreed">
+      <li><span class="q">D1</span><div><b>"Under review" starts an action.</b><span class="ok">Agreed</span><br><span>"Start action" on the Action tab is a shortcut to the same thing.</span></div></li>
+      <li><span class="q">D2</span><div><b>Four columns.</b><span class="ok">Agreed</span><br><span>To start, Checking internally, With supplier, Closed.</span></div></li>
+      <li><span class="q">D3</span><div><b>A "Resolved" status with £ figures.</b><span class="ok">Agreed, extended</span><br><span>Now split into cash recovered and cost avoided, with a Results tab (Screen 4).</span></div></li>
+      <li><span class="q">D4</span><div><b>Fixed email templates.</b><span class="ok">Agreed</span><br><span>In the demo, you explain that AI drafts could replace them.</span></div></li>
+      <li><span class="q">D5</span><div><b>Four open example cards on the board.</b><span class="ok">Agreed</span><br><span>ICT, Facilities, Waste and Street lighting. Highways is the live moment.</span></div></li>
+      <li><span class="q">D6</span><div><b>Exit terms on the Action tab.</b><span class="ok">Agreed</span><br><span>Facts with clause links. No options maths.</span></div></li>
+    </ul>
+    <h3 class="sub-h">New decisions</h3>
     <div class="decisions">
       <div class="dec">
-        <h3><span class="q">D1</span>What starts an action?</h3>
+        <h3><span class="q">D7</span>What do we call the money that came back?</h3>
         <ul class="opts">
-          <li class="rec">Choosing "Under review"</li>
-          <li>Only a separate "Start action" button</li>
+          <li class="rec">Value secured = Cash recovered + Cost avoided</li>
+          <li>Savings = Revenue gained + Cost savings</li>
         </ul>
-        <p class="why">One click, in a dropdown people already use. The button stays as a shortcut on the Action tab.</p>
+        <p class="why">The prototype only says "saving" on the Roadmap, because flagged amounts can shrink when tested. "Value secured" keeps that rule and still reads as money won.</p>
       </div>
       <div class="dec">
-        <h3><span class="q">D2</span>Which board columns?</h3>
+        <h3><span class="q">D8</span>Pre-load example history in Results?</h3>
         <ul class="opts">
-          <li class="rec">To start · Checking internally · With supplier · Closed</li>
-          <li>To do · Doing · Done</li>
+          <li class="rec">Yes: 5 closed actions, May to September 2026</li>
+          <li>No. Results starts empty</li>
         </ul>
-        <p class="why">Four columns match how council contract work really moves: check inside first, then go to the supplier.</p>
+        <p class="why">One row looks thin. The history is on contracts with no flag today, so the headline stays at £6.1m.</p>
       </div>
       <div class="dec">
-        <h3><span class="q">D3</span>Add a "Resolved" status with a £ figure?</h3>
+        <h3><span class="q">D9</span>What does clicking a renewal diamond do?</h3>
         <ul class="opts">
-          <li class="rec">Yes, and show it on the Overview</li>
-          <li>No. Close as Explained or No action only</li>
+          <li class="rec">Open that renewal in the side drawer</li>
+          <li>Go to the Renewal radar page</li>
         </ul>
-        <p class="why">It shows money coming back, which is the story. It is always labelled "your figure", so it is never a claim made by the tool.</p>
-      </div>
-      <div class="dec">
-        <h3><span class="q">D4</span>How are emails written?</h3>
-        <ul class="opts">
-          <li class="rec">Fixed templates, filled with contract facts</li>
-          <li>Written live by AI</li>
-        </ul>
-        <p class="why">The same every demo. Works offline. No risk of a made-up number in front of a council.</p>
-      </div>
-      <div class="dec">
-        <h3><span class="q">D5</span>Start with example cards on the board?</h3>
-        <ul class="opts">
-          <li class="rec">Yes: ICT, Facilities, Waste and Street lighting, all open</li>
-          <li>No. The board starts empty</li>
-        </ul>
-        <p class="why">An empty board looks dead in a demo. Highways is left out so it can be the live moment.</p>
-      </div>
-      <div class="dec">
-        <h3><span class="q">D6</span>Show exit terms on the Action tab?</h3>
-        <ul class="opts">
-          <li class="rec">Yes, as facts with clause links</li>
-          <li>No. Keep them on Contract detail only</li>
-        </ul>
-        <p class="why">The data is already extracted, and Surrey asked about termination. Facts only, no options maths.</p>
+        <p class="why">One click from Home to the clause and the Action tab. The "Open renewal radar" button already does the other.</p>
       </div>
     </div>
   </section>
@@ -778,11 +1067,13 @@ Thanks,
       <li><span><b>AI recommendations.</b> A Roadmap row only. They need a history of closed actions first.</span></li>
       <li><span><b>Options analysis.</b> No exit cost against overspend maths. Dropped after the 12 Oct sync.</span></li>
       <li><span><b>A shared board.</b> Each browser keeps its own board, like the rest of the prototype.</span></li>
+      <li><span><b>Checking Value secured.</b> The figures are what the team types in.</span></li>
+      <li><span><b>A new home for the evidence cases.</b> They stay where they are, in the Menu.</span></li>
     </ul>
   </section>
 
   <footer class="foot">
-    <p>Next step: agree the decisions above. Then this becomes a detailed Markdown spec for the build.</p>
+    <p>Next step: agree D7 to D9. Then this becomes a detailed Markdown spec for the build.</p>
     <p>All names, emails and figures are sample data for the fictional Marchbank Borough Council. Email addresses use the reserved .example domain.</p>
   </footer>
 </div>
