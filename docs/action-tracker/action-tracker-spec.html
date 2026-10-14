@@ -1,0 +1,810 @@
+<title>Kontor Action Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a spec page in the prototype's own Springboard look. Annotated screen mockups carry the content; words stay short. */
+:root {
+  color-scheme: dark;
+  --bg: #0E0F12;
+  --surface: #121417;
+  --surface-2: #1A1B22;
+  --surface-3: #28292F;
+  --line: #28292F;
+  --line-2: #3E3F47;
+  --fg: #FFFFFF;
+  --fg-2: #ADAFB7;
+  --fg-3: #8B8C95;
+  --accent: #1F6FEB;
+  --accent-fg: #FFFFFF;
+  --accent-soft: rgba(31, 111, 235, 0.16);
+  --link: #6CA4F8;
+  --red: #F47067;    --red-soft: rgba(218, 54, 51, 0.18);
+  --amber: #E3B341;  --amber-soft: rgba(203, 143, 9, 0.20);
+  --blue: #6CA4F8;   --blue-soft: rgba(31, 111, 235, 0.18);
+  --purple: #B392F0; --purple-soft: rgba(138, 56, 245, 0.20);
+  --green: #57C26A;  --green-soft: rgba(62, 162, 81, 0.18);
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 10px 24px rgba(0, 0, 0, 0.25);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #F2F3F7; --surface: #FFFFFF; --surface-2: #F9FAFB; --surface-3: #E6E6EB;
+    --line: #E6E6EB; --line-2: #C1C1CC;
+    --fg: #1A1B22; --fg-2: #5C5D64; --fg-3: #6B6C75;
+    --accent: #0969DA; --accent-fg: #FFFFFF; --accent-soft: rgba(9, 105, 218, 0.10); --link: #0969DA;
+    --red: #B4232A; --red-soft: rgba(202, 35, 42, 0.10);
+    --amber: #8A5A00; --amber-soft: rgba(203, 143, 9, 0.16);
+    --blue: #0969DA; --blue-soft: rgba(9, 105, 218, 0.10);
+    --purple: #6144C1; --purple-soft: rgba(138, 56, 245, 0.10);
+    --green: #1F7A35; --green-soft: rgba(62, 162, 81, 0.12);
+    --shadow: 0 1px 2px rgba(14, 14, 14, 0.05), 0 4px 8px rgba(46, 51, 56, 0.08);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F2F3F7; --surface: #FFFFFF; --surface-2: #F9FAFB; --surface-3: #E6E6EB;
+  --line: #E6E6EB; --line-2: #C1C1CC;
+  --fg: #1A1B22; --fg-2: #5C5D64; --fg-3: #6B6C75;
+  --accent: #0969DA; --accent-fg: #FFFFFF; --accent-soft: rgba(9, 105, 218, 0.10); --link: #0969DA;
+  --red: #B4232A; --red-soft: rgba(202, 35, 42, 0.10);
+  --amber: #8A5A00; --amber-soft: rgba(203, 143, 9, 0.16);
+  --blue: #0969DA; --blue-soft: rgba(9, 105, 218, 0.10);
+  --purple: #6144C1; --purple-soft: rgba(138, 56, 245, 0.10);
+  --green: #1F7A35; --green-soft: rgba(62, 162, 81, 0.12);
+  --shadow: 0 1px 2px rgba(14, 14, 14, 0.05), 0 4px 8px rgba(46, 51, 56, 0.08);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-sans); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 72px;
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--link); }
+.eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-2); }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- header */
+.top { display: grid; gap: 20px; }
+.top h1 { font-size: clamp(40px, 7vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -0.02em; }
+.lede { font-size: clamp(18px, 2.4vw, 22px); line-height: 1.4; color: var(--fg-2); max-width: 40ch; }
+.lede strong { color: var(--fg); font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.meta span { font-size: 13px; color: var(--fg-2); border: 1px solid var(--line-2); border-radius: 9999px; padding: 4px 12px; }
+.meta .draft { color: var(--amber); border-color: var(--amber-soft); background: var(--amber-soft); }
+
+/* ---------- section heads */
+.sec { display: grid; gap: 24px; }
+.sec-head { display: grid; gap: 8px; max-width: 68ch; }
+.sec-head h2 { font-size: clamp(24px, 3.4vw, 32px); line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
+.sec-head p { color: var(--fg-2); font-size: 16px; }
+
+/* ---------- flow */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.flow li { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.flow li.new { border-color: var(--accent); background: var(--accent-soft); }
+.flow .n { width: 28px; height: 28px; border-radius: 9999px; display: grid; place-items: center; font-size: 13px; font-weight: 600; background: var(--surface-3); color: var(--fg); }
+.flow li.new .n { background: var(--accent); color: var(--accent-fg); }
+.flow b { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.flow small { font-size: 13px; color: var(--fg-2); line-height: 1.4; }
+.flow li:not(:last-child)::after {
+  content: ''; position: absolute; right: -10px; top: 30px; width: 8px; height: 8px;
+  border-top: 2px solid var(--fg-3); border-right: 2px solid var(--fg-3); transform: rotate(45deg); z-index: 1;
+}
+.flow-key { display: flex; flex-wrap: wrap; gap: 20px; font-size: 13px; color: var(--fg-2); }
+.flow-key span { display: inline-flex; align-items: center; gap: 8px; }
+.flow-key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; background: var(--surface-3); border: 1px solid var(--line-2); }
+.flow-key i.new { background: var(--accent); border-color: var(--accent); }
+@media (max-width: 860px) {
+  .flow { grid-template-columns: 1fr; }
+  .flow li { grid-template-columns: 28px 1fr; column-gap: 12px; }
+  .flow li small { grid-column: 2; }
+  .flow li:not(:last-child)::after { right: auto; left: 26px; top: auto; bottom: -11px; transform: rotate(135deg); }
+}
+
+/* ---------- mockup shared */
+.shot { background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; font-size: 13px; line-height: 1.45; min-width: 0; }
+.shot-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); color: var(--fg-2); font-size: 12px; }
+.shot-bar .dots { display: flex; gap: 6px; }
+.shot-bar .dots i { width: 9px; height: 9px; border-radius: 9999px; background: var(--line-2); display: block; }
+.shot-bar .tag { margin-left: auto; font-size: 11px; border: 1px solid var(--line-2); border-radius: 9999px; padding: 1px 8px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; border-radius: 9999px; padding: 2px 10px; white-space: nowrap; }
+.pill::before { content: ''; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
+.pill.red { color: var(--red); background: var(--red-soft); }
+.pill.amber { color: var(--amber); background: var(--amber-soft); }
+.pill.blue { color: var(--blue); background: var(--blue-soft); }
+.pill.purple { color: var(--purple); background: var(--purple-soft); }
+.pill.green { color: var(--green); background: var(--green-soft); }
+.pill.grey { color: var(--fg-2); background: var(--surface-3); }
+.pill.plain::before { display: none; }
+.av { width: 24px; height: 24px; border-radius: 9999px; display: inline-grid; place-items: center; font-size: 10px; font-weight: 600; background: var(--surface-3); color: var(--fg); flex: none; }
+.av.empty { background: transparent; border: 1px dashed var(--line-2); color: var(--fg-3); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; border-radius: 8px; padding: 7px 12px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--fg); cursor: pointer; white-space: nowrap; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.select { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 10px; background: var(--surface); color: var(--fg); font-size: 13px; min-width: 0; }
+.select::after { content: ''; width: 6px; height: 6px; border-right: 1.5px solid var(--fg-2); border-bottom: 1.5px solid var(--fg-2); transform: rotate(45deg) translateY(-2px); flex: none; }
+.hl { box-shadow: 0 0 0 2px var(--accent); }
+
+/* callout markers (each maps to a numbered note beside the mockup) */
+.mk { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 9999px; background: var(--accent); color: var(--accent-fg); font-size: 12px; font-weight: 700; flex: none; font-style: normal; }
+.notes { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; align-content: start; }
+.notes li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start; }
+.notes b { display: block; font-weight: 600; margin-bottom: 2px; }
+.notes span { color: var(--fg-2); font-size: 14px; }
+.notes.plain { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 32px; }
+.notes.plain li { grid-template-columns: 1fr; border-top: 2px solid var(--line-2); padding-top: 10px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+.pair.drawer-pair { grid-template-columns: minmax(0, 680px) minmax(0, 1fr); }
+.pair .notes { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) { .pair, .pair.drawer-pair { grid-template-columns: 1fr; } .pair .notes { position: static; } }
+
+/* ---------- screen A: drawer footer + toast */
+.a-body { display: grid; gap: 14px; padding: 18px; }
+.a-title b { display: block; font-size: 15px; }
+.a-title span { color: var(--fg-2); font-size: 12px; }
+.a-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.a-value { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.a-value small { font-size: 13px; font-weight: 400; color: var(--fg-2); margin-left: 6px; }
+.a-faded { color: var(--fg-3); font-size: 12px; border-top: 1px dashed var(--line-2); padding-top: 10px; }
+.a-foot { border-top: 1px solid var(--line); padding: 14px 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: end; background: var(--surface-2); }
+.a-foot label { font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px; }
+.a-foot .help { grid-column: 1 / -1; color: var(--fg-2); font-size: 12px; }
+.a-foot .help a { white-space: nowrap; }
+.toast { margin: 14px 18px 18px; border: 1px solid var(--line-2); border-left: 3px solid var(--green); border-radius: 8px; background: var(--surface-2); padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; box-shadow: var(--shadow); }
+.toast b { font-size: 13px; }
+.toast p { grid-column: 1; color: var(--fg-2); font-size: 12px; }
+.toast .btn { grid-row: 1 / span 2; grid-column: 2; }
+@media (max-width: 520px) { .a-foot { grid-template-columns: 1fr; } .toast { grid-template-columns: 1fr; } .toast .btn { grid-row: auto; grid-column: 1; justify-self: start; } }
+
+/* ---------- screen B: board */
+.board-scroll { overflow-x: auto; }
+.board-top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: end; justify-content: space-between; padding: 20px 20px 0; }
+.board-top h3 { font-size: 24px; font-weight: 600; }
+.board-top p { color: var(--fg-2); font-size: 12px; }
+.board-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.board-filters .select { min-width: 150px; }
+.chip { font-size: 12px; border: 1px solid var(--line-2); border-radius: 9999px; padding: 3px 10px; color: var(--fg-2); white-space: nowrap; }
+.chip.on { border-color: var(--fg-2); color: var(--fg); background: var(--surface-3); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 16px 20px 0; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); }
+.stat span { color: var(--fg-2); font-size: 12px; display: block; }
+.stat b { font-size: 20px; font-weight: 600; }
+.stat b.warn { color: var(--amber); }
+.cols { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 12px; padding: 16px 20px 20px; min-width: 1060px; }
+.col { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 10px; align-content: start; }
+.col-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2px 4px 4px; border-bottom: 1px solid var(--line); }
+.col-h b { font-size: 13px; font-weight: 600; }
+.col-h b em { font-style: normal; color: var(--fg-3); font-weight: 500; margin-left: 6px; }
+.col-h span { color: var(--fg-2); font-size: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 12px; display: grid; gap: 8px; }
+.card.fresh { border-color: var(--accent); }
+.card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card .t { font-weight: 600; font-size: 13px; line-height: 1.35; }
+.card .s { color: var(--fg-2); font-size: 12px; }
+.card .v { font-size: 16px; font-weight: 600; }
+.card .next { font-size: 12px; color: var(--fg-2); border-top: 1px solid var(--line); padding-top: 8px; }
+.card .next b { color: var(--fg); font-weight: 500; }
+.due { font-size: 12px; color: var(--fg-2); white-space: nowrap; }
+.due.soon { color: var(--amber); }
+.prog { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--fg-2); }
+.prog i { flex: 1; height: 4px; border-radius: 9999px; background: var(--surface-3); position: relative; overflow: hidden; }
+.prog i::after { content: ''; position: absolute; inset: 0; width: var(--p); background: var(--accent); border-radius: 9999px; }
+.card .closed { font-size: 12px; color: var(--fg-2); }
+.drop { border: 1px dashed var(--line-2); border-radius: 8px; padding: 10px; text-align: center; color: var(--fg-3); font-size: 12px; }
+.cap { color: var(--fg-2); font-size: 13px; }
+@media (max-width: 700px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- screen C: action drawer */
+.d-head { padding: 16px 18px 0; display: grid; gap: 2px; }
+.d-head b { font-size: 15px; }
+.d-head span { color: var(--fg-2); font-size: 12px; }
+.tabs { display: flex; gap: 20px; padding: 0 18px; border-bottom: 1px solid var(--line); margin-top: 12px; }
+.tabs span { padding: 10px 0; font-size: 13px; color: var(--fg-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs span.on { color: var(--fg); border-color: var(--accent); font-weight: 600; }
+.d-body { padding: 18px; display: grid; gap: 22px; }
+.blk { display: grid; gap: 10px; }
+.blk-h { display: flex; align-items: center; gap: 10px; }
+.blk-h h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.blk-h small { color: var(--fg-3); font-size: 12px; margin-left: auto; }
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fields label { display: block; font-size: 12px; color: var(--fg-2); margin-bottom: 4px; }
+.fields .select .av { margin-right: 6px; }
+.fields .select > span { display: inline-flex; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .fields { grid-template-columns: 1fr; } }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.steps li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 6px 4px; border-radius: 6px; align-items: start; }
+.steps li .bx { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--line-2); margin-top: 2px; display: grid; place-items: center; }
+.steps li.done .bx { background: var(--accent); border-color: var(--accent); }
+.steps li.done .bx::after { content: ''; width: 4px; height: 8px; border-right: 2px solid var(--accent-fg); border-bottom: 2px solid var(--accent-fg); transform: rotate(45deg) translate(-1px, -1px); }
+.steps li.done span { color: var(--fg-3); text-decoration: line-through; }
+.steps li em { font-style: normal; color: var(--fg-3); font-size: 12px; display: block; }
+.people { display: grid; gap: 8px; }
+.person { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.person b { font-weight: 600; }
+.person .role { color: var(--fg-2); font-size: 12px; }
+.person .why { color: var(--fg-2); font-size: 12px; display: block; }
+.person .src { font-size: 11px; color: var(--fg-3); text-align: right; }
+.person .src a { white-space: nowrap; }
+@media (max-width: 520px) { .person { grid-template-columns: 24px minmax(0, 1fr); } .person .src { grid-column: 2; text-align: left; } }
+.mail { border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.mail-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); align-items: center; }
+.mail-row > span:first-child { color: var(--fg-3); font-size: 12px; }
+.mail-row .select { padding: 4px 8px; }
+.mail-body { padding: 12px; white-space: pre-wrap; font-size: 13px; line-height: 1.55; background: var(--surface-2); margin: 0; font-family: var(--font-sans); overflow-wrap: anywhere; }
+.mail-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.mail-foot small { color: var(--fg-3); font-size: 12px; margin-left: auto; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fact { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.fact span { display: block; color: var(--fg-2); font-size: 12px; }
+.fact b { display: block; font-weight: 600; margin: 2px 0; }
+.fact a { font-size: 11px; }
+@media (max-width: 560px) { .facts { grid-template-columns: 1fr; } }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-left: 2px solid var(--line-2); margin-left: 6px; }
+.log li { padding: 4px 0 10px 16px; position: relative; font-size: 12px; color: var(--fg-2); }
+.log li::before { content: ''; position: absolute; left: -6px; top: 8px; width: 10px; height: 10px; border-radius: 9999px; background: var(--surface); border: 2px solid var(--line-2); }
+.log li b { color: var(--fg); font-weight: 500; }
+.log time { color: var(--fg-3); margin-right: 6px; }
+.note-in { border: 1px solid var(--line-2); border-radius: 6px; padding: 8px 10px; color: var(--fg-3); font-size: 12px; }
+.d-foot { border-top: 1px solid var(--line); padding: 14px 18px; background: var(--surface-2); display: grid; gap: 6px; }
+.d-foot label { font-weight: 600; font-size: 13px; }
+.d-foot .help { color: var(--fg-2); font-size: 12px; }
+.d-foot .select { max-width: 320px; }
+
+/* ---------- screen D: overview strip */
+.ov { padding: 20px; display: grid; gap: 16px; }
+.ov-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.ov-h b { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.ov-h span { color: var(--fg-2); font-size: 16px; }
+.ov-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ov-tile { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--surface-2); display: grid; gap: 4px; position: relative; }
+.ov-tile.new { border-color: var(--accent); }
+.ov-tile span { color: var(--fg-2); font-size: 12px; }
+.ov-tile b { font-size: 24px; font-weight: 600; }
+.ov-tile i { font-style: normal; color: var(--fg-2); font-size: 12px; }
+.ov-bar { display: flex; height: 10px; border-radius: 9999px; overflow: hidden; background: var(--surface-3); }
+.ov-bar span:nth-child(1) { background: var(--accent); }
+.ov-bar span:nth-child(2) { background: var(--green); }
+.ov-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--fg-2); }
+.ov-legend span { display: inline-flex; gap: 6px; align-items: center; }
+.ov-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+@media (max-width: 640px) { .ov-strip { grid-template-columns: 1fr; } }
+
+/* ---------- tables */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; font-weight: 500; color: var(--fg-2); letter-spacing: 0.04em; text-transform: uppercase; background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td .pill { margin: 1px 4px 1px 0; }
+td.muted { color: var(--fg-2); }
+.newtag { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; margin-left: 6px; letter-spacing: 0.02em; }
+
+/* ---------- needs cards */
+.needs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.need { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+.need h3 { font-size: 16px; font-weight: 600; }
+.need ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--fg-2); font-size: 14px; }
+.need ul b { color: var(--fg); font-weight: 500; }
+@media (max-width: 860px) { .needs { grid-template-columns: 1fr; } }
+
+/* ---------- demo script */
+.script { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; counter-reset: s; border-left: 2px solid var(--line-2); margin-left: 13px; }
+.script li { counter-increment: s; position: relative; padding: 0 0 22px 28px; max-width: 72ch; }
+.script li::before { content: counter(s); position: absolute; left: -15px; top: -2px; width: 28px; height: 28px; border-radius: 9999px; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.script li:last-child { padding-bottom: 0; }
+.script b { display: block; font-weight: 600; }
+.script span { color: var(--fg-2); }
+.script q { color: var(--fg); font-style: italic; quotes: '\201C' '\201D'; }
+
+/* ---------- decisions */
+.decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.dec { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.dec h3 { font-size: 16px; font-weight: 600; line-height: 1.35; }
+.dec h3 .q { color: var(--fg-3); font-weight: 500; margin-right: 6px; }
+.opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.opts li { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 14px; color: var(--fg-2); }
+.opts li.rec { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.opts li.rec::after { content: 'Recommended'; display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--accent-fg); background: var(--accent); border-radius: 4px; padding: 1px 6px; vertical-align: 1px; }
+.dec .why { font-size: 13px; color: var(--fg-2); }
+@media (max-width: 860px) { .decisions { grid-template-columns: 1fr; } }
+
+/* ---------- out of scope */
+.out { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 32px; list-style: none; margin: 0; padding: 0; }
+.out li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; font-size: 14px; color: var(--fg-2); }
+.out li::before { content: ''; width: 12px; height: 2px; background: var(--fg-3); margin-top: 10px; }
+.out b { color: var(--fg); font-weight: 500; }
+@media (max-width: 700px) { .out { grid-template-columns: 1fr; } }
+
+.foot { border-top: 1px solid var(--line); padding-top: 20px; color: var(--fg-2); font-size: 13px; display: grid; gap: 4px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <!-- ===================================================== header -->
+  <header class="top">
+    <p class="eyebrow">Kontor financial layer · Feature spec</p>
+    <h1>Action tracker</h1>
+    <p class="lede">Today the prototype <strong>finds</strong> the money. This feature helps the council <strong>chase</strong> it.</p>
+    <div class="meta">
+      <span class="draft">Draft 1 for review</span>
+      <span>From the LG Bridgehead weekly sync, 12 Oct 2026</span>
+      <span>Asked for by Jonathan McCarte</span>
+      <span>Sample data: Marchbank Borough Council</span>
+    </div>
+  </header>
+
+  <!-- ===================================================== flow -->
+  <section class="sec" aria-labelledby="h-flow">
+    <div class="sec-head">
+      <h2 id="h-flow">The idea in one picture</h2>
+      <p>An opportunity marked "Under review" becomes a card that someone owns, works on and closes.</p>
+    </div>
+    <ol class="flow">
+      <li><span class="n">1</span><b>Flag found</b><small>Opportunities list. £6.1m across 15 contracts.</small></li>
+      <li><span class="n">2</span><b>Set "Under review"</b><small>The review status dropdown in the side drawer.</small></li>
+      <li class="new"><span class="n">3</span><b>Card on the Actions board</b><small>New page. One card for each opportunity your team is working on.</small></li>
+      <li class="new"><span class="n">4</span><b>Work it</b><small>Owner, due date, next steps, who to contact, draft email.</small></li>
+      <li class="new"><span class="n">5</span><b>Close with an outcome</b><small>Resolved, Explained or No action. The Overview shows the result.</small></li>
+    </ol>
+    <div class="flow-key"><span><i></i>Built today</span><span><i class="new"></i>New in this feature</span></div>
+  </section>
+
+  <!-- ===================================================== screen A -->
+  <section class="sec" aria-labelledby="h-a">
+    <div class="sec-head">
+      <p class="eyebrow">Screen 1 · Change to the side drawer</p>
+      <h2 id="h-a">"Under review" starts an action</h2>
+    </div>
+    <div class="pair">
+      <div class="shot" role="img" aria-label="Mockup of the opportunity drawer footer with Review status set to Under review, and a toast that says the item was added to Actions">
+        <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>Opportunity drawer</span><span class="tag">Mockup</span></div>
+        <div class="a-body">
+          <div class="a-title"><b>Highways reactive maintenance and minor works</b><span>Fennimore Highways Ltd · C-005</span></div>
+          <div class="tabs" style="margin:0 -18px;padding:0 18px"><span class="on">Details</span><span>Action <i class="mk" style="margin-left:4px;vertical-align:-5px">3</i></span></div>
+          <div class="a-pills"><span class="pill red">Spend over cap</span><span class="pill grey">High confidence</span><span class="pill blue">Under review</span></div>
+          <div class="a-value num">£3,350,000<small>Already paid</small></div>
+          <p class="a-faded">Why this is flagged, how it is calculated, where it comes from: no change.</p>
+        </div>
+        <div class="a-foot">
+          <div><label>Review status <i class="mk" style="margin-left:6px">1</i></label><div class="select hl">Under review</div></div>
+          <span class="btn primary">View clause, page 23</span>
+          <p class="help">Counted in the headline. On the Actions board in <a href="#h-b">To start</a>.</p>
+        </div>
+        <div class="toast">
+          <b>Highways reactive maintenance and minor works: added to Actions. <i class="mk" style="margin-left:4px;vertical-align:-5px">2</i></b>
+          <p>The headline is still £6.1m. Set an owner to get started.</p>
+          <span class="btn">Open in Actions</span>
+        </div>
+      </div>
+      <ol class="notes">
+        <li><i class="mk">1</i><div><b>Same dropdown as today</b><span>Choosing "Under review" now also puts a card on the Actions board. No new button to learn.</span></div></li>
+        <li><i class="mk">2</i><div><b>The toast tells you where it went</b><span>"Open in Actions" goes straight to the card. The headline does not change, because "Under review" is still counted.</span></div></li>
+        <li><i class="mk">3</i><div><b>An Action tab in the drawer</b><span>The drawer gets two tabs: Details (today's content) and Action (Screen 3). An opportunity with no action shows a "Start action" button there. It does the same as choosing "Under review".</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================================================== screen B -->
+  <section class="sec" aria-labelledby="h-b">
+    <div class="sec-head">
+      <p class="eyebrow">Screen 2 · New page in the rail, after Opportunities</p>
+      <h2 id="h-b">The Actions board</h2>
+      <p>A Kanban board (cards in columns, one column for each stage). Example state near the end of the demo.</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>#/actions</span><span class="tag">Mockup · sample data</span></div>
+      <div class="board-top">
+        <div><p class="eyebrow">Marchbank Borough Council</p><h3>Actions</h3><p>Opportunities your team is working on. As at 6 October 2026.</p></div>
+        <div class="board-filters">
+          <div class="select">Owner: Everyone</div>
+          <span class="chip on">All types</span><span class="chip">Spend over cap</span><span class="chip">Close to cap</span><span class="chip">Renewals</span><span class="chip">Price increases</span>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Being worked on</span><b class="num">£5.1m</b></div>
+        <div class="stat"><span>Open actions</span><b class="num">4</b></div>
+        <div class="stat"><span>Due in the next 14 days</span><b class="num warn">2</b></div>
+        <div class="stat"><span>Resolved (your figures)</span><b class="num">£150,000</b></div>
+      </div>
+      <div class="board-scroll">
+        <div class="cols">
+          <!-- To start -->
+          <div class="col">
+            <div class="col-h"><b>To start<em>1</em></b><span class="num">£3.35m</span></div>
+            <div class="card fresh">
+              <div class="row"><span class="pill red">Spend over cap</span><span class="pill plain grey">Just added</span></div>
+              <div><div class="t">Highways reactive maintenance and minor works</div><div class="s">Fennimore Highways Ltd</div></div>
+              <div class="row"><span class="v num">£3,350,000</span><span class="due soon">Due 20 Oct</span></div>
+              <div class="row"><span class="av" title="Dana Okafor">DO</span><div class="prog" style="--p:0%;flex:1"><i></i>0 of 5</div></div>
+              <div class="next"><b>Next:</b> Check the contract file for a variation.</div>
+            </div>
+            <div class="drop">Drag a card here, or use "Move to" on the card</div>
+          </div>
+          <!-- Checking internally -->
+          <div class="col">
+            <div class="col-h"><b>Checking internally<em>2</em></b><span class="num">£1.40m</span></div>
+            <div class="card">
+              <div class="row"><span class="pill red">Spend over cap</span><span class="due soon">Due 16 Oct</span></div>
+              <div><div class="t">ICT managed service and end-user support</div><div class="s">Pellam Digital Ltd</div></div>
+              <div class="row"><span class="v num">£760,000</span></div>
+              <div class="row"><span class="av" title="Priya Raman">PR</span><div class="prog" style="--p:40%;flex:1"><i></i>2 of 5</div></div>
+              <div class="next"><b>Next:</b> Ask finance to confirm the payment total.</div>
+            </div>
+            <div class="card">
+              <div class="row"><span class="pill amber">Close to cap</span><span class="due">Due 30 Oct</span></div>
+              <div><div class="t">Integrated facilities management</div><div class="s">Kestrelvale Facilities Services Ltd</div></div>
+              <div class="row"><span class="v num">£642,478</span></div>
+              <div class="row"><span class="av" title="Tom Ellery">TE</span><div class="prog" style="--p:25%;flex:1"><i></i>1 of 4</div></div>
+              <div class="next"><b>Next:</b> Find out if a variation is planned.</div>
+            </div>
+          </div>
+          <!-- With supplier -->
+          <div class="col">
+            <div class="col-h"><b>With supplier<em>1</em></b><span class="num">£0.31m</span></div>
+            <div class="card">
+              <div class="row"><span class="pill blue">Renewal</span><span class="due">Notice by 31 Oct</span></div>
+              <div><div class="t">Waste collection and recycling</div><div class="s">Quillon Waste Services Ltd</div></div>
+              <div class="row"><span class="v num">£310,000</span></div>
+              <div class="row"><span class="av" title="Sam Adeyemi">SA</span><div class="prog" style="--p:60%;flex:1"><i></i>3 of 5</div></div>
+              <div class="next"><b>Next:</b> Get renewal terms from the supplier.</div>
+            </div>
+          </div>
+          <!-- Closed -->
+          <div class="col">
+            <div class="col-h"><b>Closed<em>1</em></b><span class="num">£150,000 resolved</span></div>
+            <div class="card">
+              <div class="row"><span class="pill purple">Price increase above cap</span></div>
+              <div><div class="t">Street lighting and signage maintenance</div><div class="s">Ordwell Lighting and Signs Ltd</div></div>
+              <div class="row"><span class="pill green">Resolved</span><span class="av" title="Priya Raman">PR</span></div>
+              <p class="closed">£150,000 credit agreed (your figure) against £188,200 flagged. Closed 6 Oct.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="notes plain">
+      <li><div><b>Four stages</b><span>To start, Checking internally, With supplier, Closed. Each column shows a count and a £ total.</span></div></li>
+      <li><div><b>Cards show what to do next</b><span>Type, £ value, due date, owner, steps done, and the next step in plain words.</span></div></li>
+      <li><div><b>Move cards without a mouse</b><span>Drag and drop, plus a "Move to" menu on each card for keyboard users.</span></div></li>
+      <li><div><b>Click a card to work on it</b><span>It opens the same side drawer, on the Action tab.</span></div></li>
+    </ul>
+  </section>
+
+  <!-- ===================================================== screen C -->
+  <section class="sec" aria-labelledby="h-c">
+    <div class="sec-head">
+      <p class="eyebrow">Screen 3 · Action tab in the side drawer</p>
+      <h2 id="h-c">Inside an action</h2>
+      <p>Everything a contracts officer needs to make the first move. The email button below works on this page, so you can try it.</p>
+    </div>
+    <div class="pair drawer-pair">
+      <div class="shot">
+        <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>Opportunity drawer · Action tab</span><span class="tag">Mockup</span></div>
+        <div class="d-head"><b>Highways reactive maintenance and minor works</b><span>Fennimore Highways Ltd · C-005 · <span class="pill red" style="vertical-align:1px">Spend over cap</span> <span class="num">£3,350,000</span></span></div>
+        <div class="tabs"><span>Details</span><span class="on">Action</span></div>
+        <div class="d-body">
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">1</i><h4>Who and when</h4></div>
+            <div class="fields">
+              <div><label>Stage</label><div class="select">Checking internally</div></div>
+              <div><label>Owner</label><div class="select"><span><span class="av">DO</span>Dana Okafor</span></div></div>
+              <div><label>Due</label><div class="select num">20 Oct 2026</div></div>
+            </div>
+          </div>
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">2</i><h4>Next steps</h4><small>2 of 5 done</small></div>
+            <ul class="steps">
+              <li class="done"><i class="bx"></i><span>Check the contract file for a variation under clause 41.</span></li>
+              <li class="done"><i class="bx"></i><span>Ask the contract owner if the extra spend was approved.</span></li>
+              <li><i class="bx"></i><div><span>Ask finance to confirm the payment total.</span><em>Payment files can include VAT, credit notes or re-bills.</em></div></li>
+              <li><i class="bx"></i><span>If no approval is found, raise it with the supplier.</span></li>
+              <li><i class="bx"></i><span>Record the outcome and close the action.</span></li>
+            </ul>
+          </div>
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">3</i><h4>Who to contact</h4><small>Sample names</small></div>
+            <div class="people">
+              <div class="person"><span class="av">DO</span><div><b>Dana Okafor</b> <span class="role">· Highways Contract Manager</span><span class="why">Contract owner. Knows if a variation was agreed.</span></div><span class="src">Authority's Representative<br><a href="#h-c">Clause 3.1, page 6</a></span></div>
+              <div class="person"><span class="av">JW</span><div><b>Jo Whitfield</b> <span class="role">· Head of Highways and Transport</span><span class="why">Budget holder. Signs off spend in this service.</span></div><span class="src">Staff list</span></div>
+              <div class="person"><span class="av">TE</span><div><b>Tom Ellery</b> <span class="role">· Finance Business Partner</span><span class="why">Can confirm what was paid and when.</span></div><span class="src">Staff list</span></div>
+              <div class="person"><span class="av">AM</span><div><b>Alex Merrow</b> <span class="role">· Contract Director, Fennimore Highways</span><span class="why">Supplier's named contact. Use after the internal check.</span></div><span class="src">Supplier's Representative<br><a href="#h-c">Clause 3.2, page 6</a></span></div>
+            </div>
+          </div>
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">4</i><h4>Draft email</h4><small>Check before you send</small></div>
+            <div class="mail">
+              <div class="mail-row"><span>To</span><div class="select">Dana Okafor · dana.okafor@marchbank.example</div></div>
+              <div class="mail-row"><span>Subject</span><span id="mail-subject">C-005 Highways reactive maintenance: spend is £3,350,000 above the cap</span></div>
+              <pre class="mail-body" id="mail-body">Hi Dana,
+
+Our contract review flagged the Highways reactive maintenance and minor works contract (C-005, Fennimore Highways Ltd).
+
+- Clause 14.3 sets a maximum contract value of £5,000,000, unless a variation under clause 41 increases it.
+- Payments to date are £8,350,000. That is £3,350,000 above the cap.
+
+Can you tell me by 20 October 2026:
+1. Was a variation approved that raised the cap?
+2. Was extra work added to the scope?
+3. Who approved the payments above the cap?
+
+The clause and the payment list are in Kontor.
+
+Thanks,
+[Your name]</pre>
+              <div class="mail-foot">
+                <button type="button" class="btn primary" id="copy-mail">Copy email</button>
+                <button type="button" class="btn" disabled style="opacity:.7;cursor:default">Mark as sent</button>
+                <small id="copy-status" aria-live="polite">Copy adds a line to the activity log.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">5</i><h4>Exit terms</h4><small>From the contract</small></div>
+            <div class="facts">
+              <div class="fact"><span>End for convenience</span><b>Yes, 3 months' notice</b><a href="#h-c">Clause 30.1, page 31</a></div>
+              <div class="fact"><span>Exit fee</span><b>None</b><a href="#h-c">Clause 33.2, page 33</a></div>
+              <div class="fact"><span>Contract ends</span><b class="num">31 May 2027</b><a href="#h-c">Clause 31.1, page 32</a></div>
+            </div>
+          </div>
+
+          <div class="blk">
+            <div class="blk-h"><i class="mk">6</i><h4>Activity</h4></div>
+            <div class="note-in">Add a note</div>
+            <ul class="log">
+              <li><time>6 Oct, 10:12</time><b>You</b> ticked "Ask the contract owner if the extra spend was approved".</li>
+              <li><time>6 Oct, 10:09</time><b>You</b> copied the email to Dana Okafor.</li>
+              <li><time>6 Oct, 10:05</time><b>You</b> moved this to Checking internally and set the owner to Dana Okafor.</li>
+              <li><time>6 Oct, 10:02</time><b>You</b> set the review status to Under review.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="d-foot">
+          <label>Review status</label>
+          <div class="select">Under review</div>
+          <p class="help">Counted in the headline. Stage: Checking internally.</p>
+        </div>
+      </div>
+      <ol class="notes">
+        <li><i class="mk">1</i><div><b>Who and when</b><span>Stage, owner and due date. Due starts as the action-by date (for example a notice date), or 14 days after it starts.</span></div></li>
+        <li><i class="mk">2</i><div><b>Next steps</b><span>A short checklist for each flag type. It turns "Reasons this may not be a saving" into things to do.</span></div></li>
+        <li><i class="mk">3</i><div><b>Who to contact</b><span>The contract names both sides' representatives, so Kontor can pull them out with a clause link, like every other answer. Council roles come from a sample staff list.</span></div></li>
+        <li><i class="mk">4</i><div><b>Draft email</b><span>Filled from the contract facts. Pick a person and the email changes. You copy it and send it yourself. The app sends nothing.</span></div></li>
+        <li><i class="mk">5</i><div><b>Exit terms</b><span>Facts that Kontor already extracts. The Surrey team asks about termination, so this is cheap to show. There is no options maths.</span></div></li>
+        <li><i class="mk">6</i><div><b>Activity log</b><span>An audit trail (a record of who did what, and when). This keeps a human in charge, which councils want. Later it can teach the system what usually works.</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================================================== screen D -->
+  <section class="sec" aria-labelledby="h-d">
+    <div class="sec-head">
+      <p class="eyebrow">Screen 4 · Change to the Overview</p>
+      <h2 id="h-d">The Overview shows progress</h2>
+      <p>A new strip under the headline. Same example state as the board.</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><span class="dots"><i></i><i></i><i></i></span><span>#/overview</span><span class="tag">Mockup · sample data</span></div>
+      <div class="ov">
+        <div class="ov-h"><b class="num">£6.0m</b><span>across 15 contracts flagged as opportunities to investigate</span></div>
+        <div class="ov-strip">
+          <div class="ov-tile"><span>Not started</span><b class="num">£0.9m</b><i>14 flags with no action yet</i></div>
+          <div class="ov-tile new"><span>Being worked on</span><b class="num">£5.1m</b><i>4 actions. 2 due in the next 14 days.</i></div>
+          <div class="ov-tile new"><span>Resolved</span><b class="num">£150,000</b><i>1 action. Your figures, not counted in the headline.</i></div>
+        </div>
+        <div class="ov-bar" aria-hidden="true"><span style="width:85%"></span></div>
+        <div class="ov-legend"><span><i style="background:var(--accent)"></i>Being worked on, 85% of the headline</span><span><i style="background:var(--surface-3);border:1px solid var(--line-2)"></i>Not started</span><span><a href="#h-b">Open the Actions board</a></span></div>
+      </div>
+    </div>
+    <p class="cap">The headline falls from £6.1m to £6.0m because the closed Street lighting card left it. "Resolved" is shown next to the headline, never added to it.</p>
+  </section>
+
+  <!-- ===================================================== rules -->
+  <section class="sec" aria-labelledby="h-rules">
+    <div class="sec-head">
+      <h2 id="h-rules">How the status and the board stay in step</h2>
+      <p>One status for each opportunity. The board column and the drawer dropdown always agree.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Review status</th><th>On the board</th><th>In the headline</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill grey">To investigate</span></td><td class="muted">Not on the board</td><td>Counted</td><td class="muted">Default. No change from today.</td></tr>
+          <tr><td><span class="pill blue">Under review</span></td><td>To start, Checking internally or With supplier</td><td>Counted</td><td class="muted">Choosing it adds the card in To start.</td></tr>
+          <tr><td><span class="pill green">Resolved</span><span class="newtag">NEW</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for the £ figure agreed. Shown as "Resolved" on the Overview.</td></tr>
+          <tr><td><span class="pill grey">Explained</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for a one-line reason, for example "Variation found".</td></tr>
+          <tr><td><span class="pill grey">No action</span></td><td>Closed</td><td>Not counted</td><td class="muted">Asks for a one-line reason.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap">Moving back to "To investigate" takes the card off the board. Its notes and log are kept, and come back if it is started again.</p>
+  </section>
+
+  <!-- ===================================================== what changes -->
+  <section class="sec" aria-labelledby="h-where">
+    <div class="sec-head"><h2 id="h-where">What changes where</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Place</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td><b>Rail</b></td><td>New "Actions" item after Opportunities. Seven items in all.</td></tr>
+          <tr><td><b>Actions</b><span class="newtag">NEW</span></td><td>The board (Screen 2). A list view on phones, grouped by stage.</td></tr>
+          <tr><td><b>Side drawer</b></td><td>Details and Action tabs. "Resolved" added to the review status. A closing reason or £ figure when you close.</td></tr>
+          <tr><td><b>Opportunities</b></td><td>Rows being worked on show the stage and the owner's initials.</td></tr>
+          <tr><td><b>Overview</b></td><td>Progress strip under the headline (Screen 4).</td></tr>
+          <tr><td><b>Contract detail</b></td><td>Shows both named representatives, with clause links.</td></tr>
+          <tr><td><b>Roadmap</b></td><td>New row: "Action tracker", built. Plus one "Not yet" row: suggested next steps, learned from closed actions.</td></tr>
+          <tr><td><b>Guide and Reset</b></td><td>A new tour step. "Reset demo data" also resets the board.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================================================== needs -->
+  <section class="sec" aria-labelledby="h-needs">
+    <div class="sec-head">
+      <h2 id="h-needs">What the build needs</h2>
+      <p>Plain view. The detailed version comes in the Markdown spec.</p>
+    </div>
+    <div class="needs">
+      <div class="need">
+        <h3>New sample data</h3>
+        <ul>
+          <li><b>A staff list.</b> About 8 fictional council people with roles and departments.</li>
+          <li><b>Named representatives.</b> A new extracted answer for each contract: both sides' contacts, with clause and page.</li>
+          <li><b>Step lists and email templates</b> for each flag type: over cap, close to cap, renewal and price increase.</li>
+        </ul>
+      </div>
+      <div class="need">
+        <h3>New saved state</h3>
+        <ul>
+          <li><b>One record for each action:</b> stage, owner, due date, steps ticked, notes, log, outcome.</li>
+          <li><b>Kept in the browser</b>, like the review status today. Each viewer has their own board.</li>
+          <li><b>Four example cards</b> come pre-loaded, all open. Reset puts them back.</li>
+        </ul>
+      </div>
+      <div class="need">
+        <h3>Rules that stay true</h3>
+        <ul>
+          <li><b>£6.1m at the start.</b> The example cards are all open, so the demo headline does not move.</li>
+          <li><b>No new claims.</b> "Resolved" amounts are the user's own figures, labelled that way.</li>
+          <li><b>Works offline.</b> No server, no AI calls, no email sent.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== demo -->
+  <section class="sec" aria-labelledby="h-demo">
+    <div class="sec-head">
+      <h2 id="h-demo">The demo in 60 seconds</h2>
+      <p>Follows the current 5-minute tour, after "Opportunities".</p>
+    </div>
+    <ol class="script">
+      <li><b>Start it</b><span>Open Highways (£3.35m over cap). Set "Under review". <q>Now someone owns it.</q></span></li>
+      <li><b>See the board</b><span>Click "Open in Actions". The card is in To start, next to four others already in progress.</span></li>
+      <li><b>Know who to call</b><span>Open the card. Set Dana Okafor as owner. Show the representatives, pulled from clause 3 of the contract.</span></li>
+      <li><b>Make the first move</b><span>Copy the draft email. <q>Ten seconds, and the contract facts are already in it.</q></span></li>
+      <li><b>Close the loop</b><span>Drag Street lighting to Closed. Choose Resolved and enter £150,000, the credit the supplier agreed. The Overview shows £150,000 resolved.</span></li>
+    </ol>
+  </section>
+
+  <!-- ===================================================== decisions -->
+  <section class="sec" aria-labelledby="h-dec">
+    <div class="sec-head">
+      <h2 id="h-dec">Decisions for you</h2>
+      <p>My recommendation is marked. Tell me what to change and I will update this page.</p>
+    </div>
+    <div class="decisions">
+      <div class="dec">
+        <h3><span class="q">D1</span>What starts an action?</h3>
+        <ul class="opts">
+          <li class="rec">Choosing "Under review"</li>
+          <li>Only a separate "Start action" button</li>
+        </ul>
+        <p class="why">One click, in a dropdown people already use. The button stays as a shortcut on the Action tab.</p>
+      </div>
+      <div class="dec">
+        <h3><span class="q">D2</span>Which board columns?</h3>
+        <ul class="opts">
+          <li class="rec">To start · Checking internally · With supplier · Closed</li>
+          <li>To do · Doing · Done</li>
+        </ul>
+        <p class="why">Four columns match how council contract work really moves: check inside first, then go to the supplier.</p>
+      </div>
+      <div class="dec">
+        <h3><span class="q">D3</span>Add a "Resolved" status with a £ figure?</h3>
+        <ul class="opts">
+          <li class="rec">Yes, and show it on the Overview</li>
+          <li>No. Close as Explained or No action only</li>
+        </ul>
+        <p class="why">It shows money coming back, which is the story. It is always labelled "your figure", so it is never a claim made by the tool.</p>
+      </div>
+      <div class="dec">
+        <h3><span class="q">D4</span>How are emails written?</h3>
+        <ul class="opts">
+          <li class="rec">Fixed templates, filled with contract facts</li>
+          <li>Written live by AI</li>
+        </ul>
+        <p class="why">The same every demo. Works offline. No risk of a made-up number in front of a council.</p>
+      </div>
+      <div class="dec">
+        <h3><span class="q">D5</span>Start with example cards on the board?</h3>
+        <ul class="opts">
+          <li class="rec">Yes: ICT, Facilities, Waste and Street lighting, all open</li>
+          <li>No. The board starts empty</li>
+        </ul>
+        <p class="why">An empty board looks dead in a demo. Highways is left out so it can be the live moment.</p>
+      </div>
+      <div class="dec">
+        <h3><span class="q">D6</span>Show exit terms on the Action tab?</h3>
+        <ul class="opts">
+          <li class="rec">Yes, as facts with clause links</li>
+          <li>No. Keep them on Contract detail only</li>
+        </ul>
+        <p class="why">The data is already extracted, and Surrey asked about termination. Facts only, no options maths.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== out of scope -->
+  <section class="sec" aria-labelledby="h-out">
+    <div class="sec-head"><h2 id="h-out">Not in this build</h2></div>
+    <ul class="out">
+      <li><span><b>Sending email or invites.</b> You copy the text. The app sends nothing.</span></li>
+      <li><span><b>Logins, teams or permissions.</b> Owners come from a sample staff list.</span></li>
+      <li><span><b>Reminders or notifications.</b> Due dates show on the board only.</span></li>
+      <li><span><b>AI recommendations.</b> A Roadmap row only. They need a history of closed actions first.</span></li>
+      <li><span><b>Options analysis.</b> No exit cost against overspend maths. Dropped after the 12 Oct sync.</span></li>
+      <li><span><b>A shared board.</b> Each browser keeps its own board, like the rest of the prototype.</span></li>
+    </ul>
+  </section>
+
+  <footer class="foot">
+    <p>Next step: agree the decisions above. Then this becomes a detailed Markdown spec for the build.</p>
+    <p>All names, emails and figures are sample data for the fictional Marchbank Borough Council. Email addresses use the reserved .example domain.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('copy-mail');
+  var status = document.getElementById('copy-status');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var text = 'Subject: ' + document.getElementById('mail-subject').textContent + '\n\n' + document.getElementById('mail-body').textContent;
+    var done = function () { status.textContent = 'Email copied. In the app, this adds a line to the activity log.'; };
+    var fallback = function () {
+      var range = document.createRange();
+      range.selectNodeContents(document.getElementById('mail-body'));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      status.textContent = 'Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.';
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
