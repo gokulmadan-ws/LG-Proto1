@@ -20,15 +20,23 @@
 //   capRows           every contract with a testable cap, highest utilisation first (R37 default sort): [{ contractId, ...derived[contractId].cap }]
 //   contractsById, extractionsById, extractionsByContract[cid] (Q1 to Q9 field order), paymentsByContract[cid] (AttributedPayment[] in date order)
 //
-// state (persisted in localStorage keys kontor-triage, kontor-matches, kontor-assumptions, kontor-handcheck, kontor-feedback):
+// state (persisted in localStorage keys kontor-triage, kontor-matches, kontor-assumptions, kontor-handcheck, kontor-feedback, kontor-actions):
 //   triage       { [flagId]: 'under_review' | 'resolved' | 'explained' | 'not_an_issue' }      absent = 'to_investigate'
 //   decisions    { [rawPayeeName]: 'confirm' | 'reject' }
 //   assumptions  { renewalRate?: number, nearCapThreshold?: number }              absent = engine default
 //   handcheck    { [extractionId]: 'correct' | 'incorrect' }
 //   feedback     [{ at: ISO timestamp, answer: 'yes'|'maybe'|'no', comment, asOf }]
+//   actions      { [flagId]: Action }   the action tracker (shape and rules in src/lib/actions.js)
+//   First load: when kontor-actions is absent, actions start as the pre-loaded examples (src/data/actions-seed.js) and their
+//   review statuses fill in any seeded flag with no stored status. resetAll() goes back to exactly that (initialState()).
 //
 // actions: setTriage(flagId, status|null) · setDecision(rawName, 'confirm'|'reject'|null) · setAssumption(key, value|null)
 //          setHandcheck(extractionId, 'correct'|'incorrect'|null) · addFeedback(entry) -> { ok, reason? } · resetAll()
+//          action tracker (flag = an engine flag; review status and board always agree, src/lib/actions.js):
+//          setStatus(flag, status) · startAction(flag) · closeAction(flag, { outcome, cashRecoveredGBP, costAvoidedGBP, closeNote })
+//          moveAction(flag, stage) · setActionOwner(flag, personId|null) · setActionDue(flag, 'YYYY-MM-DD') · toggleActionStep(flag, stepId)
+//          addActionNote(flag, text) · logActionEmail(flag, 'copied'|'sent', recipientName)
+//          setTriage keeps the board in step too: it is setStatus by flag id.
 //   addFeedback returns { ok: true } or { ok: false, reason: 'no_answer' | 'storage_blocked' } (nothing is kept when it is not saved).
 // storage: { blocked }  true once any write could not reach localStorage (private window, blocked site data). Everything still works for the session.
 //
@@ -48,11 +56,13 @@
 // Extraction: { id: 'X-C-005-maximumValue', contractId, questionId: 'Q1', fieldKey, answer, answerType, status: 'found'|'not_found'|'needs_review', confidence,
 //               provenance: [{ documentId, page, clauseRef, quote }] }. Contract: see docs/handoff/A2.md (adds `source`, `documentId`, `extractionIds`, `confidence`).
 //
-// Time: this module never reads the clock for a derivation. The only clock use is the timestamp on a saved feedback entry.
+// Time: this module never reads the clock for a derivation. The only clock use is the timestamp on a saved feedback entry and on
+// action log lines and notes.
 import { createContext, createElement, useContext, useMemo, useRef, useState } from 'react';
 import data from '../data/sample.json' with { type: 'json' };
 import * as E from './engine.js';
 import { KEYS, getJSON, setJSON, clearKontorKeys, storageAvailable } from './storage.js';
+import * as A from './actions.js';
 
 export { evidenceFor, evidenceAll, evidenceForField, sourceHref } from './evidenceFor.js'; // flag -> source viewer target, also importable from here
 
@@ -123,7 +133,11 @@ export function handcheckSummary(state) {
 /* ---------------------------------------------------------------- persistence (never throws; corrupt JSON is ignored) */
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
-export const EMPTY_STATE = Object.freeze({ triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [] });
+export const EMPTY_STATE = Object.freeze({ triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [], actions: {} });
+/** The starting state of the demo (fresh load and after Reset demo data): no changes, plus the pre-loaded actions and their statuses. */
+export const initialState = () => ({ ...EMPTY_STATE, triage: A.seedTriage(), actions: A.seedActions() });
+const contractIds = new Set(data.contracts.map((c) => c.id));
+export const sanitiseActions = (v) => A.sanitiseActions(v, contractIds);
 
 export function sanitiseTriage(v) {
   const out = {};
@@ -153,12 +167,17 @@ export function sanitiseFeedback(v) {
 /** Read every persisted key. `io.getJSON(key, fallback)` defaults to A1's safe storage; tests inject a throwing or corrupt one. */
 export function readPersisted(io = { getJSON }) {
   const get = (key, fallback) => { try { const v = io.getJSON(key, fallback); return v === undefined ? fallback : v; } catch (e) { return fallback; } };
+  const MISSING = {};
+  const storedActions = get(KEYS.actions, MISSING);
+  const fresh = storedActions === MISSING;         // never saved (or unreadable): start from the pre-loaded examples
+  const triage = sanitiseTriage(get(KEYS.triage, {}));
   return {
-    triage: sanitiseTriage(get(KEYS.triage, {})),
+    triage: fresh ? A.withSeedTriage(triage) : triage,
     decisions: sanitiseDecisions(get(KEYS.matches, {})),
     assumptions: sanitiseAssumptions(get(KEYS.assumptions, {})),
     handcheck: sanitiseHandcheck(get(KEYS.handcheck, {})),
     feedback: sanitiseFeedback(get(KEYS.feedback, [])),
+    actions: fresh ? A.seedActions() : sanitiseActions(storedActions),
   };
 }
 
@@ -186,12 +205,41 @@ export function EstateProvider({ children, initial }) {
       if (!ok) setBlocked(true);
       return ok;
     };
+    // Action tracker: one transition from src/lib/actions.js updates the review status and the board together, and saves both.
+    // The clock is read here only for the log line's timestamp (nothing is derived from it).
+    const track = (fn) => (flag, ...args) => {
+      if (!flag || !flag.id) return false;
+      const cur = { triage: ref.current.triage, actions: ref.current.actions };
+      const out = fn(cur, flag, ...args, new Date().toISOString());
+      if (!out || (out.triage === cur.triage && out.actions === cur.actions)) return false;
+      const next = { ...ref.current, triage: out.triage, actions: out.actions };
+      ref.current = next;
+      setState(next);
+      let ok = true;
+      try { ok = setJSON(KEYS.triage, out.triage) && setJSON(KEYS.actions, out.actions); } catch (e) { ok = false; }
+      if (!ok) setBlocked(true);
+      return true;
+    };
+    const setStatus = track(A.setStatus);
     return {
       setTriage(flagId, status) {
+        // Kept for older callers: the same as setStatus, found by id, so the board stays in step.
+        const flag = computeEstate({ decisions: ref.current.decisions, triage: ref.current.triage, assumptions: ref.current.assumptions }).flagsById[flagId];
+        const s = !status || !TRIAGE_STATUSES.includes(status) ? 'to_investigate' : status;
+        if (flag) { setStatus(flag, s); return; }
         const next = { ...ref.current.triage };
-        if (!status || status === 'to_investigate' || !TRIAGE_STATUSES.includes(status)) delete next[flagId]; else next[flagId] = status;
+        if (s === 'to_investigate') delete next[flagId]; else next[flagId] = s;
         commit('triage', KEYS.triage, next);
       },
+      setStatus,
+      startAction: track(A.startAction),
+      closeAction: track(A.closeAction),
+      moveAction: track(A.moveAction),
+      setActionOwner: track(A.setOwner),
+      setActionDue: track(A.setDue),
+      toggleActionStep: track(A.toggleStep),
+      addActionNote: track(A.addNote),
+      logActionEmail: track(A.logEmail),
       setDecision(rawName, decision) {
         const next = { ...ref.current.decisions };
         if (decision === 'confirm' || decision === 'reject') next[rawName] = decision; else delete next[rawName];
@@ -227,7 +275,7 @@ export function EstateProvider({ children, initial }) {
       },
       resetAll() {
         try { clearKontorKeys(); } catch (e) { /* storage blocked: the in-memory state below is still reset */ }
-        ref.current = { ...EMPTY_STATE };
+        ref.current = initialState();
         setState(ref.current);
       },
     };

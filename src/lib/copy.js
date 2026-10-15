@@ -494,7 +494,7 @@ export const COPY = {
     themeToDark: 'Switch to dark mode', themeToLight: 'Switch to light mode',
   },
 
-  resetDialog: { title: 'Reset demo data?', body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.', cancel: 'Cancel', confirm: 'Reset demo data' },
+  resetDialog: { title: 'Reset demo data?', body: 'This clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers and example actions.', cancel: 'Cancel', confirm: 'Reset demo data' },
 
   feedback: {
     title: 'Tell us what you think', question: 'Would you use this on your own contracts?', options: ['Yes', 'Maybe', 'No'],

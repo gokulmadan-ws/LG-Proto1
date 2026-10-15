@@ -20,6 +20,7 @@ import { useUI } from '../../lib/ui-context.jsx';
 import { useTheme } from '../../lib/theme.js';
 import { COPY, fmtPct, headlineSentence } from '../../lib/copy.js';
 import { plural } from '../../lib/format.js';
+import { changeParts } from '../../lib/actions.js';
 import DS from '../../ui/ds.js';
 import { Drawer, Pill, Segmented, SwitchField } from '../../ui/index.js';
 import './overlays.css';
@@ -43,7 +44,7 @@ const TEXT = {
   darkMode: 'Dark mode',
   darkHelp: 'Same setting as the toggle in the header. Dark is the default.',
   reset: 'Reset',
-  resetHelp: 'Clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays.',
+  resetHelp: 'Clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device. The example actions come back. The theme stays.',
   nothing: 'Nothing has been changed yet.',
   changed: (n) => `Changed on this device: ${n.join(', ')}.`,
   close: 'Close settings',
@@ -77,14 +78,8 @@ export default function SettingsDrawer({ open, onClose }) {
     ui.toast({ tone: 'success', title: what, description: rest.join(' ') });
   };
 
-  // What there is to reset, counted from the saved state (so the line is true after a reload too).
-  const counts = [
-    [Object.keys(state.triage).length, 'review'],
-    [Object.keys(state.decisions).length, 'match decision'],
-    [Object.keys(state.handcheck).length, 'hand-check'],
-    [state.feedback.length, 'feedback entry', 'feedback entries'],
-    [Object.keys(state.assumptions).length, 'assumption'],
-  ].filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+  // What there is to reset, counted from the saved state against the starting one (so the line is true after a reload too).
+  const counts = changeParts(state).filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
 
   return (
     <Drawer

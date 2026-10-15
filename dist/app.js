@@ -701,7 +701,7 @@
     for (const c of contracts) {
       const sp = summaries[c.id] = spendSummary(c, attributed, council, asOf);
       const band = radarBand(c, asOf);
-      const base = annualBase(c, sp);
+      const base2 = annualBase(c, sp);
       const lowestMatch = sp.minMatchScore;
       const matchConf = lowestMatch == null ? 1 : lowestMatch;
       const cf = (keys, withMatch, dropOne) => {
@@ -721,13 +721,13 @@
         if (band.band === "ended") {
           variant = "out_of_contract";
           severity = "high";
-          indicative = round0(base.gbp * opts.renewalRate);
-          breakdown = [{ label: "Annual value", value: base.gbp, note: base.source }, { label: "Indicative rate", value: opts.renewalRate, kind: "pct" }, { label: "Indicative value (per year)", value: indicative, kind: "result" }];
+          indicative = round0(base2.gbp * opts.renewalRate);
+          breakdown = [{ label: "Annual value", value: base2.gbp, note: base2.source }, { label: "Indicative rate", value: opts.renewalRate, kind: "pct" }, { label: "Indicative value (per year)", value: indicative, kind: "result" }];
         } else {
           variant = band.band === "passed" ? "notice_passed" : "upcoming";
           severity = band.band === "passed" || band.band === "m3" ? "high" : band.band === "m6" ? "medium" : "low";
-          indicative = round0(base.gbp * opts.renewalRate);
-          breakdown = [{ label: "Annual value", value: base.gbp, note: base.source }, { label: "Indicative rate", value: opts.renewalRate, kind: "pct" }, { label: "Indicative value (per year)", value: indicative, kind: "result" }];
+          indicative = round0(base2.gbp * opts.renewalRate);
+          breakdown = [{ label: "Annual value", value: base2.gbp, note: base2.source }, { label: "Indicative rate", value: opts.renewalRate, kind: "pct" }, { label: "Indicative value (per year)", value: indicative, kind: "result" }];
         }
         flags.push({ id: `F-${c.id}-renewal`, contractId: c.id, type: "renewal", variant, band: band.band, severity, indicativeGBP: indicative, basis: "per_year", actionBy: variant === "out_of_contract" ? null : band.deadline, breakdown, ...cf(["noticePeriod", "endDate", "autoRenewal"], variant === "out_of_contract"), evidenceFields: ["noticePeriod", "autoRenewal", "endDate"] });
       }
@@ -864,7 +864,8 @@
     matches: "kontor-matches",
     assumptions: "kontor-assumptions",
     handcheck: "kontor-handcheck",
-    feedback: "kontor-feedback"
+    feedback: "kontor-feedback",
+    actions: "kontor-actions"
   };
   var memory = /* @__PURE__ */ new Map();
   function ls() {
@@ -942,6 +943,407 @@
       if (includeTheme || k !== KEYS.theme) removeItem(k);
     });
   }
+
+  // src/lib/actions.js
+  init_react_shim();
+
+  // src/lib/format.js
+  init_react_shim();
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function parts(iso) {
+    if (!iso || typeof iso !== "string") return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
+  }
+  function fmtDate(iso) {
+    const p = parts(iso);
+    return p ? `${p.d} ${MONTHS_SHORT[p.m - 1]} ${p.y}` : "";
+  }
+  function fmtDateLong(iso) {
+    const p = parts(iso);
+    return p ? `${p.d} ${MONTHS[p.m - 1]} ${p.y}` : "";
+  }
+  function fmtMonthDay(md) {
+    const m = /^(\d{2})-(\d{2})$/.exec(md || "");
+    return m ? `${+m[2]} ${MONTHS[+m[1] - 1]}` : "";
+  }
+  function fmtGBPPence(x) {
+    return "\xA3" + Number(x).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtNumber(n) {
+    return Math.round(n).toLocaleString("en-GB");
+  }
+  function plural(n, one, many) {
+    return `${fmtNumber(n)} ${n === 1 ? one : many || one + "s"}`;
+  }
+  function joinList(items) {
+    const a = items.filter(Boolean);
+    return a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`;
+  }
+
+  // src/data/people.js
+  init_react_shim();
+  var EMAIL_DOMAIN = "marchbank.example";
+  var RAW = [
+    ["P-dana", "Dana Okafor", "Highways Contract Manager", "DO"],
+    ["P-jo", "Jo Whitfield", "Head of Highways and Transport", "JW"],
+    ["P-sam", "Sam Adeyemi", "Environment Contract Manager", "SA"],
+    ["P-rae", "Rae Lindqvist", "Head of Environment", "RL"],
+    ["P-lena", "Lena Fairbairn", "ICT Service Manager", "LF"],
+    ["P-chris", "Chris Odukoya", "Facilities Manager", "CO"],
+    ["P-morgan", "Morgan Hale", "Head of Corporate Services", "MH"],
+    ["P-ash", "Ash Patel", "Commissioning Manager", "AP"],
+    ["P-kim", "Kim Osei", "Head of People Services", "KO"],
+    ["P-priya", "Priya Raman", "Category Manager, Procurement", "PR"],
+    ["P-tom", "Tom Ellery", "Finance Business Partner", "TE"]
+  ];
+  var PEOPLE = RAW.map(([id, name, role, initials]) => ({
+    id,
+    name,
+    role,
+    initials,
+    email: `${name.toLowerCase().replace(/\s+/g, ".")}@${EMAIL_DOMAIN}`
+  }));
+  var peopleById = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
+  var BY_CATEGORY = {
+    "Highways and street lighting": { owner: "P-dana", budget: "P-jo" },
+    "Parking and traffic": { owner: "P-dana", budget: "P-jo" },
+    Transport: { owner: "P-dana", budget: "P-jo" },
+    "Waste and recycling": { owner: "P-sam", budget: "P-rae" },
+    "Parks and open spaces": { owner: "P-sam", budget: "P-rae" },
+    ICT: { owner: "P-lena", budget: "P-morgan" },
+    "Facilities management": { owner: "P-chris", budget: "P-morgan" },
+    Energy: { owner: "P-chris", budget: "P-morgan" },
+    Fleet: { owner: "P-chris", budget: "P-morgan" },
+    "Legal and professional": { owner: "P-priya", budget: "P-morgan" },
+    "Adult social care": { owner: "P-ash", budget: "P-kim" },
+    Catering: { owner: "P-ash", budget: "P-kim" },
+    "Leisure and culture": { owner: "P-ash", budget: "P-kim" },
+    Housing: { owner: "P-ash", budget: "P-kim" }
+  };
+  var SERVICE_CATEGORIES = Object.keys(BY_CATEGORY);
+
+  // src/data/action-steps.js
+  init_react_shim();
+  var STEPS = {
+    overCap: [
+      { id: "oc-variation", text: "Check the contract file for a variation or change notice." },
+      { id: "oc-owner", text: "Ask the contract owner if the extra spend was approved." },
+      { id: "oc-finance", text: "Ask finance to confirm the payment total.", hint: "Payment files can include VAT, credit notes or re-bills." },
+      { id: "oc-supplier", text: "If no approval is found, raise it with the supplier." },
+      { id: "oc-record", text: "Record the outcome and close the action." }
+    ],
+    nearCap: [
+      { id: "nc-tell", text: "Tell the budget holder the cap will be reached." },
+      { id: "nc-variation", text: "Find out if a variation is planned." },
+      { id: "nc-decide", text: "Decide: vary the contract, reduce the work or re-procure." },
+      { id: "nc-record", text: "Record the decision and close the action." }
+    ],
+    renewal: [
+      { id: "rn-notice", text: "Confirm the notice date and terms in the contract." },
+      { id: "rn-owner", text: "Ask the contract owner: extend, renegotiate or re-procure?" },
+      { id: "rn-price", text: "Check the current price against the market or a framework." },
+      { id: "rn-supplier", text: "Ask the supplier for renewal terms before the notice date." },
+      { id: "rn-record", text: "Record the decision and close the action." }
+    ],
+    uplift: [
+      { id: "up-clause", text: "Check the indexation clause and the index figure for the year." },
+      { id: "up-invoices", text: "Ask finance for the invoices behind the rise." },
+      { id: "up-supplier", text: "Ask the supplier to explain the increase." },
+      { id: "up-credit", text: "Agree a credit or a price correction." },
+      { id: "up-record", text: "Record the outcome and close the action." }
+    ]
+  };
+  var typeOf = (flagOrType) => typeof flagOrType === "string" ? flagOrType : flagOrType && (flagOrType.type || flagOrType.flagType);
+  var stepsFor = (flagOrType) => STEPS[typeOf(flagOrType)] || [];
+  var ALL_STEP_IDS = new Set(Object.values(STEPS).flat().map((s) => s.id));
+
+  // src/data/actions-seed.js
+  init_react_shim();
+  var base = (flagId, contractId, flagType, flaggedGBP) => ({
+    flagId,
+    contractId,
+    flagType,
+    flaggedGBP,
+    stage: "to_start",
+    owner: null,
+    due: null,
+    steps: {},
+    notes: [],
+    log: [],
+    outcome: null,
+    cashRecoveredGBP: null,
+    costAvoidedGBP: null,
+    closeNote: null,
+    closedAt: null,
+    archived: false,
+    example: false
+  });
+  var ticked = (...ids) => Object.fromEntries(ids.map((id) => [id, true]));
+  var at = (day, time) => `2026-${day}T${time}:00.000Z`;
+  var OPEN = [
+    {
+      ...base("F-C-007-overCap", "C-007", "overCap", 76e4),
+      stage: "checking",
+      owner: "P-priya",
+      due: "2026-10-16",
+      steps: ticked("oc-variation", "oc-owner"),
+      log: [
+        { at: at("09-28", "09:12"), text: "You set the review status to Under review." },
+        { at: at("09-28", "09:14"), text: "You set the owner to Priya Raman." },
+        { at: at("09-29", "11:02"), text: 'You ticked "Check the contract file for a variation or change notice."' },
+        { at: at("10-01", "15:40"), text: 'You ticked "Ask the contract owner if the extra spend was approved."' }
+      ]
+    },
+    {
+      ...base("F-C-001-nearCap", "C-001", "nearCap", 642478),
+      stage: "checking",
+      owner: "P-tom",
+      due: "2026-10-30",
+      steps: ticked("nc-tell"),
+      log: [
+        { at: at("10-01", "10:05"), text: "You set the review status to Under review." },
+        { at: at("10-01", "10:07"), text: "You set the owner to Tom Ellery." },
+        { at: at("10-02", "14:30"), text: 'You ticked "Tell the budget holder the cap will be reached."' }
+      ]
+    },
+    {
+      ...base("F-C-003-renewal", "C-003", "renewal", 31e4),
+      stage: "with_supplier",
+      owner: "P-sam",
+      due: "2026-10-31",
+      steps: ticked("rn-notice", "rn-owner", "rn-price"),
+      log: [
+        { at: at("09-15", "09:30"), text: "You set the review status to Under review." },
+        { at: at("10-02", "16:20"), text: "You moved this to With supplier." }
+      ]
+    },
+    {
+      ...base("F-C-004-uplift", "C-004", "uplift", 188200),
+      stage: "with_supplier",
+      owner: "P-priya",
+      due: "2026-10-23",
+      steps: ticked("up-clause", "up-invoices", "up-supplier"),
+      notes: [{ at: at("10-05", "12:15"), text: "Supplier has offered a credit note." }],
+      log: [
+        { at: at("09-22", "08:50"), text: "You set the review status to Under review." }
+      ]
+    }
+  ];
+  var closed = (id, contractId, flagType, flaggedGBP, outcome, cash, cost, closedAt, owner, note, startedAt) => {
+    const steps = { overCap: ["oc-variation", "oc-owner", "oc-finance", "oc-supplier", "oc-record"], nearCap: ["nc-tell", "nc-variation", "nc-decide", "nc-record"], uplift: ["up-clause", "up-invoices", "up-supplier", "up-credit", "up-record"] }[flagType];
+    return {
+      ...base(id, contractId, flagType, flaggedGBP),
+      stage: "closed",
+      owner,
+      due: closedAt,
+      steps: ticked(...steps),
+      outcome,
+      cashRecoveredGBP: cash,
+      costAvoidedGBP: cost,
+      closeNote: note,
+      closedAt,
+      example: true,
+      log: [
+        { at: `${startedAt}T09:00:00.000Z`, text: "You set the review status to Under review." },
+        { at: `${closedAt}T16:00:00.000Z`, text: "You closed this action." }
+      ]
+    };
+  };
+  var HISTORY = [
+    closed("H-C-024-uplift", "C-024", "uplift", 47300, "resolved", 12400, 31200, "2026-05-22", "P-tom", "Rise cut back to CPI, refund paid.", "2026-04-20"),
+    closed("H-C-006-nearCap", "C-006", "nearCap", 23e4, "explained", null, null, "2026-06-09", "P-jo", "A 2024 variation raised the cap.", "2026-05-18"),
+    closed("H-C-020-uplift", "C-020", "uplift", 64e3, "resolved", 21500, 54e3, "2026-06-19", "P-sam", "Overcharge refunded, rate corrected.", "2026-05-26"),
+    closed("H-C-008-overCap", "C-008", "overCap", 112e3, "resolved", 84e3, null, "2026-07-14", "P-priya", "Duplicate invoices credited.", "2026-06-15"),
+    closed("H-C-013-overCap", "C-013", "overCap", 58e3, "no_action", null, null, "2026-09-03", "P-tom", "Extra holiday club meals, approved and grant funded.", "2026-08-10")
+  ];
+  var SEED_ACTIONS = Object.freeze(Object.fromEntries([...OPEN, ...HISTORY].map((a) => [a.flagId, a])));
+  var SEED_TRIAGE = Object.freeze(Object.fromEntries(OPEN.map((a) => [a.flagId, "under_review"])));
+
+  // src/lib/actions.js
+  var STAGES = ["to_start", "checking", "with_supplier", "closed"];
+  var OPEN_STAGES = ["to_start", "checking", "with_supplier"];
+  var STAGE_LABEL = { to_start: "To start", checking: "Checking internally", with_supplier: "With supplier", closed: "Closed" };
+  var OUTCOMES = ["resolved", "explained", "no_action"];
+  var OUTCOME_LABEL = { resolved: "Resolved", explained: "Explained", no_action: "No action" };
+  var OUTCOME_TRIAGE = { resolved: "resolved", explained: "explained", no_action: "not_an_issue" };
+  var TRIAGE_OUTCOME = { resolved: "resolved", explained: "explained", not_an_issue: "no_action" };
+  var CLOSING_STATUSES = new Set(Object.keys(TRIAGE_OUTCOME));
+  var STATUS_LABEL = { to_investigate: "To investigate", under_review: "Under review", resolved: "Resolved", explained: "Explained", not_an_issue: "No action" };
+  var DUE_DAYS = 14;
+  var CLOSE_NOTE_MAX = 140;
+  var MAX_LINES = 200;
+  var isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  var isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  var money = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+  var clone = (v) => JSON.parse(JSON.stringify(v));
+  var personName = (id) => peopleById[id] ? peopleById[id].name : "";
+  var seedActions = () => clone(SEED_ACTIONS);
+  var seedTriage = () => ({ ...SEED_TRIAGE });
+  var withSeedTriage = (storedTriage) => ({ ...SEED_TRIAGE, ...storedTriage || {} });
+  var FLAG_ID = /^(F|H)-(C-\d{3})-(overCap|nearCap|renewal|uplift)$/;
+  function sanitiseActions(v, contractIds2) {
+    const out = {};
+    if (!isObj(v)) return out;
+    for (const [id, a] of Object.entries(v)) {
+      const m = FLAG_ID.exec(id);
+      if (!m || !isObj(a) || contractIds2 && !contractIds2.has(m[2])) continue;
+      if (!STAGES.includes(a.stage)) continue;
+      const outcome = OUTCOMES.includes(a.outcome) ? a.outcome : null;
+      if (a.stage === "closed" && !outcome) continue;
+      const valid = new Set(STEPS[m[3]].map((s) => s.id));
+      const lines = (list) => Array.isArray(list) ? list.filter((l) => isObj(l) && typeof l.text === "string" && l.text).slice(-MAX_LINES).map((l) => ({ at: typeof l.at === "string" ? l.at : "", text: l.text.slice(0, 500) })) : [];
+      out[id] = {
+        flagId: id,
+        contractId: m[2],
+        flagType: m[3],
+        flaggedGBP: money(a.flaggedGBP) || 0,
+        stage: a.stage,
+        owner: peopleById[a.owner] ? a.owner : null,
+        due: isDate(a.due) ? a.due : addDays(AS_OF, DUE_DAYS),
+        steps: Object.fromEntries(Object.entries(isObj(a.steps) ? a.steps : {}).filter(([k, x]) => x === true && valid.has(k))),
+        notes: lines(a.notes),
+        log: lines(a.log),
+        outcome,
+        cashRecoveredGBP: money(a.cashRecoveredGBP),
+        costAvoidedGBP: money(a.costAvoidedGBP),
+        closeNote: typeof a.closeNote === "string" && a.closeNote ? a.closeNote.slice(0, CLOSE_NOTE_MAX) : null,
+        closedAt: a.stage === "closed" && isDate(a.closedAt) ? a.closedAt : a.stage === "closed" ? AS_OF : null,
+        archived: a.archived === true,
+        example: a.example === true
+      };
+    }
+    return out;
+  }
+  var defaultDue = (flag) => flag && isDate(flag.actionBy) && flag.actionBy >= AS_OF ? flag.actionBy : addDays(AS_OF, DUE_DAYS);
+  function newAction(flag) {
+    return {
+      flagId: flag.id,
+      contractId: flag.contractId,
+      flagType: flag.type,
+      flaggedGBP: Math.round(flag.indicativeGBP || 0),
+      stage: "to_start",
+      owner: null,
+      due: defaultDue(flag),
+      steps: {},
+      notes: [],
+      log: [],
+      outcome: null,
+      cashRecoveredGBP: null,
+      costAvoidedGBP: null,
+      closeNote: null,
+      closedAt: null,
+      archived: false,
+      example: false
+    };
+  }
+  var log = (a, at2, text) => ({ ...a, log: [...a.log, { at: at2, text }].slice(-MAX_LINES) });
+  var put = (state, a, triage) => ({ triage: triage || state.triage, actions: { ...state.actions, [a.flagId]: a } });
+  var withStatus = (triage, flagId, status) => {
+    const next = { ...triage };
+    if (!status || status === "to_investigate") delete next[flagId];
+    else next[flagId] = status;
+    return next;
+  };
+  var reopened = (a, stage) => ({ ...a, stage, outcome: null, closedAt: null, archived: false });
+  function closeLogText(outcome, cash, cost) {
+    const head = `You closed this as ${OUTCOME_LABEL[outcome]}`;
+    if (outcome !== "resolved") return head + ".";
+    const parts2 = [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean);
+    return parts2.length ? `${head}: ${parts2.join(" and ")}.` : head + ".";
+  }
+  function setStatus(state, flag, status, at2) {
+    const cur = state.actions[flag.id];
+    if (CLOSING_STATUSES.has(status)) return closeAction(state, flag, { outcome: TRIAGE_OUTCOME[status] }, at2);
+    if (status === "under_review") {
+      let a2;
+      if (!cur) a2 = newAction(flag);
+      else if (cur.stage === "closed") a2 = reopened(cur, "to_start");
+      else a2 = { ...cur, archived: false };
+      a2 = log(a2, at2, `You set the review status to ${STATUS_LABEL.under_review}.`);
+      return put(state, a2, withStatus(state.triage, flag.id, "under_review"));
+    }
+    const triage = withStatus(state.triage, flag.id, null);
+    if (!cur) return { triage, actions: state.actions };
+    let a = cur.stage === "closed" ? reopened(cur, "to_start") : cur;
+    a = log({ ...a, archived: true }, at2, `You set the review status to ${STATUS_LABEL.to_investigate}.`);
+    return put(state, a, triage);
+  }
+  var startAction = (state, flag, at2) => setStatus(state, flag, "under_review", at2);
+  function closeAction(state, flag, { outcome, cashRecoveredGBP = null, costAvoidedGBP = null, closeNote = null } = {}, at2) {
+    if (!OUTCOMES.includes(outcome)) return state;
+    const base2 = state.actions[flag.id] ? { ...state.actions[flag.id], archived: false } : newAction(flag);
+    const cash = outcome === "resolved" ? money(cashRecoveredGBP) : base2.cashRecoveredGBP;
+    const cost = outcome === "resolved" ? money(costAvoidedGBP) : base2.costAvoidedGBP;
+    const note = typeof closeNote === "string" && closeNote.trim() ? closeNote.trim().slice(0, CLOSE_NOTE_MAX) : base2.closeNote;
+    let a = { ...base2, stage: "closed", outcome, cashRecoveredGBP: cash, costAvoidedGBP: cost, closeNote: note, closedAt: AS_OF };
+    a = log(a, at2, closeLogText(outcome, cash, cost));
+    return put(state, a, withStatus(state.triage, flag.id, OUTCOME_TRIAGE[outcome]));
+  }
+  function moveAction(state, flag, stage, at2) {
+    const cur = state.actions[flag.id];
+    if (!cur || !OPEN_STAGES.includes(stage)) return state;
+    if (cur.stage === "closed") {
+      const a = log(reopened(cur, stage), at2, `You reopened this and moved it to ${STAGE_LABEL[stage]}.`);
+      return put(state, a, withStatus(state.triage, flag.id, "under_review"));
+    }
+    if (cur.stage === stage) return state;
+    return put(state, log({ ...cur, stage }, at2, `You moved this to ${STAGE_LABEL[stage]}.`));
+  }
+  function setOwner(state, flag, personId, at2) {
+    const cur = state.actions[flag.id];
+    const owner = peopleById[personId] ? personId : null;
+    if (!cur || cur.owner === owner) return state;
+    return put(state, log({ ...cur, owner }, at2, owner ? `You set the owner to ${personName(owner)}.` : "You cleared the owner."));
+  }
+  function setDue(state, flag, due, at2) {
+    const cur = state.actions[flag.id];
+    if (!cur || !isDate(due) || cur.due === due) return state;
+    return put(state, log({ ...cur, due }, at2, `You set the due date to ${fmtDate(due)}.`));
+  }
+  function toggleStep(state, flag, stepId, at2) {
+    const cur = state.actions[flag.id];
+    const step = stepsFor(cur ? cur.flagType : flag).find((s) => s.id === stepId);
+    if (!cur || !step) return state;
+    const steps = { ...cur.steps };
+    const on = !steps[stepId];
+    if (on) steps[stepId] = true;
+    else delete steps[stepId];
+    return put(state, log({ ...cur, steps }, at2, `You ${on ? "ticked" : "unticked"} "${step.text}"`));
+  }
+  function addNote(state, flag, text, at2) {
+    const cur = state.actions[flag.id];
+    const t = String(text || "").trim().slice(0, 500);
+    if (!cur || !t) return state;
+    return put(state, { ...cur, notes: [...cur.notes, { at: at2, text: t }].slice(-MAX_LINES) });
+  }
+  function logEmail(state, flag, kind, recipientName, at2) {
+    const cur = state.actions[flag.id];
+    if (!cur || !recipientName) return state;
+    const text = kind === "sent" ? `You marked the email to ${recipientName} as sent.` : `You copied the email to ${recipientName}.`;
+    return put(state, log(cur, at2, text));
+  }
+  var sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function triageChanges(triage) {
+    const keys = /* @__PURE__ */ new Set([...Object.keys(triage || {}), ...Object.keys(SEED_TRIAGE)]);
+    return [...keys].filter((k) => (triage || {})[k] !== SEED_TRIAGE[k]).length;
+  }
+  function actionChanges(actions) {
+    const keys = /* @__PURE__ */ new Set([...Object.keys(actions || {}), ...Object.keys(SEED_ACTIONS)]);
+    return [...keys].filter((k) => !sameJSON((actions || {})[k], SEED_ACTIONS[k])).length;
+  }
+  function changeParts(state) {
+    return [
+      [triageChanges(state.triage), "review"],
+      [actionChanges(state.actions), "action"],
+      [Object.keys(state.decisions || {}).length, "match decision"],
+      [Object.keys(state.handcheck || {}).length, "hand-check"],
+      [(state.feedback || []).length, "feedback entry", "feedback entries"],
+      [Object.keys(state.assumptions || {}).length, "assumption"]
+    ];
+  }
+  var changeCount = (state) => changeParts(state).reduce((s, [n]) => s + n, 0);
 
   // src/lib/evidenceFor.js
   init_react_shim();
@@ -1030,25 +1432,28 @@
     const ids = Object.keys(state.handcheck || {}).filter((id) => extractionsById[id]);
     return { checked: ids.length, total: sample_default.extractions.length, correct: ids.filter((id) => state.handcheck[id] === "correct").length, incorrect: ids.filter((id) => state.handcheck[id] === "incorrect").length };
   }
-  var isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
-  var EMPTY_STATE = Object.freeze({ triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [] });
+  var isObj2 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  var EMPTY_STATE = Object.freeze({ triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [], actions: {} });
+  var initialState = () => ({ ...EMPTY_STATE, triage: seedTriage(), actions: seedActions() });
+  var contractIds = new Set(sample_default.contracts.map((c) => c.id));
+  var sanitiseActions2 = (v) => sanitiseActions(v, contractIds);
   function sanitiseTriage(v) {
     const out = {};
-    if (isObj(v)) {
+    if (isObj2(v)) {
       for (const [k, s] of Object.entries(v)) if (TRIAGE_STATUSES.includes(s) && s !== "to_investigate") out[k] = s;
     }
     return out;
   }
   function sanitiseDecisions(v) {
     const out = {};
-    if (isObj(v)) {
+    if (isObj2(v)) {
       for (const [k, s] of Object.entries(v)) if (s === "confirm" || s === "reject") out[k] = s;
     }
     return out;
   }
   function sanitiseAssumptions(v) {
     const out = {};
-    if (isObj(v)) for (const [k, n] of Object.entries(v)) {
+    if (isObj2(v)) for (const [k, n] of Object.entries(v)) {
       const r = ASSUMPTION_RANGE[k];
       if (r && typeof n === "number" && Number.isFinite(n) && n >= r[0] && n <= r[1]) out[k] = n;
     }
@@ -1056,14 +1461,14 @@
   }
   function sanitiseHandcheck(v) {
     const out = {};
-    if (isObj(v)) {
+    if (isObj2(v)) {
       for (const [k, s] of Object.entries(v)) if ((s === "correct" || s === "incorrect") && extractionsById[k]) out[k] = s;
     }
     return out;
   }
   function sanitiseFeedback(v) {
     if (!Array.isArray(v)) return [];
-    return v.filter((e) => isObj(e) && ANSWERS.includes(e.answer)).slice(-MAX_FEEDBACK).map((e) => ({ at: typeof e.at === "string" ? e.at : "", answer: e.answer, comment: typeof e.comment === "string" ? e.comment : "", asOf: typeof e.asOf === "string" ? e.asOf : AS_OF }));
+    return v.filter((e) => isObj2(e) && ANSWERS.includes(e.answer)).slice(-MAX_FEEDBACK).map((e) => ({ at: typeof e.at === "string" ? e.at : "", answer: e.answer, comment: typeof e.comment === "string" ? e.comment : "", asOf: typeof e.asOf === "string" ? e.asOf : AS_OF }));
   }
   function readPersisted(io = { getJSON }) {
     const get = (key, fallback) => {
@@ -1074,12 +1479,17 @@
         return fallback;
       }
     };
+    const MISSING = {};
+    const storedActions = get(KEYS.actions, MISSING);
+    const fresh = storedActions === MISSING;
+    const triage = sanitiseTriage(get(KEYS.triage, {}));
     return {
-      triage: sanitiseTriage(get(KEYS.triage, {})),
+      triage: fresh ? withSeedTriage(triage) : triage,
       decisions: sanitiseDecisions(get(KEYS.matches, {})),
       assumptions: sanitiseAssumptions(get(KEYS.assumptions, {})),
       handcheck: sanitiseHandcheck(get(KEYS.handcheck, {})),
-      feedback: sanitiseFeedback(get(KEYS.feedback, []))
+      feedback: sanitiseFeedback(get(KEYS.feedback, [])),
+      actions: fresh ? seedActions() : sanitiseActions2(storedActions)
     };
   }
   var EstateContext = (0, import_react4.createContext)(null);
@@ -1108,13 +1518,46 @@
         if (!ok) setBlocked(true);
         return ok;
       };
+      const track = (fn) => (flag, ...args) => {
+        if (!flag || !flag.id) return false;
+        const cur = { triage: ref.current.triage, actions: ref.current.actions };
+        const out = fn(cur, flag, ...args, (/* @__PURE__ */ new Date()).toISOString());
+        if (!out || out.triage === cur.triage && out.actions === cur.actions) return false;
+        const next = { ...ref.current, triage: out.triage, actions: out.actions };
+        ref.current = next;
+        setState(next);
+        let ok = true;
+        try {
+          ok = setJSON(KEYS.triage, out.triage) && setJSON(KEYS.actions, out.actions);
+        } catch (e) {
+          ok = false;
+        }
+        if (!ok) setBlocked(true);
+        return true;
+      };
+      const setStatus2 = track(setStatus);
       return {
         setTriage(flagId, status) {
+          const flag = computeEstate({ decisions: ref.current.decisions, triage: ref.current.triage, assumptions: ref.current.assumptions }).flagsById[flagId];
+          const s = !status || !TRIAGE_STATUSES.includes(status) ? "to_investigate" : status;
+          if (flag) {
+            setStatus2(flag, s);
+            return;
+          }
           const next = { ...ref.current.triage };
-          if (!status || status === "to_investigate" || !TRIAGE_STATUSES.includes(status)) delete next[flagId];
-          else next[flagId] = status;
+          if (s === "to_investigate") delete next[flagId];
+          else next[flagId] = s;
           commit("triage", KEYS.triage, next);
         },
+        setStatus: setStatus2,
+        startAction: track(startAction),
+        closeAction: track(closeAction),
+        moveAction: track(moveAction),
+        setActionOwner: track(setOwner),
+        setActionDue: track(setDue),
+        toggleActionStep: track(toggleStep),
+        addActionNote: track(addNote),
+        logActionEmail: track(logEmail),
         setDecision(rawName, decision) {
           const next = { ...ref.current.decisions };
           if (decision === "confirm" || decision === "reject") next[rawName] = decision;
@@ -1139,8 +1582,8 @@
         addFeedback(entry) {
           const answer = entry && typeof entry.answer === "string" ? entry.answer.toLowerCase() : "";
           if (!ANSWERS.includes(answer)) return { ok: false, reason: "no_answer" };
-          const at = entry.at || (/* @__PURE__ */ new Date()).toISOString();
-          const list = [...ref.current.feedback, { at, answer, comment: String(entry.comment || "").slice(0, 2e3), asOf: AS_OF }].slice(-MAX_FEEDBACK);
+          const at2 = entry.at || (/* @__PURE__ */ new Date()).toISOString();
+          const list = [...ref.current.feedback, { at: at2, answer, comment: String(entry.comment || "").slice(0, 2e3), asOf: AS_OF }].slice(-MAX_FEEDBACK);
           let ok = false;
           try {
             ok = setJSON(KEYS.feedback, list);
@@ -1161,7 +1604,7 @@
             clearKontorKeys();
           } catch (e) {
           }
-          ref.current = { ...EMPTY_STATE };
+          ref.current = initialState();
           setState(ref.current);
         }
       };
@@ -1178,43 +1621,6 @@
 
   // src/lib/copy.js
   init_react_shim();
-
-  // src/lib/format.js
-  init_react_shim();
-  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  function parts(iso) {
-    if (!iso || typeof iso !== "string") return null;
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-    return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
-  }
-  function fmtDate(iso) {
-    const p = parts(iso);
-    return p ? `${p.d} ${MONTHS_SHORT[p.m - 1]} ${p.y}` : "";
-  }
-  function fmtDateLong(iso) {
-    const p = parts(iso);
-    return p ? `${p.d} ${MONTHS[p.m - 1]} ${p.y}` : "";
-  }
-  function fmtMonthDay(md) {
-    const m = /^(\d{2})-(\d{2})$/.exec(md || "");
-    return m ? `${+m[2]} ${MONTHS[+m[1] - 1]}` : "";
-  }
-  function fmtGBPPence(x) {
-    return "\xA3" + Number(x).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  function fmtNumber(n) {
-    return Math.round(n).toLocaleString("en-GB");
-  }
-  function plural(n, one, many) {
-    return `${fmtNumber(n)} ${n === 1 ? one : many || one + "s"}`;
-  }
-  function joinList(items) {
-    const a = items.filter(Boolean);
-    return a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`;
-  }
-
-  // src/lib/copy.js
   var FLAG_TYPE_LABEL = { overCap: "Spend over cap", nearCap: "Close to cap", renewal: "Renewal decision", uplift: "Price increase above cap" };
   var FLAG_TYPE_CHIP_LABEL = { overCap: "Spend over cap", nearCap: "Close to cap", renewal: "Renewals", uplift: "Price increases above cap" };
   var FLAG_TYPES = ["overCap", "nearCap", "renewal", "uplift"];
@@ -1328,11 +1734,11 @@
     const d = derived || {};
     if (d.band === "passed") {
       const n = diffDays(AS_OF, d.deadline);
-      const base = `The notice date passed ${n} ${dayWord(n)} ago`;
+      const base2 = `The notice date passed ${n} ${dayWord(n)} ago`;
       if (contract.autoRenewal && contract.autoRenewal.enabled) {
-        return `${base}. This contract renews on ${fmtDateLong(addDays(contract.endDate, 1))} for ${contract.autoRenewal.periodMonths} months unless you agree otherwise with the supplier.`;
+        return `${base2}. This contract renews on ${fmtDateLong(addDays(contract.endDate, 1))} for ${contract.autoRenewal.periodMonths} months unless you agree otherwise with the supplier.`;
       }
-      return base;
+      return base2;
     }
     if (d.band === "ended" && d.spend && d.spend.afterEndGBP > 0) return `This contract ended on ${fmtDateLong(contract.endDate)}. You have paid ${fmtGBP(d.spend.afterEndGBP)} since.`;
     return null;
@@ -1602,7 +2008,7 @@
       themeToDark: "Switch to dark mode",
       themeToLight: "Switch to light mode"
     },
-    resetDialog: { title: "Reset demo data?", body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers.", cancel: "Cancel", confirm: "Reset demo data" },
+    resetDialog: { title: "Reset demo data?", body: "This clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers and example actions.", cancel: "Cancel", confirm: "Reset demo data" },
     feedback: {
       title: "Tell us what you think",
       question: "Would you use this on your own contracts?",
@@ -4247,11 +4653,11 @@
     const filtered = filter ? items.filter((it) => keyOf(it) === filter) : items;
     const limited = !filter && !showAll && filtered.length > LIMIT;
     const table = (0, import_react33.useMemo)(() => {
-      const base = capTable(filtered);
+      const base2 = capTable(filtered);
       const byId = Object.fromEntries(items.map((it) => [it.id, it]));
       return {
         columns: [
-          ...base.columns,
+          ...base2.columns,
           { key: "clause", label: CAP.tableCols.clause, render: (r) => {
             const it = byId[r.id];
             const cl = it.state !== "ok" ? capClauseFor(estate, r.id) : null;
@@ -4259,7 +4665,7 @@
           } },
           { key: "payments", label: CAP.tableCols.payments, render: (r) => /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-textlink cap-link", onClick: () => openPayments(r.id) }, CAP.seePayments, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", r.title)) }
         ],
-        rows: base.rows
+        rows: base2.rows
       };
     }, [filtered, items, estate]);
     const tile = (k, value, foot) => /* @__PURE__ */ React.createElement(StatTile, { className: "cap-tile cap-tile--" + k, label: CAP.tiles[k].label, icon: CAP.tiles[k].icon, value, foot });
@@ -5803,15 +6209,15 @@
     });
     hits.sort((a, b) => a.start - b.start);
     const out = [];
-    let at = 0;
+    let at2 = 0;
     hits.forEach((h, n) => {
-      if (h.start > at) out.push(text.slice(at, h.start));
+      if (h.start > at2) out.push(text.slice(at2, h.start));
       out.push(
         /* @__PURE__ */ React.createElement("a", { key: n, className: "ev-link", href: h.href, "aria-label": `${text.slice(h.start, h.end)}, for the ${item.case} case` }, text.slice(h.start, h.end))
       );
-      at = h.end;
+      at2 = h.end;
     });
-    if (at < text.length) out.push(text.slice(at));
+    if (at2 < text.length) out.push(text.slice(at2));
     return /* @__PURE__ */ React.createElement("span", { className: "ev-feature" }, out);
   }
   function Evidence() {
@@ -5872,13 +6278,13 @@
     });
     hits.sort((a, b) => a.start - b.start);
     const out = [];
-    let at = 0;
+    let at2 = 0;
     hits.forEach((h, n) => {
-      if (h.start > at) out.push(text.slice(at, h.start));
+      if (h.start > at2) out.push(text.slice(at2, h.start));
       out.push(/* @__PURE__ */ React.createElement(ExtLink, { key: n, href: h.url }, text.slice(h.start, h.end)));
-      at = h.end;
+      at2 = h.end;
     });
-    if (at < text.length) out.push(text.slice(at));
+    if (at2 < text.length) out.push(text.slice(at2));
     return /* @__PURE__ */ React.createElement(React.Fragment, null, out);
   }
   var noColon = (s) => s.replace(/:$/, "");
@@ -6010,20 +6416,14 @@
     return o;
   };
   function changeCounts(state) {
-    return [
-      [Object.keys(state.triage || {}).length, "review"],
-      [Object.keys(state.decisions || {}).length, "match decision"],
-      [Object.keys(state.handcheck || {}).length, "hand-check"],
-      [(state.feedback || []).length, "feedback entry", "feedback entries"],
-      [Object.keys(state.assumptions || {}).length, "assumption"]
-    ].filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+    return changeParts(state).filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
   }
   function guideFacts(estate, state) {
-    const base = { decisions: state.decisions || {}, triage: state.triage || {}, assumptions: state.assumptions || {} };
-    const what = (patch) => computeEstate({ ...base, ...patch });
+    const base2 = { decisions: state.decisions || {}, triage: state.triage || {}, assumptions: state.assumptions || {} };
+    const what = (patch) => computeEstate({ ...base2, ...patch });
     const start = computeEstate();
     const opts = estate.opts;
-    const moved = Object.keys(base.triage).length + Object.keys(base.decisions).length + Object.keys(base.assumptions).length > 0;
+    const moved = triageChanges(base2.triage) + Object.keys(base2.decisions).length + Object.keys(base2.assumptions).length > 0;
     const topFlag = estate.ranked.find((f) => f.type === "overCap") || null;
     const topContract = topFlag ? estate.contractsById[topFlag.contractId] : null;
     const topCap = topFlag ? estate.derived[topFlag.contractId].cap : null;
@@ -6031,18 +6431,18 @@
     const topDoc = topContract ? estate.data.documents[topContract.documentId] : null;
     let explain = null;
     if (topFlag) {
-      const status = base.triage[topFlag.id] || "to_investigate";
+      const status = base2.triage[topFlag.id] || "to_investigate";
       const explained = status === "explained";
-      const other = explained ? what({ triage: without(base.triage, topFlag.id) }) : what({ triage: { ...base.triage, [topFlag.id]: "explained" } });
+      const other = explained ? what({ triage: without(base2.triage, topFlag.id) }) : what({ triage: { ...base2.triage, [topFlag.id]: "explained" } });
       explain = { status, explained, now: estate.totals, other: other.totals };
     }
     let match = null;
     const m = estate.matches.get(PAYEE);
     if (m && m.supplierId) {
-      const decision = base.decisions[PAYEE] || null;
+      const decision = base2.decisions[PAYEE] || null;
       const confirmed = decision === "confirm";
       const contracts = estate.data.contracts.filter((c) => c.supplierId === m.supplierId);
-      const alt = confirmed ? what({ decisions: without(base.decisions, PAYEE) }) : what({ decisions: { ...base.decisions, [PAYEE]: "confirm" } });
+      const alt = confirmed ? what({ decisions: without(base2.decisions, PAYEE) }) : what({ decisions: { ...base2.decisions, [PAYEE]: "confirm" } });
       const after = confirmed ? estate : alt;
       const before = confirmed ? alt : estate;
       const cid = contracts.map((c) => c.id).sort((a, b) => after.derived[b].cap.utilisation - before.derived[b].cap.utilisation - (after.derived[a].cap.utilisation - before.derived[a].cap.utilisation))[0];
@@ -6062,7 +6462,7 @@
       }
     }
     const rateTarget = Math.abs(opts.renewalRate - RATE_TARGET) < 1e-9 ? RATE_FALLBACK : RATE_TARGET;
-    const rateAfter = what({ assumptions: { ...base.assumptions, renewalRate: rateTarget } });
+    const rateAfter = what({ assumptions: { ...base2.assumptions, renewalRate: rateTarget } });
     const rate = { now: opts.renewalRate, target: rateTarget, nowTotals: estate.totals, afterTotals: rateAfter.totals };
     const capStates = { over: 0, near: 0, ok: 0 };
     for (const r of estate.capRows) {
@@ -6919,7 +7319,7 @@
   function useResetDemo() {
     const ui = useUI();
     const { state, actions } = useEstate();
-    const changeCount = Object.keys(state.triage || {}).length + Object.keys(state.decisions || {}).length + Object.keys(state.assumptions || {}).length + Object.keys(state.handcheck || {}).length + (state.feedback || []).length;
+    const changeCount2 = changeCount(state);
     const reset = (0, import_react44.useCallback)(async () => {
       const start = computeEstate({});
       const headline = fmtGBPCompact(start.totals.totalGBP);
@@ -6932,7 +7332,7 @@
         ui.closeDemoGuide();
         navigate("#/overview");
       };
-      if (!changeCount) {
+      if (!changeCount2) {
         goHome();
         ui.toast({ tone: "info", title: "Already at the starting numbers.", description: `Nothing has changed. The headline is ${headline} across ${contracts} contracts.` });
         return;
@@ -6948,20 +7348,20 @@
       actions.resetAll();
       goHome();
       ui.toast({ tone: "success", title: "Demo data reset.", description: `The headline is back to ${headline} across ${contracts} contracts. You are on the Overview.` });
-    }, [ui, actions, changeCount]);
-    return { reset, changeCount };
+    }, [ui, actions, changeCount2]);
+    return { reset, changeCount: changeCount2 };
   }
 
   // src/shell/ResetDemoButton.jsx
   function ResetDemoButton() {
-    const { reset, changeCount } = useResetDemo();
+    const { reset, changeCount: changeCount2 } = useResetDemo();
     const label = "Reset demo data";
     return /* @__PURE__ */ React.createElement("span", { className: "shell__slot shell__slot--optional" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
-        className: "shell__reset" + (changeCount ? " has-changes" : ""),
-        "aria-label": changeCount ? `${label}. You have ${changeCount} ${changeCount === 1 ? "change" : "changes"}.` : label,
+        className: "shell__reset" + (changeCount2 ? " has-changes" : ""),
+        "aria-label": changeCount2 ? `${label}. You have ${changeCount2} ${changeCount2 === 1 ? "change" : "changes"}.` : label,
         title: label,
         onClick: reset
       },
@@ -7431,7 +7831,7 @@
     darkMode: "Dark mode",
     darkHelp: "Same setting as the toggle in the header. Dark is the default.",
     reset: "Reset",
-    resetHelp: "Clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays.",
+    resetHelp: "Clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device. The example actions come back. The theme stays.",
     nothing: "Nothing has been changed yet.",
     changed: (n) => `Changed on this device: ${n.join(", ")}.`,
     close: "Close settings"
@@ -7461,13 +7861,7 @@
       const [what, ...rest] = COPY.toasts.resetDone.split(new RegExp("(?<=\\.)\\s+"));
       ui.toast({ tone: "success", title: what, description: rest.join(" ") });
     };
-    const counts = [
-      [Object.keys(state.triage).length, "review"],
-      [Object.keys(state.decisions).length, "match decision"],
-      [Object.keys(state.handcheck).length, "hand-check"],
-      [state.feedback.length, "feedback entry", "feedback entries"],
-      [Object.keys(state.assumptions).length, "assumption"]
-    ].filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+    const counts = changeParts(state).filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
     return /* @__PURE__ */ React.createElement(
       Drawer,
       {

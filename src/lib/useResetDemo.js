@@ -1,5 +1,6 @@
 // "Reset demo data": one action for the header button and the rail Menu.
-// Clears every change made in the demo (reviews, match decisions, hand-checks, feedback, assumptions; the theme stays),
+// Clears every change made in the demo (reviews, actions, match decisions, hand-checks, feedback, assumptions; the theme stays) and puts
+// the pre-loaded example actions back. changeCount is measured against that starting state, so a fresh load counts 0.
 // closes any open panel, returns to the Overview and says what the headline is again. The numbers come from the engine at
 // its default settings, never typed, so the toast stays true if the sample data changes.
 //   const { reset, changeCount } = useResetDemo();   // reset() is async: it asks first when there is something to lose
@@ -8,15 +9,15 @@ import { useUI } from './ui-context.jsx';
 import { useEstate, computeEstate } from './estate.js';
 import { navigate } from './router.js';
 import { COPY, fmtGBPCompact } from './copy.js';
+import { changeCount as countChanges } from './actions.js';
 
 export function useResetDemo() {
   const ui = useUI();
   const { state, actions } = useEstate();
-  const changeCount = Object.keys(state.triage || {}).length + Object.keys(state.decisions || {}).length
-    + Object.keys(state.assumptions || {}).length + Object.keys(state.handcheck || {}).length + (state.feedback || []).length;
+  const changeCount = countChanges(state);
 
   const reset = useCallback(async () => {
-    const start = computeEstate({});
+    const start = computeEstate({});     // the pre-loaded actions are all Under review, so the starting headline is the engine's own
     const headline = fmtGBPCompact(start.totals.totalGBP);
     const contracts = start.totals.contractCount;
     const goHome = () => {

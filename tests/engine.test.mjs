@@ -195,11 +195,13 @@ t('engine extras: totals, derived fields, radar groups, coverage sums', () => {
 
 t('engine and copy never read the clock', () => {
   const src = (p) => fs.readFileSync(path.join(root, p), 'utf8').replace(/\/\/.*$/gm, '');
-  for (const p of ['src/lib/engine.js', 'src/lib/copy.js', 'src/lib/format.js', 'src/lib/evidenceFor.js', 'src/data/evidence.js', 'src/data/roadmap.js', 'src/data/reasons.js']) {
+  for (const p of ['src/lib/engine.js', 'src/lib/copy.js', 'src/lib/format.js', 'src/lib/evidenceFor.js', 'src/data/evidence.js', 'src/data/roadmap.js', 'src/data/reasons.js',
+    'src/lib/actions.js', 'src/data/people.js', 'src/data/representatives.js', 'src/data/action-steps.js', 'src/data/contacts.js', 'src/data/email-templates.js', 'src/data/actions-seed.js']) {
     const s = src(p); assert.ok(!/Date\.now\s*\(/.test(s), p + ' Date.now'); assert.ok(!/new Date\s*\(\s*\)/.test(s), p + ' new Date()'); assert.ok(!/Math\.random|performance\.now/.test(s), p + ' random');
   }
   const s = src('src/lib/estate.js');
-  assert.equal((s.match(/new Date\s*\(\s*\)/g) || []).length, 1); assert.ok(!/Date\.now\s*\(/.test(s)); // the single allowed use: the timestamp on a saved feedback entry
+  // the two allowed uses: the timestamp on a saved feedback entry and on an action's log line or note (action tracker build spec, ground rule 4)
+  assert.equal((s.match(/new Date\s*\(\s*\)/g) || []).length, 2); assert.ok(!/Date\.now\s*\(/.test(s));
   assert.equal(E.AS_OF, '2026-10-06'); assert.equal(D.council.asOf, '2026-10-06');
 });
 
@@ -485,15 +487,20 @@ t('estate pipeline: computeEstate matches the engine, lookups and payment tracea
 });
 
 t('persistence is resilient: blocked storage, corrupt JSON and wrong shapes never throw', () => {
-  const K = { triage: 'kontor-triage', matches: 'kontor-matches', assumptions: 'kontor-assumptions', handcheck: 'kontor-handcheck', feedback: 'kontor-feedback' };
-  const empty = { triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [] };
+  // Action tracker build spec 7.2: a new slice (kontor-actions). When it was never saved, the demo starts from the pre-loaded example
+  // actions and their review statuses (initialState()), so "nothing stored" now reads as that starting state, not as empty.
+  const K = { triage: 'kontor-triage', matches: 'kontor-matches', assumptions: 'kontor-assumptions', handcheck: 'kontor-handcheck', feedback: 'kontor-feedback', actions: 'kontor-actions' };
+  const empty = { triage: {}, decisions: {}, assumptions: {}, handcheck: {}, feedback: [], actions: {} };
+  const start = Estate.initialState();
   assert.deepEqual(Estate.EMPTY_STATE, empty);
-  assert.deepEqual(Estate.readPersisted({ getJSON() { throw new Error('SecurityError: localStorage is blocked'); } }), empty); // storage throws
-  assert.deepEqual(Estate.readPersisted({ getJSON: (k, f) => f }), empty); // nothing stored
-  assert.deepEqual(Estate.readPersisted(), empty); // default io in plain node (no window): falls back, never throws
-  const wrong = { [K.triage]: ['x'], [K.matches]: 'corrupt', [K.assumptions]: 7, [K.handcheck]: null, [K.feedback]: { a: 1 } };
+  assert.deepEqual(Object.keys(start.triage).length, 4); assert.equal(Object.keys(start.actions).length, 9);
+  assert.deepEqual(Estate.readPersisted({ getJSON() { throw new Error('SecurityError: localStorage is blocked'); } }), start); // storage throws
+  assert.deepEqual(Estate.readPersisted({ getJSON: (k, f) => f }), start); // nothing stored
+  assert.deepEqual(Estate.readPersisted(), start); // default io in plain node (no window): falls back, never throws
+  assert.deepEqual(Estate.readPersisted({ getJSON: (k, f) => (k === K.actions ? {} : f) }), empty); // an emptied board stays empty
+  const wrong = { [K.triage]: ['x'], [K.matches]: 'corrupt', [K.assumptions]: 7, [K.handcheck]: null, [K.feedback]: { a: 1 }, [K.actions]: ['x'] };
   assert.deepEqual(Estate.readPersisted({ getJSON: (k, f) => (k in wrong ? wrong[k] : f) }), empty); // wrong shapes
-  const junk = { [K.triage]: { 'F-C-005-overCap': 'explained', 'F-X': 'bogus', 'F-C-001-renewal': 'to_investigate', 'F-C-003-renewal': 'under_review' }, [K.matches]: { 'Larchmont Grounds Maintenance': 'confirm', a: 'maybe' }, [K.assumptions]: { renewalRate: 0.08, nearCapThreshold: 'x', other: 1, renewalRate2: 3 }, [K.handcheck]: { 'X-C-005-maximumValue': 'correct', 'X-nope': 'correct', 'X-C-001-endDate': 'maybe' }, [K.feedback]: [{ at: '2026-10-06T10:00:00.000Z', answer: 'yes', comment: 'Useful' }, { answer: 'bogus' }, 'x'] };
+  const junk = { [K.actions]: {}, [K.triage]: { 'F-C-005-overCap': 'explained', 'F-X': 'bogus', 'F-C-001-renewal': 'to_investigate', 'F-C-003-renewal': 'under_review' }, [K.matches]: { 'Larchmont Grounds Maintenance': 'confirm', a: 'maybe' }, [K.assumptions]: { renewalRate: 0.08, nearCapThreshold: 'x', other: 1, renewalRate2: 3 }, [K.handcheck]: { 'X-C-005-maximumValue': 'correct', 'X-nope': 'correct', 'X-C-001-endDate': 'maybe' }, [K.feedback]: [{ at: '2026-10-06T10:00:00.000Z', answer: 'yes', comment: 'Useful' }, { answer: 'bogus' }, 'x'] };
   const got = Estate.readPersisted({ getJSON: (k, f) => (k in junk ? junk[k] : f) });
   assert.deepEqual(got.triage, { 'F-C-005-overCap': 'explained', 'F-C-003-renewal': 'under_review' }); assert.deepEqual(got.decisions, { 'Larchmont Grounds Maintenance': 'confirm' }); assert.deepEqual(got.assumptions, { renewalRate: 0.08 }); assert.deepEqual(got.handcheck, { 'X-C-005-maximumValue': 'correct' });
   assert.deepEqual(got.feedback, [{ at: '2026-10-06T10:00:00.000Z', answer: 'yes', comment: 'Useful', asOf: '2026-10-06' }]);

@@ -736,7 +736,8 @@ try {
     await dr.getByRole('button', { name: 'Reset demo data' }).click();
     const c = rsp.getByRole('alertdialog', { name: 'Reset demo data?' });
     await c.waitFor();
-    ok((await text(c)).includes('This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device.'), 'description');
+    // action tracker build spec 7.2: reset also restores the example actions, and the dialog says so
+    ok((await text(c)).includes('This clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device. The demo goes back to its starting numbers and example actions.'), 'description');
     eq((await activeInfo(rsp)).label, 'Cancel', 'Cancel is focused first');
     eq((await c.locator('button').allInnerTexts()).map(norm), ['Cancel', 'Reset demo data'], 'buttons');
     await c.getByRole('button', { name: 'Cancel' }).click(); await settle(rsp, 250);

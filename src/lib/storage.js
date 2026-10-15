@@ -13,6 +13,7 @@ export const KEYS = {
   assumptions: 'kontor-assumptions',
   handcheck: 'kontor-handcheck',
   feedback: 'kontor-feedback',
+  actions: 'kontor-actions',
 };
 
 const memory = new Map();

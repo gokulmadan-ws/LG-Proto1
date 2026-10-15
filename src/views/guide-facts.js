@@ -12,6 +12,7 @@ import { computeEstate, handcheckSummary } from '../lib/estate.js';
 import { evidenceFor } from '../lib/evidenceFor.js';
 import { confidenceBand } from '../lib/copy.js';
 import { plural } from '../lib/format.js';
+import { changeParts, triageChanges } from '../lib/actions.js';
 
 export const PAYEE = 'Larchmont Grounds Maintenance';   // the one suggested match in the sample (Cap vs spend, Supplier matches)
 export const RATE_TARGET = 0.08;                          // the Settings choice the Guide asks you to try
@@ -19,15 +20,9 @@ export const RATE_FALLBACK = 0.03;                        // used when you are a
 
 const without = (obj, key) => { const o = { ...obj }; delete o[key]; return o; };
 
-/** '1 review, 2 match decisions, ...' parts for "Changed on this device" (same counting as the Settings drawer). */
+/** '1 review, 2 match decisions, ...' parts for "Changed on this device" (same counting as the Settings drawer, against the starting state). */
 export function changeCounts(state) {
-  return [
-    [Object.keys(state.triage || {}).length, 'review'],
-    [Object.keys(state.decisions || {}).length, 'match decision'],
-    [Object.keys(state.handcheck || {}).length, 'hand-check'],
-    [(state.feedback || []).length, 'feedback entry', 'feedback entries'],
-    [Object.keys(state.assumptions || {}).length, 'assumption'],
-  ].filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+  return changeParts(state).filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
 }
 
 export function guideFacts(estate, state) {
@@ -37,7 +32,7 @@ export function guideFacts(estate, state) {
   const opts = estate.opts;
 
   // ---- the numbers that move the estate away from the starting point (Pill and notes)
-  const moved = Object.keys(base.triage).length + Object.keys(base.decisions).length + Object.keys(base.assumptions).length > 0;
+  const moved = triageChanges(base.triage) + Object.keys(base.decisions).length + Object.keys(base.assumptions).length > 0;
 
   // ---- tour step 3 and the Try rows 2 and 5: the top spend over cap flag, its cap, its clause
   const topFlag = estate.ranked.find((f) => f.type === 'overCap') || null;
