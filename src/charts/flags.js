@@ -61,6 +61,7 @@ export const CONFIDENCE = {
 export const REVIEW = {
   to_investigate: { label: 'To investigate', glyph: 'circle', reviewed: false },
   under_review:   { label: 'Under review', glyph: 'magnifying-glass', reviewed: false },
+  resolved:       { label: 'Resolved', glyph: 'circle-check', reviewed: true },
   explained:      { label: 'Explained', glyph: 'circle-check', reviewed: true },
   not_an_issue:   { label: 'No action', glyph: 'ban', reviewed: true },
 };

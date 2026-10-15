@@ -26,6 +26,13 @@ const { evidence, CHECKED_ON } = await imp('src/data/evidence.js');
 const { roadmap } = await imp('src/data/roadmap.js');
 const Reasons = await imp('src/data/reasons.js');
 const Seed = await imp('scripts/lib/seed.mjs');
+// action tracker data (build spec section 6): its fixed text joins the copy lint
+const People = await imp('src/data/people.js');
+const Reps = await imp('src/data/representatives.js');
+const ActionSteps = await imp('src/data/action-steps.js');
+const Contacts = await imp('src/data/contacts.js');
+const Email = await imp('src/data/email-templates.js');
+const ActionSeed = await imp('src/data/actions-seed.js');
 const Prov = await imp('scripts/lib/provenance.mjs');
 
 const D = JSON.parse(fs.readFileSync(samplePath, 'utf8'));
@@ -397,7 +404,7 @@ t('copy golden strings: R49 answers in plain language (7.10) and labels', () => 
   assert.deepEqual([0.9, 0.8999, 0.75, 0.7499].map(Copy.confidenceBand), ['high', 'medium', 'medium', 'review']);
   assert.deepEqual(['overCap', 'nearCap', 'renewal', 'uplift'].map(Copy.flagTypeLabel), ['Spend over cap', 'Close to cap', 'Renewal decision', 'Price increase above cap']);
   assert.deepEqual(['one_off', 'projected', 'per_year'].map((b) => Copy.basisLabel(b)), ['Already paid', 'Projected at the current pace', 'Per year']); assert.equal(Copy.basisLabel(base.ranked[0]), 'Already paid');
-  assert.deepEqual(['to_investigate', 'under_review', 'explained', 'not_an_issue'].map(Copy.reviewStatusLabel), ['To investigate', 'Under review', 'Explained', 'No action']);
+  assert.deepEqual(['to_investigate', 'under_review', 'resolved', 'explained', 'not_an_issue'].map(Copy.reviewStatusLabel), ['To investigate', 'Under review', 'Resolved', 'Explained', 'No action']);
   assert.deepEqual(['auto_accepted', 'suggested', 'unmatched', 'confirmed', 'rejected'].map(Copy.matchStatusLabel), ['Accepted', 'Suggested', 'Unmatched', 'Confirmed by you', 'Rejected by you']);
   assert.deepEqual(['exact', 'normalised', 'alias', 'fuzzy', 'manual'].map(Copy.matchMethodLabel), ['Exact', 'Normalised', 'Alias', 'Similar name', 'Confirmed by you']);
   assert.deepEqual(['m3', 'm6', 'm12', 'passed', 'ended', 'later'].map(Copy.bandLabel), ['Next 3 months', '3 to 6 months', '6 to 12 months', 'Notice date passed', 'Ended, still paying', 'Later than 12 months']);
@@ -432,6 +439,11 @@ t('copy lint: no "!", no emoji, "saving" only where allowed, no banned button la
     walk(Copy.headlineSentence(r.totals), 'gen.headline'); walk(Copy.sumLine(r.totals), 'gen.sum'); walk(Copy.breakdownCards(r.totals), 'gen.cards');
   }
   for (const x of D.extractions) walk(Copy.answerFor(x, C(x.contractId)).text, 'gen.answer');
+  // action tracker: staff roles, representative quotes, steps, contact lines, every email template for every flag and contact, the seeds
+  walk(People.PEOPLE, 'actions.people'); walk(Reps.REPRESENTATIVES, 'actions.reps'); walk(ActionSteps.STEPS, 'actions.steps'); walk(Contacts.CONTACT_PLAN, 'actions.contacts');
+  walk([Contacts.KIND_LABEL, Contacts.SOURCE_LABEL, Contacts.STAFF_LIST], 'actions.contactLabels');
+  for (const f of est.flags) for (const who of Contacts.contactsFor(f, C(f.contractId))) { const m = Email.emailFor(f, C(f.contractId), est.derived[f.contractId], who, '2026-10-20'); walk([m.subject, ...m.body.split('\n').filter(Boolean)], 'actions.email'); }
+  for (const a of Object.values(ActionSeed.SEED_ACTIONS)) walk([a.log.map((l) => l.text), a.notes.map((n) => n.text), a.closeNote].filter(Boolean), 'actions.seed');
   const allowSaving = (p) => /^(COPY\.caveat|COPY\.method|COPY\.evidenceStrip|COPY\.presenterNotes|roadmap|evidence|reasons)/.test(p);
   const emoji = /\p{Extended_Pictographic}/u;
   let n = 0;

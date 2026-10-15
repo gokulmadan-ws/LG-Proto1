@@ -21,7 +21,7 @@
 //   contractsById, extractionsById, extractionsByContract[cid] (Q1 to Q9 field order), paymentsByContract[cid] (AttributedPayment[] in date order)
 //
 // state (persisted in localStorage keys kontor-triage, kontor-matches, kontor-assumptions, kontor-handcheck, kontor-feedback):
-//   triage       { [flagId]: 'under_review' | 'explained' | 'not_an_issue' }      absent = 'to_investigate'
+//   triage       { [flagId]: 'under_review' | 'resolved' | 'explained' | 'not_an_issue' }      absent = 'to_investigate'
 //   decisions    { [rawPayeeName]: 'confirm' | 'reject' }
 //   assumptions  { renewalRate?: number, nearCapThreshold?: number }              absent = engine default
 //   handcheck    { [extractionId]: 'correct' | 'incorrect' }
@@ -60,7 +60,7 @@ export { data };
 export const AS_OF = E.AS_OF;
 export const DEFAULTS = E.DEFAULTS;
 
-export const TRIAGE_STATUSES = ['to_investigate', 'under_review', 'explained', 'not_an_issue'];
+export const TRIAGE_STATUSES = ['to_investigate', 'under_review', 'resolved', 'explained', 'not_an_issue'];
 /** The values the Settings drawer offers (V7). Any number in range is accepted if you set one in code. */
 export const ASSUMPTION_OPTIONS = { renewalRate: [0.03, 0.05, 0.08], nearCapThreshold: [0.8, 0.85, 0.9] };
 const ASSUMPTION_RANGE = { renewalRate: [0.001, 0.5], nearCapThreshold: [0.5, 0.99] };

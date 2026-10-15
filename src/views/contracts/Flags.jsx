@@ -9,7 +9,7 @@ import { Panel } from '../../ui/index.js';
 import { ConfidenceBadge, FlagBadge, ReviewBadge } from '../../charts/index.js';
 import { DETAIL } from './strings.js';
 
-const REVIEWED = new Set(['explained', 'not_an_issue']);
+const REVIEWED = new Set(['resolved', 'explained', 'not_an_issue']);
 
 function FlagRow({ flag, contract, estate, watch = false }) {
   const d = estate.derived[contract.id];

@@ -692,7 +692,7 @@
   var confBand = (x) => x >= 0.9 ? "high" : x >= 0.75 ? "medium" : "low";
   var stepDown = (level) => level === "high" ? "medium" : "low";
   var isCounted = (f) => f.indicativeGBP > 0 && (f.status === "to_investigate" || f.status === "under_review");
-  var isExcluded = (f) => f.indicativeGBP > 0 && (f.status === "explained" || f.status === "not_an_issue");
+  var isExcluded = (f) => f.indicativeGBP > 0 && (f.status === "resolved" || f.status === "explained" || f.status === "not_an_issue");
   function buildFlags(estate, opts = DEFAULTS, asOf = AS_OF, triage = {}) {
     const { council, contracts, matches, attributed } = estate;
     const flags = [];
@@ -978,7 +978,7 @@
   }
 
   // src/lib/estate.js
-  var TRIAGE_STATUSES = ["to_investigate", "under_review", "explained", "not_an_issue"];
+  var TRIAGE_STATUSES = ["to_investigate", "under_review", "resolved", "explained", "not_an_issue"];
   var ASSUMPTION_OPTIONS = { renewalRate: [0.03, 0.05, 0.08], nearCapThreshold: [0.8, 0.85, 0.9] };
   var ASSUMPTION_RANGE = { renewalRate: [1e-3, 0.5], nearCapThreshold: [0.5, 0.99] };
   var ANSWERS = ["yes", "maybe", "no"];
@@ -1233,6 +1233,7 @@
   var TRIAGE_OPTIONS = [
     { value: "to_investigate", label: "To investigate" },
     { value: "under_review", label: "Under review" },
+    { value: "resolved", label: "Resolved" },
     { value: "explained", label: "Explained" },
     { value: "not_an_issue", label: "No action" }
   ];
@@ -2507,6 +2508,7 @@
   var REVIEW = {
     to_investigate: { label: "To investigate", glyph: "circle", reviewed: false },
     under_review: { label: "Under review", glyph: "magnifying-glass", reviewed: false },
+    resolved: { label: "Resolved", glyph: "circle-check", reviewed: true },
     explained: { label: "Explained", glyph: "circle-check", reviewed: true },
     not_an_issue: { label: "No action", glyph: "ban", reviewed: true }
   };
@@ -4729,7 +4731,7 @@
 
   // src/views/contracts/Flags.jsx
   init_react_shim();
-  var REVIEWED = /* @__PURE__ */ new Set(["explained", "not_an_issue"]);
+  var REVIEWED = /* @__PURE__ */ new Set(["resolved", "explained", "not_an_issue"]);
   function FlagRow({ flag, contract, estate, watch = false }) {
     const d = estate.derived[contract.id];
     const t = evidenceFor(flag);
@@ -7229,7 +7231,7 @@
     let footer = null;
     if (open) {
       const status = flag.status || "to_investigate";
-      const reviewed = status === "explained" || status === "not_an_issue";
+      const reviewed = status === "resolved" || status === "explained" || status === "not_an_issue";
       const primary = evidenceFor(flag);
       const targets = evidenceAll(flag);
       const doc = estate.data.documents && estate.data.documents[contract.documentId];

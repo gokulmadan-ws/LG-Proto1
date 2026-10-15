@@ -43,6 +43,7 @@ export const severityLabel = (s) => ({ high: 'High', medium: 'Medium', low: 'Low
 export const TRIAGE_OPTIONS = [
   { value: 'to_investigate', label: 'To investigate' },
   { value: 'under_review', label: 'Under review' },
+  { value: 'resolved', label: 'Resolved' },
   { value: 'explained', label: 'Explained' },
   { value: 'not_an_issue', label: 'No action' },
 ];

@@ -219,7 +219,7 @@ const sevRank = { high: 3, medium: 2, low: 1 };
 const confBand = (x) => (x >= 0.9 ? 'high' : x >= 0.75 ? 'medium' : 'low');
 const stepDown = (level) => (level === 'high' ? 'medium' : 'low'); // one step lower: high -> medium -> low
 export const isCounted = (f) => f.indicativeGBP > 0 && (f.status === 'to_investigate' || f.status === 'under_review');
-export const isExcluded = (f) => f.indicativeGBP > 0 && (f.status === 'explained' || f.status === 'not_an_issue');
+export const isExcluded = (f) => f.indicativeGBP > 0 && (f.status === 'resolved' || f.status === 'explained' || f.status === 'not_an_issue');
 
 export function buildFlags(estate, opts = DEFAULTS, asOf = AS_OF, triage = {}) {
   const { council, contracts, matches, attributed } = estate;

@@ -112,13 +112,13 @@ export function BarList({ rows, max, ariaLabel, getHref, onOpen, format = gbp, h
    (f) Opportunities list. Build the items with opportunityItems(estate) from adapters.js.
    item: { id, type: 'overCap'|'nearCap'|'renewal'|'uplift', title (contract), supplier, reason (the copy-deck sentence), value (indicativeGBP),
            basis?: 'per_year'|'one_off'|'projected', confidence: 'high'|'medium'|'low', actionBy?: ISO date, rank?: number,
-           typeLabel?: string, status?: 'to_investigate'|'under_review'|'explained'|'not_an_issue', statusLabel?: string (shown as a pill),
+           typeLabel?: string, status?: 'to_investigate'|'under_review'|'resolved'|'explained'|'not_an_issue', statusLabel?: string (shown as a pill),
            statusPill?: node (replaces the built-in status pill), clauseLabel?: 'View clause, page 23', clauseHref?: string,
            extra?: node (more links and notes after the clause link), href?: string }
    ------------------------------------------------------------------------------------------------ */
 /**
  * Ranked opportunities. The list takes ALL ranked flags (open and reviewed) in the order you give it (the engine's rank): it never
- * re-sorts. Reviewed flags (status explained or not_an_issue) are drawn muted, with the words kept.
+ * re-sorts. Reviewed flags (status resolved, explained or not_an_issue) are drawn muted, with the words kept.
  *
  * format: exact pounds by default (gbpFull: "£3,350,000"); pass fmtGBPCompact for the Overview strip.
  * filter: a flag type key to show one type only (colours do not change).   limit: show the first N after filtering.

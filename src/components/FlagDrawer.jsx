@@ -117,7 +117,7 @@ export default function FlagDrawer() {
   let footer = null;
   if (open) {
     const status = flag.status || 'to_investigate';
-    const reviewed = status === 'explained' || status === 'not_an_issue';
+    const reviewed = status === 'resolved' || status === 'explained' || status === 'not_an_issue';
     const primary = evidenceFor(flag);
     const targets = evidenceAll(flag);
     const doc = estate.data.documents && estate.data.documents[contract.documentId];
