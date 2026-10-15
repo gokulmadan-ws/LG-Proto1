@@ -1,24 +1,24 @@
-// V1: Overview (#/overview, also the empty hash). The hero screen: the headline number first, then where it comes from, what is coming up,
-// how much spend is linked to a contract, why this matters, and the close.
+// V1: Overview (#/overview, also the empty hash). The hero screen: the headline number first, then where it comes from, how much has been
+// paid above the caps, what is coming up for renewal, and the close.
 //
 //   default export: <Overview />      rendered inside <main id="shell-main"> by App.jsx, no props.
 //   One h1: the headline sentence (HeadlineSentence in the PageHeader title). The figure is focusable and carries the exact value.
-//   Links out:   #/opportunities?type=<overCap|nearCap|renewal|uplift> (the four cards), #/renewals, #/spend/no-contract, #/evidence,
+//   Links out:   #/opportunities?type=<overCap|nearCap|renewal|uplift> (the four cards), #/spend (Cap vs spend panel), #/renewals,
 //                #/roadmap, #/method?s=indicative, #/opportunities?status=reviewed (only while a flag is excluded after review).
-//   Opens:       useUI().openDemoGuide() and useUI().openFeedback().
+//   Opens:       useUI().openDemoGuide() and useUI().openFeedback(); the flag drawer (?flag=) from a cap row or a renewal diamond (D9).
 //
 // Numbers and sentences come from useEstate(), the engine output and src/lib/copy.js. The strings the copy deck does not hold live in
-// TEXT below, in the deck's voice: the three section titles and one-line descriptions, the sum line label, the close panel support line,
-// the evidence link text and the reviewed-flags link.
+// TEXT below, in the deck's voice: the section titles and one-line descriptions, the sum line label, the close panel support line
+// and the reviewed-flags link.
 import { useUI } from '../lib/ui-context.jsx';
 import { useEstate } from '../lib/estate.js';
-import { navigate } from '../lib/router.js';
-import { COPY, excludedNote, sumLine, fmtGBPCompact } from '../lib/copy.js';
-import { evidence } from '../data/evidence.js';
+import { navigate, setQuery } from '../lib/router.js';
+import { COPY, excludedNote, sumLine, fmtGBP, fmtGBPCompact } from '../lib/copy.js';
+import { plural } from '../lib/format.js';
 import { PageHeader, MethodLink } from '../components/index.js';
 import DS from '../ui/ds.js';
-import { Panel, Pill } from '../ui/index.js';
-import { CoverageMeter, HeadlineBreakdown, HeadlineSentence, RadarStrip, coverageProps, headlineProps, radarRows } from '../charts/index.js';
+import { Panel } from '../ui/index.js';
+import { BulletList, CapStatePill, HeadlineBreakdown, HeadlineSentence, RadarStrip, capItems, headlineProps, radarRows } from '../charts/index.js';
 import './Overview.css';
 
 const { Button } = DS;
@@ -31,35 +31,43 @@ const TEXT = {
   radarTitle: 'Renewals coming up',
   radarDesc: 'Contracts by the date you must give notice.',
   radarCaption: 'Contract value, a year',
-  coverageTitle: 'Spend linked to contracts',
-  noContractLabel: 'No contract on the register',
-  noContractFoot: (n) => (n === 1 ? '1 supplier' : `${n} suppliers`),
-  awaitingLabel: 'Waiting for your match review',
+  capTitle: 'Cap vs spend',
+  capDesc: 'What you have paid against the most each contract allows.',
+  capOpen: 'Open cap vs spend',
+  capCounts: 'Contracts by cap status',
+  capPills: { over: (n) => `Over cap ${n}`, near: (n) => `Close to cap ${n}`, ok: (n) => `Within cap ${n}` },
+  capAbove: (n) => `paid above the cap, across ${plural(n, 'contract')}`,
+  capTipNote: 'Select to open this opportunity in the side drawer.',
+  capAll: (n) => `See all ${n} contracts`,
   closeSupport: 'Your estate has more contracts, more suppliers and more renewals nobody is tracking.',
-  readSource: (name) => `Read the ${name} source`,
 };
+const CAP_ROWS = 5;
 
-/** The three cases the strip shows (`featured` in src/data/evidence.js), in the spec's order. */
-const FEATURED = evidence.filter((e) => e.featured);
+/** The cap-related flag of a contract (over cap or close to cap, watch flags included), or null. */
+function capFlagOf(estate, contractId) {
+  const ids = (estate.derived[contractId] && estate.derived[contractId].flagIds) || [];
+  const id = ids.find((x) => /-(overCap|nearCap)$/.test(x));
+  return id || null;
+}
 
-function EvidenceCase({ item }) {
+function CapPanel({ estate }) {
+  const items = capItems(estate);
+  const count = { over: 0, near: 0, ok: 0 };
+  estate.capRows.forEach((r) => { count[r.state] += 1; });
+  const overRows = estate.capRows.filter((r) => r.state === 'over');
+  const above = overRows.reduce((s, r) => s + r.excessGBP, 0);
   return (
-    <li className="ov-case">
-      <article className="ov-case__body" aria-labelledby={'ov-case-' + item.id}>
-        <div className="ov-case__head">
-          <h3 id={'ov-case-' + item.id} className="ov-case__name">{item.case}</h3>
-          <span className="ov-case__when">{item.when}</span>
-        </div>
-        <p className="ov-case__what">{item.whatHappened}</p>
-        <div className="ov-case__foot">
-          <Pill tone="neutral">{item.feature}</Pill>
-          <a className="ov-link" href={item.url} target="_blank" rel="noopener noreferrer">
-            {TEXT.readSource(item.case)}<span className="ov-link__new"> {COPY.evidenceStrip.newTab}</span>
-            <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
-          </a>
-        </div>
-      </article>
-    </li>
+    <Panel title={TEXT.capTitle} description={TEXT.capDesc} id="ov-cap-h" className="ov-cap"
+      actions={<Button type="button" variant="outline" size="sm" rightIcon="arrow-right" onClick={() => navigate('#/spend')}>{TEXT.capOpen}</Button>}>
+      <ul className="ov-cap__pills" aria-label={TEXT.capCounts}>
+        {['over', 'near', 'ok'].map((k) => <li key={k}><CapStatePill state={k} label={TEXT.capPills[k](count[k])} /></li>)}
+      </ul>
+      <p className="ov-cap__sum"><strong>{fmtGBP(above)}</strong> <span>{TEXT.capAbove(overRows.length)}</span></p>
+      <BulletList items={items} limit={CAP_ROWS} compact format={fmtGBPCompact} closeAt={estate.opts.nearCapThreshold} tipNote={TEXT.capTipNote}
+        getHref={(r) => (capFlagOf(estate, r.id) ? undefined : '#/spend')}
+        onOpen={(r) => { const f = capFlagOf(estate, r.id); if (f) setQuery({ flag: f }); }} />
+      <p className="ov-cap__all"><a className="ov-link" href="#/spend">{TEXT.capAll(estate.capRows.length)}<i className="fa-solid fa-arrow-right" aria-hidden="true" /></a></p>
+    </Panel>
   );
 }
 
@@ -72,7 +80,6 @@ export default function Overview() {
   estate.ranked.forEach((f) => { if (f.indicativeGBP > 0 && (f.status === 'to_investigate' || f.status === 'under_review')) perContract[f.contractId] = (perContract[f.contractId] || 0) + 1; });
   const multiFlag = Object.values(perContract).filter((n) => n > 1).length;
   const cardCounts = Object.values(estate.totals.countByType || {}).reduce((a, b) => a + b, 0);
-  const cov = coverageProps(estate);
 
   return (
     <div className="page ov">
@@ -110,31 +117,14 @@ export default function Overview() {
         />
       </Panel>
 
-      <div className="kx-grid kx-grid--2-1 ov-row">
+      <div className="kx-grid kx-grid--halves ov-row">
+        <CapPanel estate={estate} />
         <Panel title={TEXT.radarTitle} description={TEXT.radarDesc} id="ov-radar-h" className="ov-radar"
           actions={<Button type="button" variant="outline" size="sm" rightIcon="arrow-right" onClick={() => navigate('#/renewals')}>{COPY.buttons.openRenewalRadar}</Button>}>
           <RadarStrip rows={radarRows(estate)} format={fmtGBPCompact} caption={TEXT.radarCaption}
-            getHref={() => '#/renewals'} attentionHref="#/renewals" />
-        </Panel>
-        <Panel title={TEXT.coverageTitle} description={COPY.dataWindowNote(estate.council)} id="ov-cov-h" className="ov-coverage">
-          <CoverageMeter matched={cov.matched} total={cov.total} format={fmtGBPCompact} href="#/spend/no-contract" />
-          <dl className="ov-cov">
-            <div className="ov-cov__row"><dt>{TEXT.noContractLabel}</dt><dd>{fmtGBPCompact(cov.unmatched)}<span>{TEXT.noContractFoot(cov.suppliers.length)}</span></dd></div>
-            {cov.pending > 0 && <div className="ov-cov__row"><dt>{TEXT.awaitingLabel}</dt><dd>{fmtGBPCompact(cov.pending)}<span>{TEXT.noContractFoot(estate.coverage.awaitingReview.length)}</span></dd></div>}
-          </dl>
+            getHref={() => '#/renewals'} attentionHref="#/renewals" onOpen={(r) => { if (r.flagId) setQuery({ flag: r.flagId }); }} />
         </Panel>
       </div>
-
-      <Panel title={COPY.evidenceStrip.heading} description={COPY.evidenceStrip.intro} id="ov-ev-h" className="ov-evidence"
-        actions={(
-          <a className="ov-link ov-link--lg" href="#/evidence">
-            {COPY.evidenceStrip.all}<i className="fa-solid fa-arrow-right" aria-hidden="true" />
-          </a>
-        )}>
-        <ul className="ov-cases" aria-label={COPY.evidenceStrip.heading}>
-          {FEATURED.map((item) => <EvidenceCase key={item.id} item={item} />)}
-        </ul>
-      </Panel>
 
       <section className="kx-card ov-close" aria-labelledby="ov-close-h">
         <div className="ov-close__text">

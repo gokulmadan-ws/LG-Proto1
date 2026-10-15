@@ -108,6 +108,16 @@ export function relativeText(iso, asOf = AS_OF) {
 
 const dayWord = (n) => (n === 1 ? 'day' : 'days');
 
+/** 'in 25 days' | 'in 1 day' | 'today' | '6 days ago', measured from the fixed as-of date. */
+export function inDaysText(iso, asOf = AS_OF) {
+  if (!iso) return '';
+  const n = diffDays(iso, asOf);
+  if (n === 0) return 'today';
+  return n > 0 ? `in ${n} ${dayWord(n)}` : `${-n} ${dayWord(-n)} ago`;
+}
+/** Renewal diamond tooltip line: 'Give notice by 31 Oct 2026, in 25 days'. */
+export const noticeByText = (iso, asOf = AS_OF) => `Give notice by ${fmtDate(iso)}, ${inDaysText(iso, asOf)}`;
+
 /* ------------------------------------------------------------------ renewal action lines (7.6) */
 
 /**

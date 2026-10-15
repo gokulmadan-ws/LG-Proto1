@@ -59,12 +59,17 @@ export function useChartTip() {
   return { tip, bind, bindPointer, bindFocus, show, hide, hideSoon, keep };
 }
 
-/** content = { title, sub?, rows?: [{ value, label, color?, glyph?, glyphColor? }], note? } */
+/** content = { title, sub?, lines?: [{ text, tone?: 'warning' }], rows?: [{ value, label, color?, glyph?, glyphColor? }], note? } */
 export function TipBody({ c }) {
   return (
     <>
       {c.title && <div className="kviz-tip__title">{c.title}</div>}
       {c.sub && <div className="kviz-tip__sub">{c.sub}</div>}
+      {c.lines && c.lines.length > 0 && (
+        <div className="kviz-tip__lines">
+          {c.lines.map((l, i) => <div key={i} className={'kviz-tip__line' + (l.tone ? ' is-' + l.tone : '')}>{l.text}</div>)}
+        </div>
+      )}
       {c.rows && c.rows.length > 0 && (
         <div className="kviz-tip__rows">
           {c.rows.map((r, i) => (

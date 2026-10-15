@@ -329,9 +329,13 @@ try {
     await go(ep, '#/evidence');
   });
 
-  await check('R20 the Overview strip\'s "Show all 9 cases" link lands on this page (blueprint decision 10)', async () => {
+  // Action tracker build spec A1: the Overview strip is gone; the Menu item "Why this matters" is the way in.
+  await check('R20 the Menu item "Why this matters" lands on this page (blueprint decision 10, build spec A1)', async () => {
     await go(ep, '#/overview');
-    const link = ep.getByRole('link', { name: /Show all 9 cases/ });
+    eq(await ep.getByRole('link', { name: /Show all 9 cases/ }).count(), 0, 'no evidence strip on the Overview');
+    await ep.locator('.shell__rail-menu').click();
+    const link = ep.locator('nav[aria-label="Menu"] [role="menuitem"]', { hasText: 'Why this matters' });
+    await link.waitFor();
     eq(await link.getAttribute('href'), '#/evidence', 'href');
     await link.click();
     await ep.waitForFunction(() => location.hash === '#/evidence');

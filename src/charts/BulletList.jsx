@@ -35,9 +35,11 @@ export function CapStatePill({ state, label, wrap = false }) {
  *
  * format: gbp (compact) by default. The cap screen passes gbpFull so the over-by reads "£3,350,000 over" (requirement R37).
  * limit: show the top N rows (the list is sorted by share of cap, then spend).   extra: node under the name (ClauseLink, notes).
- * getHref(row) -> link on the title, or onOpen(row, event) from a button.   Titles wrap to two lines.
+ * getHref(row) -> link on the title (return undefined for a row that should be a button), or onOpen(row, event) from a button.   Titles wrap to two lines.
+ * compact: for a half-width panel (the Overview). Hides the numbers and status columns and the cap basis line, keeps the % figure.
+ * tipNote: replaces the last line of the tooltip (what selecting a row does).
  */
-export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref, onOpen, limit, format = gbp }) {
+export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref, onOpen, limit, format = gbp, compact = false, tipNote }) {
   const tip = useChartTip();
   const nav = useArrowNav();
   const rows = useMemo(() => {
@@ -49,16 +51,17 @@ export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref,
   const ticks = [{ r: 0, t: '0%' }, { r: 0.5, t: '50%' }, { r: closeAt, t: Math.round(closeAt * 100) + '%' }, { r: 1, t: 'Cap' }, { r: axisMax, t: Math.round(axisMax * 100) + '%' }];
 
   return (
-    <div className="kviz-bl" {...nav}>
+    <div className={'kviz-bl' + (compact ? ' kviz-bl--compact' : '')} {...nav}>
       <div className="kviz-bl__grid kviz-bl__axis" aria-hidden="true">
-        <span className="kviz-colhead">Contract</span>
+        {compact ? <span className="kviz-bl__axisgap" /> : <span className="kviz-colhead">Contract</span>}
         <span className="kviz-bl__lane kviz-bl__lane--axis">
           {ticks.map((t) => (
             <span key={t.t + t.r} className={'kviz-bl__tickl' + (t.r === 0 ? ' is-first' : t.r === axisMax ? ' is-last' : '')} style={{ left: P(t.r) + '%' }}>{t.t}</span>
           ))}
         </span>
-        <span className="kviz-colhead kviz-bl__num">Spend to date</span>
-        <span className="kviz-colhead kviz-bl__stat">Status</span>
+        {!compact && <span className="kviz-colhead kviz-bl__num">Spend to date</span>}
+        {!compact && <span className="kviz-colhead kviz-bl__stat">Status</span>}
+        {compact && <span className="kviz-bl__pctfig" />}
       </div>
       <ul className="kviz-bl__list" aria-label="Contracts ranked by share of cap used">
         {rows.map((r) => {
@@ -83,7 +86,7 @@ export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref,
               { value: pct(r.ratio, 1), label: 'of ' + capWord + ' used', glyph: s.glyph, glyphColor: s.key === 'within' ? 'var(--viz-ink-2)' : s.text },
               { value: format(over ? overBy : Math.abs(gap)), label: over ? 'Over' : 'Headroom left' },
             ],
-            note: r.partial ? 'Spend files start after this contract began, so this is a lower bound.' : 'Select to open the contract and its cap clause.',
+            note: r.partial ? 'Spend files start after this contract began, so this is a lower bound.' : tipNote || 'Select to open the contract and its cap clause.',
           };
           return (
             <li key={r.id}>
@@ -94,7 +97,7 @@ export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref,
                     onClick={onOpen ? (ev) => { if (!href) onOpen(r, ev); } : undefined}
                     {...tip.bindFocus(content, '[data-kviz-row]')}>{r.title}</Tag>
                   <span className="kviz-bl__sub" aria-hidden="true">{r.supplier}</span>
-                  {meta && <span className="kviz-bl__meta" aria-hidden="true">{meta}</span>}
+                  {meta && !compact && <span className="kviz-bl__meta" aria-hidden="true">{meta}</span>}
                   {r.extra && <span className="kviz-row__extra">{r.extra}</span>}
                 </span>
                 <span className="kviz-bl__lane" aria-hidden="true">
@@ -111,15 +114,16 @@ export function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref,
                   <span className="kviz-bl__mark kviz-bl__mark--cap" style={{ left: P(1) + '%' }} />
                   {r.ratio > axisMax && <i className="fa-solid fa-angles-right kviz-bl__clip" />}
                 </span>
-                <span className="kviz-bl__num" aria-hidden="true">
+                {compact && <span className="kviz-bl__pctfig" aria-hidden="true" style={{ color: s.key === 'within' ? 'var(--viz-ink-2)' : s.text }}>{pct(r.ratio, 1)}</span>}
+                {!compact && <span className="kviz-bl__num" aria-hidden="true">
                   <span className="kviz-bl__spend">{atLeast && <small>At least </small>}{format(r.spend)}</span>
                   <span className="kviz-bl__of">of {format(r.cap)} {capWord}</span>
                   {over && <span className="kviz-bl__over-by">{format(overBy)} over</span>}
-                </span>
-                <span className="kviz-bl__stat" aria-hidden="true">
+                </span>}
+                {!compact && <span className="kviz-bl__stat" aria-hidden="true">
                   <CapStatePill state={r.state || s.key} label={stateLabel} wrap />
                   <span className="kviz-bl__pct">{pct(r.ratio, 1)} of {capWord}</span>
-                </span>
+                </span>}
               </div>
             </li>
           );

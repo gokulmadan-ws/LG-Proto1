@@ -74,7 +74,8 @@
 .kx-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kx-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .kx-grid--2-1 { grid-template-columns: 2fr 1fr; }
-@media (max-width: 1100px) { .kx-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kx-grid--2-1 { grid-template-columns: 1fr; } }
+.kx-grid--halves { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* two equal panels that stack at the same width as 2-1 */
+@media (max-width: 1100px) { .kx-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kx-grid--2-1, .kx-grid--halves { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .kx-grid--4, .kx-grid--3, .kx-grid--2 { grid-template-columns: 1fr; } }
 
 /* ---------- 4. Data table ------------------------------------------------------------------------------------ */

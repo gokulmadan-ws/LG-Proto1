@@ -4,6 +4,8 @@
 // Covers requirements R10, R14, R16 to R22, R31 to R36, R66, R78 (amended: at 1440x900 and 1366x768 the headline, the caveat and the four cards
 // are visible without scrolling; at 1024x768 the headline and the cards), blueprint decisions 7, 8, 10, 12, with the golden numbers of
 // requirements 6.6. The empty-band checks build tests/fixtures/v1-radar-empty.jsx into .scratch/V1-empty and run against it.
+// Action tracker build spec, Part A: "Why this matters" and "Spend linked to contracts" left the Overview; a "Cap vs spend" panel and
+// "Renewals coming up" sit side by side (equal halves, Cap vs spend first); the renewal diamonds are buttons with a tooltip that open the drawer (D9).
 // Prints 'ok   <name>' / 'FAIL <name>: <why>' / 'skip <name>: <why>'; exits non-zero when anything failed.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -71,7 +73,8 @@ const ov = {
   h1: '#shell-main h1',
   cards: '.ov-hero a.kviz-card',
   bands: '.ov-radar a.kviz-rs__band',
-  evidence: '.ov-evidence .ov-case',
+  diamonds: '.ov-radar button.kviz-rs__dia',
+  cap: '.ov-cap',
   close: '.ov-close',
 };
 const primaries = (page) => page.evaluate(() => {
@@ -100,7 +103,7 @@ const copyLint = async (page, label) => {
   const body = await page.locator('#shell-main').innerText();
   ok(!/!/.test(body), `${label}: exclamation mark in the text`);
   ok(!/\p{Extended_Pictographic}/u.test(body.replace(/[↗→←·–—]/gu, '')), `${label}: emoji or pictograph in the text`);
-  const buttons = await page.$$eval('#shell-main button', (bs) => bs.filter((b) => !b.closest('.kviz-stack')).map((b) => b.textContent.trim()).filter(Boolean));
+  const buttons = await page.$$eval('#shell-main button', (bs) => bs.filter((b) => !b.closest('.kviz-stack') && !b.closest('.kviz-bl')).map((b) => b.textContent.trim()).filter(Boolean));
   buttons.forEach((b) => ok(/^(Open|Give|See|Show|Hide|View|Read|Clear|Export|Close)\b.+/.test(b), `${label}: button label is not [Verb]+[Object]: "${b}"`));
   const headings = await page.$$eval('#shell-main h1, #shell-main h2, #shell-main h3', (hs) => hs.map((h) => h.textContent.trim()));
   headings.forEach((t) => { if (/^[A-Z][a-z]+( [A-Z][a-z]+)+$/.test(t) && !/Borough Council/.test(t)) throw new Error(`${label}: heading is not sentence case: "${t}"`); });
@@ -223,51 +226,124 @@ try {
     eq(await hashOf(page), '#/renewals', 'address');
     await go(page, '#/overview');
   });
-  await check('R19 coverage: "84% of payments are linked to a contract on the register", £129.4m of £153.5m, a meter, and a link to #/spend/no-contract', async () => {
-    const panel = page.locator('.ov-coverage');
-    ok((await text(panel.locator('.kviz-meter__label'))).startsWith('84% of payments are linked to a contract on the register'), 'sentence: ' + await text(panel.locator('.kviz-meter__label')));
-    ok((await text(panel.locator('.kviz-meter__meta'))).startsWith('£129.4m of £153.5m'), 'amounts: ' + await text(panel.locator('.kviz-meter__meta')));
-    const meter = panel.locator('[role="meter"]');
-    eq(await meter.getAttribute('aria-valuenow'), '84', 'valuenow');
-    eq(await meter.getAttribute('aria-valuetext'), '84%: £129,359,000 of £153,489,000', 'valuetext');
-    const link = panel.locator('a', { hasText: 'See spend with no contract' });
-    eq(await link.getAttribute('href'), '#/spend/no-contract', 'link');
-    const rows = await text(panel.locator('.ov-cov'));
-    ok(rows.includes('No contract on the register £23.8m 8 suppliers'), 'no-contract row: ' + rows);
-    ok(rows.includes('Waiting for your match review £0.3m 1 supplier'), 'awaiting row: ' + rows);
-    ok((await text(panel.locator('.kx-card__desc'))).includes('Sample payments to 30 September 2026'), 'data window');
+  /* ============================================================ OVERVIEW: Cap vs spend panel (build spec A1 to A3) */
+  await check('A1 "Why this matters" and "Spend linked to contracts" are gone from the Overview; the Evidence page and its Menu item stay', async () => {
+    eq(await page.locator('.ov-evidence, .ov-coverage, .kviz-meter').count(), 0, 'no evidence strip, no coverage meter');
+    const body = await text(page.locator('#shell-main'));
+    ok(!body.includes('Why this matters') && !body.includes('Spend linked to contracts'), 'old panel titles: ' + body.slice(0, 80));
+    await go(page, '#/evidence');
+    await page.waitForSelector('#shell-main h1');
+    eq(await text(page.locator('#shell-main h1')), 'Why this matters', 'Evidence page');
+    await go(page, '#/overview');
+    await page.waitForSelector(ov.cap);
+  });
+  await check('A2 Cap vs spend panel: title, description, "Over cap 3", "Close to cap 3", "Within cap 18", £4,172,000 paid above the cap across 3 contracts', async () => {
+    const panel = page.locator(ov.cap);
+    eq(await text(panel.locator('h2')), 'Cap vs spend', 'title');
+    eq(await text(panel.locator('.kx-card__desc')), 'What you have paid against the most each contract allows.', 'description');
+    eq(await panel.locator('.ov-cap__pills li').evaluateAll((ls) => ls.map((l) => l.innerText.replace(/\s+/g, ' ').trim())), ['Over cap 3', 'Close to cap 3', 'Within cap 18'], 'pills');
+    eq(await text(panel.locator('.ov-cap__sum')), '£4,172,000 paid above the cap, across 3 contracts', 'summary');
+    const all = panel.locator('a', { hasText: 'See all 24 contracts' });
+    eq(await all.getAttribute('href'), '#/spend', 'see all link');
+  });
+  await check('A2 the five rows, in order: Highways 167.0%, ICT 114.1%, Legal 113.8%, Integrated facilities management 94.8%, Mobile voice and data 90.8%', async () => {
+    const rows = page.locator(`${ov.cap} .kviz-bl__row`);
+    eq(await rows.count(), 5, 'rows');
+    const got = await rows.evaluateAll((rs) => rs.map((r) => [r.querySelector('.kviz-bl__name').textContent.trim(), r.querySelector('.kviz-bl__pctfig').textContent.trim()]));
+    eq(got, [['Highways reactive maintenance and minor works', '167.0%'], ['ICT managed service and end-user support', '114.1%'], ['Legal services panel', '113.8%'],
+      ['Integrated facilities management', '94.8%'], ['Mobile voice and data', '90.8%']], 'rows');
+    eq(await page.locator(`${ov.cap} .kviz-bl__num, ${ov.cap} .kviz-bl__stat`).count(), 0, 'compact: no numbers or status columns');
+  });
+  await check('A2 a row opens that contract\'s cap flag in the drawer (Highways -> F-C-005-overCap); "Open cap vs spend" goes to #/spend', async () => {
+    await page.locator(`${ov.cap} .kviz-bl__name`).first().click();
+    const drawer = page.locator('[role="dialog"].flag-drawer');
+    await drawer.waitFor({ state: 'visible' });
+    eq(await hashOf(page), '#/overview?flag=F-C-005-overCap', 'address');
+    ok((await text(drawer.locator('h2').first())).includes('Highways reactive maintenance and minor works'), 'drawer title');
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'detached' });
+    await page.locator(`${ov.cap} .kviz-bl__name`).nth(3).click();
+    await drawer.waitFor({ state: 'visible' });
+    eq(await hashOf(page), '#/overview?flag=F-C-001-nearCap', 'close-to-cap row');
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: 'Open cap vs spend' }).click();
+    await page.waitForFunction(() => location.hash === '#/spend');
+    await go(page, '#/overview');
+    await page.waitForSelector(ov.cap);
+  });
+  await check('A3 two equal halves, Cap vs spend first, at 1440 and 1280; stacked (Cap vs spend first) at 1024; band values never overflow', async () => {
+    for (const vp of [VIEWPORTS.desktop, { width: 1280, height: 800 }, VIEWPORTS.tablet]) {
+      const d = await h.newPage({ theme: 'dark', viewport: vp });
+      allPages.push(d);
+      await visit(d, '#/overview');
+      const m = await d.page.evaluate(() => {
+        const r = (s) => document.querySelector(s).getBoundingClientRect();
+        const over = [...document.querySelectorAll('.ov-radar .kviz-rs__band')].map((b) => { const p = b.parentElement.getBoundingClientRect(); return [...b.querySelectorAll('span')].some((x) => x.getBoundingClientRect().right > p.right + 1); });
+        return { cap: r('.ov-cap'), radar: r('.ov-radar'), over };
+      });
+      if (vp.width > 1100) {
+        ok(Math.abs(m.cap.width - m.radar.width) <= 1, `equal widths at ${vp.width}: ${m.cap.width} vs ${m.radar.width}`);
+        ok(m.cap.left < m.radar.left && Math.abs(m.cap.top - m.radar.top) < 1, `side by side, cap first at ${vp.width}`);
+      } else {
+        ok(m.cap.bottom <= m.radar.top, `stacked, cap first at ${vp.width}`);
+      }
+      eq(m.over, [false, false, false], `band text inside its cell at ${vp.width}`);
+      eq(await noOverflow(d.page), { doc: 0, main: 0 }, `no horizontal overflow at ${vp.width}`);
+      await d.ctx.close();
+    }
   });
 
-  /* ============================================================ OVERVIEW: evidence strip (R20), close (R21) */
-  await check('R20 evidence strip: heading, the exact intro, three cases with the spec wording', async () => {
-    eq(await text(page.locator('.ov-evidence h2')), 'Why this matters', 'heading');
-    eq(await text(page.locator('.ov-evidence .kx-card__desc')), 'Public cases summarised from the Kontor scope document. Follow each link to read the source.', 'intro');
-    const cases = page.locator(ov.evidence);
-    eq(await cases.count(), 3, 'three cases');
-    for (let i = 0; i < 3; i += 1) {
-      const c = cases.nth(i);
-      eq(await text(c.locator('h3')), EVIDENCE[i].name, `case ${i} name`);
-      eq(await text(c.locator('.ov-case__when')), EVIDENCE[i].when, `case ${i} when`);
-      eq(await text(c.locator('.ov-case__what')), EVIDENCE[i].what, `case ${i} what`);
-    }
-    ok(!/Exeter|Sefton|Gedling|Sheffield|Windsor|Brighton/.test(await text(page.locator('.ov-evidence'))), 'only the three featured cases are on the Overview');
+  /* ============================================================ OVERVIEW: renewal diamonds (build spec A4, D9) */
+  await check('A4 nine diamonds, one focusable button per contract in date order, each with the full tooltip text as its name', async () => {
+    const labels = await page.locator(ov.diamonds).evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label')));
+    eq(labels.length, 9, 'nine diamonds');
+    eq(labels[0], 'Waste collection and recycling, Quillon Waste Services Ltd. Give notice by 31 Oct 2026, in 25 days. £6.2m a year, ends 31 Jan 2027. Opens the opportunity in the side drawer.', 'first');
+    const ids = await page.locator(ov.diamonds).evaluateAll((bs) => bs.map((b) => b.dataset.contract));
+    eq(ids, ['C-003', 'C-017', 'C-009', 'C-004', 'C-005', 'C-018', 'C-002', 'C-015', 'C-014'], 'date order');
+    const tag = await page.locator(ov.diamonds).first().evaluate((b) => [b.tagName, b.getAttribute('aria-hidden'), b.tabIndex]);
+    eq(tag, ['BUTTON', null, 0], 'a focusable button');
+    const box = await page.locator(ov.diamonds).first().boundingBox();
+    ok(box.width >= 44 && box.height >= 44, 'a 44 x 44 px target: ' + JSON.stringify(box));
   });
-  await check('R20 each case link opens in a new tab with rel="noopener noreferrer" and the visible words "(opens in a new tab)"; Show all 9 cases goes to #/evidence', async () => {
-    const links = page.locator('.ov-evidence .ov-case a');
-    eq(await links.count(), 3, 'one link per case');
-    for (let i = 0; i < 3; i += 1) {
-      const a = links.nth(i);
-      eq(await a.getAttribute('href'), EVIDENCE[i].url, `href ${i}`);
-      eq(await a.getAttribute('target'), '_blank', `target ${i}`);
-      const rel = (await a.getAttribute('rel')) || '';
-      ok(/\bnoopener\b/.test(rel) && /\bnoreferrer\b/.test(rel), `rel ${i}: ${rel}`);
-      ok((await text(a)).includes('(opens in a new tab)'), `visible new-tab text ${i}: ${await text(a)}`);
-    }
-    const all = page.locator('.ov-evidence a', { hasText: 'Show all 9 cases' });
-    eq(await all.count(), 1, 'show-all link');
-    eq(await all.getAttribute('href'), '#/evidence', 'show-all target');
-    eq(await all.getAttribute('target'), null, 'show-all stays in this tab');
+  await check('A4 hover shows the tooltip: title, supplier, "Give notice by 31 Oct 2026, in 25 days" (amber), "£6.2m a year · ends 31 Jan 2027", the drawer note, never "saving"', async () => {
+    await page.locator(ov.diamonds).first().hover();
+    const tip = page.locator('.kviz-tip');
+    await tip.waitFor({ state: 'visible' });
+    eq(await text(tip.locator('.kviz-tip__title')), 'Waste collection and recycling', 'title');
+    eq(await text(tip.locator('.kviz-tip__sub')), 'Quillon Waste Services Ltd', 'supplier');
+    eq(await tip.locator('.kviz-tip__line').evaluateAll((ls) => ls.map((l) => l.textContent)), ['Give notice by 31 Oct 2026, in 25 days', '£6.2m a year · ends 31 Jan 2027'], 'lines');
+    eq(await tip.locator('.kviz-tip__line.is-warning').count(), 1, 'the notice line is amber in the next-3-months band');
+    eq(await text(tip.locator('.kviz-tip__note')), 'Opens the opportunity in the side drawer.', 'note');
+    ok(!/saving/i.test(await text(tip)), 'no "saving" in the tooltip');
+    await page.mouse.move(5, 5);
+    await settle(page, 300);
   });
+  await check('A4 C-005 and C-018 share 28 Feb 2027 but keep their own diamond and tooltip; keyboard focus shows it, Enter opens the renewal in the drawer', async () => {
+    const d5 = page.locator(`${ov.diamonds}[data-contract="C-005"]`), d18 = page.locator(`${ov.diamonds}[data-contract="C-018"]`);
+    const [b5, b18] = [await d5.boundingBox(), await d18.boundingBox()];
+    ok(Math.abs(b5.x - b18.x) < 1 && Math.abs(b5.y - b18.y) >= 44, 'same date, offset vertically: ' + JSON.stringify([b5, b18]));
+    await d18.focus();
+    const tip = page.locator('.kviz-tip');
+    await tip.waitFor({ state: 'visible' });
+    eq(await text(tip.locator('.kviz-tip__title')), 'Street cleansing', 'C-018 tooltip on focus');
+    await d5.focus();
+    await settle(page, 100);
+    eq(await text(tip.locator('.kviz-tip__title')), 'Highways reactive maintenance and minor works', 'C-005 tooltip on focus');
+    await page.keyboard.press('Enter');
+    const drawer = page.locator('[role="dialog"].flag-drawer');
+    await drawer.waitFor({ state: 'visible' });
+    eq(await hashOf(page), '#/overview?flag=F-C-005-renewal', 'the renewal flag opens');
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'detached' });
+    await page.locator(ov.diamonds).first().click();
+    await drawer.waitFor({ state: 'visible' });
+    eq(await hashOf(page), '#/overview?flag=F-C-003-renewal', 'a click opens it too');
+    await page.keyboard.press('Escape');
+    await drawer.waitFor({ state: 'detached' });
+  });
+
+  /* ============================================================ OVERVIEW: close (R21) */
   await check('R21 close panel: the exact line as a heading, "Give feedback" as the only primary button, "See what comes next" as outline to #/roadmap', async () => {
     eq(await text(page.locator(`${ov.close} h2`)), CLOSE_LINE, 'line');
     eq(await text(page.locator(`${ov.close} button`).nth(0)), 'Give feedback', 'first button');
@@ -286,10 +362,10 @@ try {
     ok(!(await dialogOpen(page)), 'closed');
     ok(await page.evaluate(() => document.activeElement && /Give feedback/.test(document.activeElement.textContent)), 'focus returned to Give feedback');
   });
-  await check('R13 R71 Overview text: the word "saving" only in the caveat and the evidence strip; no "!", no emoji, buttons are [Verb]+[Object], sentence case', async () => {
+  await check('R13 R71 Overview text: the word "saving" only in the caveat; no "!", no emoji, buttons are [Verb]+[Object], sentence case', async () => {
     const { body } = await copyLint(page, 'Overview');
-    const s = await page.$$eval('#shell-main *', (els) => els.filter((e) => e.children.length === 0 && /\bsavings?\b/i.test(e.textContent)).map((e) => (e.closest('.page-header__desc') ? 'caveat' : e.closest('.ov-evidence') ? 'evidence' : 'other:' + e.textContent.slice(0, 50))));
-    ok(s.every((x) => x === 'caveat' || x === 'evidence'), 'saving outside the allowed places: ' + s.join(' | '));
+    const s = await page.$$eval('#shell-main *', (els) => els.filter((e) => e.children.length === 0 && /\bsavings?\b/i.test(e.textContent)).map((e) => (e.closest('.page-header__desc') ? 'caveat' : 'other:' + e.textContent.slice(0, 50))));
+    ok(s.every((x) => x === 'caveat'), 'saving outside the allowed places: ' + s.join(' | '));
     ok(!/\bsavings\b/i.test(body), 'plural savings never appears on the Overview');
   });
   await check('heading order is h1, then h2 sections, then h3 (no level skipped)', async () => {
@@ -297,7 +373,7 @@ try {
     eq(lv[0], 1, 'first is h1');
     eq(lv.filter((x) => x === 1).length, 1, 'one h1');
     lv.forEach((x, i) => { if (i > 0) ok(x - lv[i - 1] <= 1, 'skipped a level at ' + i + ': ' + lv.join(',')); });
-    eq(await page.$$eval('#shell-main h2', (hs) => hs.map((x) => x.textContent.trim())), ['Where the total comes from', 'Renewals coming up', 'Spend linked to contracts', 'Why this matters', CLOSE_LINE], 'h2 sections');
+    eq(await page.$$eval('#shell-main h2', (hs) => hs.map((x) => x.textContent.trim())), ['Where the total comes from', 'Cap vs spend', 'Renewals coming up', CLOSE_LINE], 'h2 sections');
   });
 
   /* ============================================================ OVERVIEW: keyboard */
@@ -313,13 +389,18 @@ try {
         const el = document.activeElement;
         if (!el || !el.closest('#shell-main')) return null;
         const cs = getComputedStyle(el);
-        return { label: (el.getAttribute('aria-label') || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60), ring: cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2, tag: el.tagName };
+        const after = getComputedStyle(el, '::after');   // row links (the cap list) draw their ring on ::after, around the whole row
+        const ring = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2) || (after.outlineStyle !== 'none' && parseFloat(after.outlineWidth) >= 2);
+        return { label: (el.getAttribute('aria-label') || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60), ring, tag: el.tagName };
       });
       if (info) { seen.push(info); if (/See what comes next/.test(info.label)) break; }
     }
     const labels = seen.map((s) => s.label);
     const expectOrder = ['£6.1m', 'How this is calculated', 'Open demo guide', 'Spend over cap £4.2m', 'Close to cap £0.6m', 'Renewals £1.1m', 'Price increases above cap £0.3m',
-      'Open renewal radar', 'Needs attention now', 'Next 3 months', '3 to 6 months', '6 to 12 months', 'See spend with no contract', 'Show all 9 cases', 'Read the Haringey source', 'Read the Guildford source', 'Read the Edinburgh source', 'Give feedback', 'See what comes next'];
+      'Open cap vs spend', 'Highways reactive maintenance', 'ICT managed service', 'Legal services panel', 'Integrated facilities management', 'Mobile voice and data', 'See all 24 contracts',
+      'Open renewal radar', 'Needs attention now', 'Next 3 months', '3 to 6 months', '6 to 12 months', 'Waste collection and recycling', 'Mobile voice and data', 'Grounds maintenance',
+      'Street lighting and signage maintenance', 'Highways reactive maintenance', 'Street cleansing', 'Domiciliary care call-off', 'Fleet vehicle lease and maintenance', 'Electricity and gas supply',
+      'Give feedback', 'See what comes next'];
     let at = 0;
     expectOrder.forEach((want) => { const j = labels.findIndex((l, k) => k >= at && l.startsWith(want)); ok(j >= 0, `"${want}" not reached in order. Saw: ${labels.join(' | ')}`); at = j + 1; });
     const noRing = seen.filter((s) => !s.ring).map((s) => s.label);
@@ -421,15 +502,15 @@ try {
     eq(await d.page.locator('.ov-radar').count(), 1, 'the rest of the page is intact');
     await d.ctx.close();
   });
-  await check('confirming the Larchmont match (kontor-matches) moves the Overview: £6.2m, a new sum line, the awaiting-review row goes and the linked amount grows', async () => {
+  await check('confirming the Larchmont match (kontor-matches) moves the Overview: £6.2m, a new sum line, and Grounds maintenance joins the over-cap count in the Cap vs spend panel', async () => {
     const d = await h.newPage({ theme: 'dark' });
     allPages.push(d);
     await d.ctx.addInitScript(() => { try { localStorage.setItem('kontor-matches', JSON.stringify({ 'Larchmont Grounds Maintenance': 'confirm' })); } catch (e) { /* ignore */ } });
     await visit(d, '#/overview');
     eq(await text(d.page.locator(ov.h1)), '£6.2m across 15 contracts flagged as opportunities to investigate', 'h1');
     eq(await text(d.page.locator('.ov-sum__eq')), '£4,232,000 + £642,478 + £1,075,500 + £255,260 = £6,205,238', 'sum line');
-    const cov = await text(d.page.locator('.ov-coverage'));
-    ok(cov.includes('£129.7m of £153.5m') && !cov.includes('Waiting for your match review'), 'coverage: ' + cov);
+    eq(await d.page.locator('.ov-cap__pills li').evaluateAll((ls) => ls.map((l) => l.innerText.replace(/\s+/g, ' ').trim())), ['Over cap 4', 'Close to cap 2', 'Within cap 18'], 'cap pills');
+    eq(await text(d.page.locator('.ov-cap__sum')), '£4,232,000 paid above the cap, across 4 contracts', 'cap summary');
     await d.ctx.close();
   });
   await check('the assumptions drawer value (kontor-assumptions renewalRate 8%) moves the Overview to £6.8m with renewals £1.7m', async () => {

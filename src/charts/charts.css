@@ -130,6 +130,9 @@ a.kviz-textlink:hover { color: var(--viz-accent-text); }
 .kviz-tip__val { font: 600 13px/18px var(--font-sans); color: var(--viz-ink); font-variant-numeric: tabular-nums; }
 .kviz-tip__lab { color: var(--viz-ink-2); }
 .kviz-tip__note { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--viz-grid); color: var(--viz-ink-2); }
+.kviz-tip__lines { display: grid; gap: 2px; margin-top: 6px; }
+.kviz-tip__line { font: 400 12px/16px var(--font-sans); color: var(--viz-ink); }
+.kviz-tip__line.is-warning { color: var(--viz-warning-text); font-weight: 500; }
 
 /* ---------------------------------------------------------------------------------------- (a) headline */
 .kviz-headline { display: grid; gap: 12px; }
@@ -238,7 +241,7 @@ a.kviz-rs__attn::after { content: ''; position: absolute; inset: -8px 0; }
 .kviz-rs__band { display: grid; gap: 2px; padding: 8px 12px 8px 0; color: inherit; text-decoration: none; border-top: 4px solid transparent; position: relative; }
 .kviz-rs__bandhead { display: flex; align-items: center; gap: 8px; font: 600 13px/18px var(--font-sans); color: var(--viz-ink); }
 .kviz-rs__bandval { font: 600 24px/32px var(--font-display); color: var(--viz-ink); letter-spacing: -0.01em; }
-.kviz-rs__bandval span { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); margin-left: 4px; letter-spacing: 0; }
+.kviz-rs__bandval span { white-space: nowrap; font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); letter-spacing: 0; }   /* "a year" may wrap under the figure in a narrow band */
 .kviz-rs__bandn { font: 400 13px/18px var(--font-sans); color: var(--viz-ink-2); }
 a.kviz-rs__band:hover { color: inherit; }
 a.kviz-rs__band:hover .kviz-rs__bandval { text-decoration: underline; text-underline-offset: 3px; }
@@ -246,12 +249,19 @@ a.kviz-rs__attn:hover { color: var(--viz-danger-text); }
 a.kviz-card:hover { color: inherit; }
 a.kviz-rs__band:focus-visible { outline: 2px solid var(--viz-focus); outline-offset: 2px; border-radius: 4px; }
 .kviz-rs__track { position: relative; height: 50px; border-top: 1px solid var(--viz-axis); border-bottom: 1px solid var(--viz-axis); }
-.kviz-rs__dia { position: absolute; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg); box-shadow: 0 0 0 2px var(--viz-surface); }
+/* each diamond is a 44 x 44 px button (one per contract); the three rows are 44px apart so no two targets overlap */
+.kviz-rs__dia {
+  position: absolute; width: 44px; height: 44px; transform: translateX(-50%); margin: 0; padding: 0; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; border-radius: var(--radius-md); color: inherit;
+}
+.kviz-rs__diamark { width: 11px; height: 11px; transform: rotate(45deg); box-shadow: 0 0 0 2px var(--viz-surface); transition: transform .12s ease; }
+.kviz-rs__dia:hover .kviz-rs__diamark, .kviz-rs__dia:focus-visible .kviz-rs__diamark { transform: rotate(45deg) scale(1.35); box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 3.5px var(--viz-ink); }
+.kviz-rs__dia:focus-visible { outline: 2px solid var(--viz-focus); outline-offset: -8px; }
 .kviz-rs__axis { position: relative; height: 16px; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); }
 .kviz-rs__axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .kviz-rs__axis span:first-child { transform: none; }
 .kviz-rs__axis span:last-child { transform: none; }
-@container kvizrs (max-width: 600px) {
+@container kvizrs (max-width: 440px) {
   .kviz-rs__bands { flex-direction: column; gap: 0; }
   .kviz-rs__bands > li { flex: 1 1 auto !important; }
   .kviz-rs__band { grid-template-columns: 1fr auto; grid-template-areas: "head val" "n val"; padding: 8px 0; border-top: 1px solid var(--viz-grid); align-items: center; }
@@ -305,6 +315,21 @@ a.kviz-rs__band:focus-visible { outline: 2px solid var(--viz-focus); outline-off
   .kviz-bl__row .kviz-bl__stat { grid-column: 1; grid-row: 2; flex-direction: row; flex-wrap: wrap; align-items: center; text-align: left; gap: 4px 10px; }
   .kviz-bl__row .kviz-bl__lane { grid-column: 1; grid-row: 3; margin-right: 18px; }
   .kviz-bl__row .kviz-bl__num { grid-column: 1; grid-row: 4; }
+}
+
+/* compact bullet list (Overview half panel): name, bar, % figure */
+.kviz-bl--compact .kviz-bl__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 60px; column-gap: 16px; row-gap: 0; }
+.kviz-bl--compact .kviz-bl__axis { padding: 0 4px 6px; }
+.kviz-bl--compact .kviz-bl__row { padding: 8px 4px; min-height: 0; }
+.kviz-bl--compact .kviz-bl__row .kviz-bl__who, .kviz-bl--compact .kviz-bl__row .kviz-bl__lane { grid-column: auto; grid-row: auto; margin-right: 0; }
+.kviz-bl--compact .kviz-bl__name { font-size: 13px; line-height: 18px; }
+.kviz-bl__pctfig { font: 600 13px/18px var(--font-sans); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@container kvizbl (max-width: 400px) {
+  .kviz-bl--compact .kviz-bl__grid { grid-template-columns: minmax(0, 1fr) 60px; row-gap: 6px; }
+  .kviz-bl--compact .kviz-bl__axis .kviz-bl__lane { grid-column: 1 / -1; margin-right: 18px; }
+  .kviz-bl--compact .kviz-bl__axis .kviz-bl__axisgap, .kviz-bl--compact .kviz-bl__axis .kviz-bl__pctfig { display: none; }
+  .kviz-bl--compact .kviz-bl__row .kviz-bl__lane { grid-column: 1 / -1; grid-row: 2; margin-right: 18px; }
+  .kviz-bl--compact .kviz-bl__row .kviz-bl__pctfig { grid-column: 2; grid-row: 1; }
 }
 
 /* year bars */

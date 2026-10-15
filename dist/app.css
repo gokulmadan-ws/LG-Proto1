@@ -802,11 +802,15 @@ a:hover {
 .kx-grid--2-1 {
   grid-template-columns: 2fr 1fr;
 }
+.kx-grid--halves {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 @media (max-width: 1100px) {
   .kx-grid--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .kx-grid--2-1 {
+  .kx-grid--2-1,
+  .kx-grid--halves {
     grid-template-columns: 1fr;
   }
 }
@@ -2297,6 +2301,19 @@ a.kviz-textlink:hover {
   border-top: 1px solid var(--viz-grid);
   color: var(--viz-ink-2);
 }
+.kviz-tip__lines {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+}
+.kviz-tip__line {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--viz-ink);
+}
+.kviz-tip__line.is-warning {
+  color: var(--viz-warning-text);
+  font-weight: 500;
+}
 .kviz-headline {
   display: grid;
   gap: 12px;
@@ -2814,9 +2831,9 @@ a.kviz-rs__attn::after {
   letter-spacing: -0.01em;
 }
 .kviz-rs__bandval span {
+  white-space: nowrap;
   font: 400 13px/18px var(--font-sans);
   color: var(--viz-ink-2);
-  margin-left: 4px;
   letter-spacing: 0;
 }
 .kviz-rs__bandn {
@@ -2849,10 +2866,34 @@ a.kviz-rs__band:focus-visible {
 }
 .kviz-rs__dia {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  transform: translateX(-50%) rotate(45deg);
+  width: 44px;
+  height: 44px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  color: inherit;
+}
+.kviz-rs__diamark {
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
   box-shadow: 0 0 0 2px var(--viz-surface);
+  transition: transform .12s ease;
+}
+.kviz-rs__dia:hover .kviz-rs__diamark,
+.kviz-rs__dia:focus-visible .kviz-rs__diamark {
+  transform: rotate(45deg) scale(1.35);
+  box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 3.5px var(--viz-ink);
+}
+.kviz-rs__dia:focus-visible {
+  outline: 2px solid var(--viz-focus);
+  outline-offset: -8px;
 }
 .kviz-rs__axis {
   position: relative;
@@ -2871,7 +2912,7 @@ a.kviz-rs__band:focus-visible {
 .kviz-rs__axis span:last-child {
   transform: none;
 }
-@container kvizrs (max-width: 600px) {
+@container kvizrs (max-width: 440px) {
   .kviz-rs__bands {
     flex-direction: column;
     gap: 0;
@@ -3115,6 +3156,57 @@ a.kviz-rs__band:focus-visible {
   .kviz-bl__row .kviz-bl__num {
     grid-column: 1;
     grid-row: 4;
+  }
+}
+.kviz-bl--compact .kviz-bl__grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 60px;
+  column-gap: 16px;
+  row-gap: 0;
+}
+.kviz-bl--compact .kviz-bl__axis {
+  padding: 0 4px 6px;
+}
+.kviz-bl--compact .kviz-bl__row {
+  padding: 8px 4px;
+  min-height: 0;
+}
+.kviz-bl--compact .kviz-bl__row .kviz-bl__who,
+.kviz-bl--compact .kviz-bl__row .kviz-bl__lane {
+  grid-column: auto;
+  grid-row: auto;
+  margin-right: 0;
+}
+.kviz-bl--compact .kviz-bl__name {
+  font-size: 13px;
+  line-height: 18px;
+}
+.kviz-bl__pctfig {
+  font: 600 13px/18px var(--font-sans);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@container kvizbl (max-width: 400px) {
+  .kviz-bl--compact .kviz-bl__grid {
+    grid-template-columns: minmax(0, 1fr) 60px;
+    row-gap: 6px;
+  }
+  .kviz-bl--compact .kviz-bl__axis .kviz-bl__lane {
+    grid-column: 1 / -1;
+    margin-right: 18px;
+  }
+  .kviz-bl--compact .kviz-bl__axis .kviz-bl__axisgap,
+  .kviz-bl--compact .kviz-bl__axis .kviz-bl__pctfig {
+    display: none;
+  }
+  .kviz-bl--compact .kviz-bl__row .kviz-bl__lane {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-right: 18px;
+  }
+  .kviz-bl--compact .kviz-bl__row .kviz-bl__pctfig {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 .kviz-yb__plot {
@@ -4125,102 +4217,33 @@ textarea::placeholder {
 .ov .ov-row > .kx-card > .kx-card__body {
   flex: 1 1 auto;
 }
-.ov .ov-coverage .kviz-meter {
-  gap: 12px;
-}
-.ov .ov-coverage .kviz-meter__label strong {
-  font: 600 32px/40px var(--font-display);
-  letter-spacing: -0.01em;
-  display: block;
-}
-.ov .ov-coverage .kviz-meter__track {
-  height: 12px;
-}
-.ov .ov-cov {
-  margin: 20px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--viz-grid);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ov .ov-cov__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-.ov .ov-cov dt {
-  font: 400 13px/18px var(--font-sans);
-  color: var(--viz-ink-2);
-}
-.ov .ov-cov dd {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font: 600 16px/22px var(--font-display);
-  color: var(--viz-ink);
-  font-variant-numeric: tabular-nums;
-}
-.ov .ov-cov dd span {
-  font: 400 13px/18px var(--font-sans);
-  color: var(--viz-ink-2);
-}
-.ov .ov-cases {
+.ov ul.ov-cap__pills {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-.ov .ov-case {
   display: flex;
-  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.ov .ov-case__body {
-  flex: 1 1 auto;
-  min-width: 0;
+.ov .ov-cap__sum {
+  margin: 14px 0 10px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px 20px 18px;
-  border: 1px solid var(--viz-grid);
-  border-radius: var(--radius-lg);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
 }
-.ov .ov-case__head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.ov .ov-case__name {
-  margin: 0;
-  font: 600 16px/22px var(--font-sans);
+.ov .ov-cap__sum strong {
+  font: 600 32px/40px var(--font-display);
+  letter-spacing: -0.01em;
   color: var(--viz-ink);
+  font-variant-numeric: tabular-nums;
 }
-.ov .ov-case__when {
-  font: 400 13px/18px var(--font-sans);
+.ov .ov-cap__sum span {
+  font: 400 14px/20px var(--font-sans);
   color: var(--viz-ink-2);
 }
-.ov .ov-case__what {
-  margin: 0;
-  flex: 1 1 auto;
-  font: 400 14px/22px var(--font-sans);
-  color: var(--viz-ink);
-  text-wrap: pretty;
-}
-.ov .ov-case__foot {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
-.ov .ov-case__foot .ov-link {
-  display: inline;
-}
-.ov .ov-case__foot .ov-link i {
-  margin-left: 6px;
+.ov .ov-cap__all {
+  margin: 10px 0 0;
 }
 .ov .ov-close {
   display: flex;
@@ -4255,14 +4278,6 @@ textarea::placeholder {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-@media (max-width: 1100px) {
-  .ov .ov-cases {
-    grid-template-columns: 1fr;
-  }
-  .ov .ov-case__body {
-    gap: 10px;
-  }
 }
 @media (max-width: 560px) {
   .ov .kviz-hero {

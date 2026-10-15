@@ -402,6 +402,7 @@ t('copy golden strings: R49 answers in plain language (7.10) and labels', () => 
   assert.deepEqual(['exact', 'normalised', 'alias', 'fuzzy', 'manual'].map(Copy.matchMethodLabel), ['Exact', 'Normalised', 'Alias', 'Similar name', 'Confirmed by you']);
   assert.deepEqual(['m3', 'm6', 'm12', 'passed', 'ended', 'later'].map(Copy.bandLabel), ['Next 3 months', '3 to 6 months', '6 to 12 months', 'Notice date passed', 'Ended, still paying', 'Later than 12 months']);
   assert.deepEqual([C('C-005').cap, C('C-003').cap].map(Copy.capSourceLabel), ['Stated maximum', 'Contract value (no maximum stated)']); assert.deepEqual([C('C-005').cap, C('C-011').cap].map(Copy.capBasisLabel), ['Whole term', 'Per contract year']);
+  assert.equal(Copy.noticeByText('2026-10-31'), 'Give notice by 31 Oct 2026, in 25 days'); assert.equal(Copy.inDaysText('2026-10-07'), 'in 1 day'); assert.equal(Copy.inDaysText('2026-10-06'), 'today');
   assert.equal(Fmt.fmtDate('2026-10-06'), '6 Oct 2026'); assert.equal(Fmt.fmtDateLong('2026-10-06'), '6 October 2026'); assert.equal(Fmt.fmtDate(null), ''); assert.equal(Fmt.fmtGBPPence(63012.4), '£63,012.40'); assert.equal(Fmt.fmtPct(0.948), '94.8%'); assert.equal(Fmt.fmtGBP(3350000), '£3,350,000');
   assert.equal(Copy.COPY.closePanel.heading, "This is one council's contracts and spend. Imagine your full estate."); assert.equal(Copy.COPY.about.sections[2].body.includes('starts after document ingestion: every answer is shown as already extracted.'), true);
   assert.ok(!JSON.stringify(Copy.COPY.about).includes('without a developer') && !/columns councils publish|follow the columns/.test(JSON.stringify(Copy.COPY.about))); assert.equal(Copy.COPY.about.sections[1].body.includes('look like the files councils publish for payments over £500: date, department, supplier, purpose and amount'), true);
@@ -427,7 +428,7 @@ t('copy lint: no "!", no emoji, "saving" only where allowed, no banned button la
   const scen = [run(), run({ 'Larchmont Grounds Maintenance': 'confirm' }), run({}, {}, { nearCapThreshold: 0.8 })];
   for (const r of scen) {
     for (const f of r.flags) { const c = C(f.contractId); walk(Copy.reasonFor(f, c, r.derived[c.id]), 'gen.reason'); walk(Copy.flagTypeLabel(f), 'gen.type'); walk(Copy.basisLabel(f), 'gen.basis'); walk(Copy.confidenceReason(f), 'gen.confidence'); }
-    for (const c of D.contracts) { walk(Copy.actionLine(c, r.derived[c.id]), 'gen.action'); const n = Copy.needsAttentionText(c, r.derived[c.id]); if (n) walk(n, 'gen.attention'); walk(Copy.capStateLabel(r.derived[c.id].cap), 'gen.cap'); walk(Copy.upliftResultText(r.derived[c.id].uplift), 'gen.uplift'); walk(Copy.relativeText(r.derived[c.id].deadline), 'gen.rel'); }
+    for (const c of D.contracts) { walk(Copy.actionLine(c, r.derived[c.id]), 'gen.action'); const n = Copy.needsAttentionText(c, r.derived[c.id]); if (n) walk(n, 'gen.attention'); walk(Copy.capStateLabel(r.derived[c.id].cap), 'gen.cap'); walk(Copy.upliftResultText(r.derived[c.id].uplift), 'gen.uplift'); walk(Copy.relativeText(r.derived[c.id].deadline), 'gen.rel'); walk(Copy.noticeByText(r.derived[c.id].deadline), 'gen.noticeBy'); }
     walk(Copy.headlineSentence(r.totals), 'gen.headline'); walk(Copy.sumLine(r.totals), 'gen.sum'); walk(Copy.breakdownCards(r.totals), 'gen.cards');
   }
   for (const x of D.extractions) walk(Copy.answerFor(x, C(x.contractId)).text, 'gen.answer');

@@ -1293,6 +1293,13 @@
     return n > 0 ? `${n} ${n === 1 ? "day" : "days"} left` : `${-n} ${-n === 1 ? "day" : "days"} ago`;
   }
   var dayWord = (n) => n === 1 ? "day" : "days";
+  function inDaysText(iso, asOf = AS_OF) {
+    if (!iso) return "";
+    const n = diffDays(iso, asOf);
+    if (n === 0) return "today";
+    return n > 0 ? `in ${n} ${dayWord(n)}` : `${-n} ${dayWord(-n)} ago`;
+  }
+  var noticeByText = (iso, asOf = AS_OF) => `Give notice by ${fmtDate(iso)}, ${inDaysText(iso, asOf)}`;
   function actionLine(contract, derived) {
     const d = derived || {};
     const end = fmtDateLong(contract.endDate);
@@ -1706,114 +1713,6 @@
   function feedbackText(entries) {
     return entries.map((e) => `${e.at ? e.at.slice(0, 10) : ""} | Would use on own contracts: ${e.answer} | Comment: ${e.comment || "None"} | Prototype as at ${e.asOf || AS_OF}`).join("\n");
   }
-
-  // src/data/evidence.js
-  init_react_shim();
-  var CHECKED_ON = "2026-10-06";
-  var CHECKED_NOTE = "Every case below was checked against its source on 6 October 2026.";
-  var OPENS_IN_NEW_TAB = "(opens in a new tab)";
-  var evidence = [
-    {
-      id: "exeter",
-      case: "Exeter",
-      when: "June 2025 audit",
-      whatHappened: "Procurement wasn't consistently monitoring supplier spend against contract value; only 42% of supplier payments were linked to a purchase order",
-      feature: "Cap vs actual spend",
-      url: "https://committees.exeter.gov.uk/documents/s100161/SMB.07.02d%20Appendix%204%20Procurement%20Action%20Plan.pdf",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }]
-    },
-    {
-      id: "haringey",
-      case: "Haringey",
-      when: "January 2025",
-      whatHappened: "External auditor raised a value-for-money risk over weak oversight of renewals and KPI monitoring",
-      feature: "Renewal radar",
-      url: "https://www.minutes.haringey.gov.uk/documents/s150205/15.2%20Appendix%202%20-%20Procurement%20Section.pdf",
-      checkedOn: CHECKED_ON,
-      featured: true,
-      featureLinks: [{ "label": "Renewal radar", "href": "#/renewals" }]
-    },
-    {
-      id: "guildford",
-      case: "Guildford",
-      when: "2020\u201323, reported May 2024",
-      whatHappened: "Spent \xA318.9m on a contract with a \xA35.4m maximum; later referred to police as a possible fraud",
-      feature: "Cap vs actual spend",
-      url: "https://localgovernmentlawyer.co.uk/procurement-and-contracts/402-procurement-news/57355-whistleblowing-allegations-at-council-relating-to-13m-contract-overspend-went-unheard-report-suggests",
-      checkedOn: CHECKED_ON,
-      featured: true,
-      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }]
-    },
-    {
-      id: "edinburgh",
-      case: "Edinburgh",
-      when: "2022/23 data, audited 2024",
-      whatHappened: "\xA391m went to the top 100 suppliers with no contract on the register; total non-contracted spend was \xA3134m (Scottish council)",
-      feature: "Contract register built from documents",
-      url: "https://www.edinburgh.gov.uk/downloads/file/35881/cd2402-non-contracted-spend-and-waivers",
-      checkedOn: CHECKED_ON,
-      featured: true,
-      featureLinks: [{ "label": "Contract register built from documents", "href": "#/spend/no-contract" }]
-    },
-    {
-      id: "gedling",
-      case: "Gedling",
-      when: "March 2023 audit",
-      whatHappened: "Only 2 of 10 contracts reviewed had KPIs; two high-value framework contracts missing from the register",
-      feature: "Financial question set",
-      url: "https://democracy.gedling.gov.uk/documents/s34010/GBC%20Contract%20Management%20and%20Procurement%20-Final%20-%20020323%20002.docx.pdf",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Financial question set", "href": "#/contracts" }]
-    },
-    {
-      id: "windsor-maidenhead",
-      case: "Windsor & Maidenhead",
-      when: "Date not stated",
-      whatHappened: "Register was incomplete and inaccurate; rebuilt by contacting about 85 officers",
-      feature: "Contract register built from documents",
-      url: "https://rbwm.moderngov.co.uk/mgAi.aspx?ID=27980",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Contract register built from documents", "href": "#/contracts" }]
-    },
-    {
-      id: "brighton-hove",
-      case: "Brighton & Hove",
-      when: "Date not stated",
-      whatHappened: "Internal audit found housing repairs overpayments via a subcontractor; contractor working with council to refund",
-      feature: "Cap vs actual spend, clause checks",
-      url: "https://democracy.brighton-hove.gov.uk/mgAi.aspx?ID=49681",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }, { "label": "Clause checks", "href": "#/opportunities?type=overCap" }]
-    },
-    {
-      id: "sefton",
-      case: "Sefton (LGA)",
-      when: "2019",
-      whatHappened: "\xA31.7m potential savings shrank to possibly nil once outliers turned out to have legitimate reasons; its duplicate-payment software couldn't catch charges that differed from contract terms",
-      feature: "Caveat: frame as opportunities; supports reading terms, not just payments",
-      url: "https://www.local.gov.uk/case-studies/testing-savings-around-contract-compliance-and-negotiation",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Caveat: frame as opportunities", "href": "#/method" }, { "label": "Reading terms, not just payments", "href": "#/contracts" }]
-    },
-    {
-      id: "sheffield",
-      case: "Sheffield (LGA)",
-      when: "2012/13",
-      whatHappened: "Saved \xA315.5m across seven contracts, 8% of their annual cost; separately recovered \xA3232,000 from a PFI where excessive indexation had been applied",
-      feature: "Savings opportunities list, uplift check",
-      url: "https://www.local.gov.uk/sites/default/files/documents/L13-795%20Making%20savings%20from%20contract%20management.pdf",
-      checkedOn: CHECKED_ON,
-      featured: false,
-      featureLinks: [{ "label": "Savings opportunities list", "href": "#/opportunities" }, { "label": "Uplift check", "href": "#/opportunities?type=uplift" }]
-    }
-  ];
-  var evidenceById = Object.fromEntries(evidence.map((e) => [e.id, e]));
 
   // src/components/index.js
   init_react_shim();
@@ -2842,7 +2741,7 @@
     return { tip, bind, bindPointer, bindFocus, show, hide, hideSoon, keep };
   }
   function TipBody({ c }) {
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, c.title && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__title" }, c.title), c.sub && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__sub" }, c.sub), c.rows && c.rows.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__rows" }, c.rows.map((r, i) => /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__row", key: i }, /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__key", style: r.color ? { background: r.color } : void 0, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__val" }, r.glyph && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + r.glyph, style: { color: r.glyphColor, marginRight: 6 }, "aria-hidden": "true" }), r.value), /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__lab" }, r.label)))), c.note && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__note" }, c.note));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, c.title && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__title" }, c.title), c.sub && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__sub" }, c.sub), c.lines && c.lines.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__lines" }, c.lines.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "kviz-tip__line" + (l.tone ? " is-" + l.tone : "") }, l.text))), c.rows && c.rows.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__rows" }, c.rows.map((r, i) => /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__row", key: i }, /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__key", style: r.color ? { background: r.color } : void 0, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__val" }, r.glyph && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + r.glyph, style: { color: r.glyphColor, marginRight: 6 }, "aria-hidden": "true" }), r.value), /* @__PURE__ */ React.createElement("span", { className: "kviz-tip__lab" }, r.label)))), c.note && /* @__PURE__ */ React.createElement("div", { className: "kviz-tip__note" }, c.note));
   }
   function ChartTip({ api }) {
     const { tip, keep, hideSoon } = api;
@@ -2992,24 +2891,6 @@
       ));
     })), footer);
   }
-  function CoverageMeter({ matched, total, format = gbp, href, linkLabel = "See spend with no contract", onOpen }) {
-    const ratio = total > 0 ? matched / total : 0;
-    const Tag2 = href ? "a" : "button";
-    return /* @__PURE__ */ React.createElement("div", { className: "kviz-meter" }, /* @__PURE__ */ React.createElement("p", { className: "kviz-meter__label" }, /* @__PURE__ */ React.createElement("strong", null, pct(ratio)), " of payments are linked to a contract on the register"), /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        className: "kviz-meter__track",
-        role: "meter",
-        "aria-label": "Payments linked to a contract on the register",
-        "aria-valuemin": 0,
-        "aria-valuemax": 100,
-        "aria-valuenow": Math.round(ratio * 100),
-        "aria-valuetext": `${pct(ratio)}: ${gbpFull(matched)} of ${gbpFull(total)}`
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "kviz-meter__fill", style: { flexGrow: matched } }),
-      /* @__PURE__ */ React.createElement("span", { className: "kviz-meter__rest", style: { flexGrow: Math.max(0, total - matched) } }, /* @__PURE__ */ React.createElement(Hatch, { color: "var(--viz-warning)", period: 6 }))
-    ), /* @__PURE__ */ React.createElement("p", { className: "kviz-meter__meta" }, format(matched), " of ", format(total), /* @__PURE__ */ React.createElement("span", { className: "kviz-dot-sep", "aria-hidden": "true" }, "\xB7"), /* @__PURE__ */ React.createElement(Tag2, { className: "kviz-textlink", ...href ? { href } : { type: "button", onClick: onOpen } }, linkLabel)));
-  }
 
   // src/charts/RadarLanes.jsx
   init_react_shim();
@@ -3077,7 +2958,12 @@
 
   // src/charts/RadarStrip.jsx
   init_react_shim();
-  function RadarStrip({ rows, asOf = AS_OF2, horizon = 12, getHref, attentionHref, valueSuffix = " a year", format = gbp, caption }) {
+  var import_react23 = __toESM(require_react(), 1);
+  var ROW_GAP = 44;
+  var OPEN_NOTE = "Opens the opportunity in the side drawer.";
+  function RadarStrip({ rows, asOf = AS_OF2, horizon = 12, getHref, attentionHref, valueSuffix = " a year", format = gbp, caption, onOpen }) {
+    const tip = useChartTip();
+    const touch = (0, import_react23.useRef)({});
     const timed = BANDS2.filter((b) => !b.attention);
     const stats = timed.map((b) => {
       const mine = rows.filter((r) => r.band === b.key);
@@ -3086,7 +2972,7 @@
     const attn = rows.filter((r) => r.band === "passed" || r.band === "ended");
     const attnSum = attn.reduce((a, r) => a + r.value, 0);
     const X = (months) => clamp(months / horizon, 0, 1) * 100;
-    const dots = rows.filter((r) => r.band === "m3" || r.band === "m6" || r.band === "m12").map((r) => ({ ...r, m: monthsBetween(asOf, r.deadline) })).sort((a, z) => a.m - z.m);
+    const dots = rows.filter((r) => r.band === "m3" || r.band === "m6" || r.band === "m12").map((r) => ({ ...r, m: monthsBetween(asOf, r.deadline) })).sort((a, z) => a.m - z.m || a.id.localeCompare(z.id));
     const AttnTag = attentionHref ? "a" : "span";
     return /* @__PURE__ */ React.createElement("div", { className: "kviz-rs" }, /* @__PURE__ */ React.createElement("div", { className: "kviz-rs__top" }, /* @__PURE__ */ React.createElement(
       AttnTag,
@@ -3101,23 +2987,62 @@
     ), caption && /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__caption" }, caption)), /* @__PURE__ */ React.createElement("ul", { className: "kviz-rs__bands" }, stats.map((s) => {
       const href = getHref ? getHref(s.key) : void 0;
       const Tag2 = href ? "a" : "div";
-      return /* @__PURE__ */ React.createElement("li", { key: s.key, style: { flexBasis: (s.to - s.from) / horizon * 100 + "%" } }, /* @__PURE__ */ React.createElement(Tag2, { className: "kviz-rs__band", ...href ? { href } : {}, "aria-label": `${s.label}: ${plural2(s.n, "contract")}, ${format(s.sum)}${valueSuffix}` }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandhead", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__swatch", style: { background: s.color } }), s.label), /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandval", "aria-hidden": "true" }, format(s.sum), /* @__PURE__ */ React.createElement("span", null, valueSuffix)), /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandn", "aria-hidden": "true" }, plural2(s.n, "contract"))));
-    })), /* @__PURE__ */ React.createElement("div", { className: "kviz-rs__track", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__gl", style: { left: X(3) + "%", top: 0, bottom: 0 } }), /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__gl", style: { left: X(6) + "%", top: 0, bottom: 0 } }), dots.map((r, i) => /* @__PURE__ */ React.createElement("span", { key: r.id, className: "kviz-rs__dia", style: { left: X(r.m) + "%", top: 8 + i % 3 * 14, background: BANDS2.find((b) => b.key === r.band).color } }))), /* @__PURE__ */ React.createElement("div", { className: "kviz-rs__axis", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { style: { left: 0 } }, "Now"), /* @__PURE__ */ React.createElement("span", { style: { left: "25%" } }, "3 months"), /* @__PURE__ */ React.createElement("span", { style: { left: "50%" } }, "6 months"), /* @__PURE__ */ React.createElement("span", { style: { right: 0 } }, "12 months")));
+      return /* @__PURE__ */ React.createElement("li", { key: s.key, style: { flexBasis: (s.to - s.from) / horizon * 100 + "%" } }, /* @__PURE__ */ React.createElement(Tag2, { className: "kviz-rs__band", ...href ? { href } : {}, "aria-label": `${s.label}: ${plural2(s.n, "contract")}, ${format(s.sum)}${valueSuffix}` }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandhead", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__swatch", style: { background: s.color } }), s.label), /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandval", "aria-hidden": "true" }, format(s.sum), valueSuffix.startsWith(" ") ? " " : "", /* @__PURE__ */ React.createElement("span", null, valueSuffix.trim())), /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__bandn", "aria-hidden": "true" }, plural2(s.n, "contract"))));
+    })), /* @__PURE__ */ React.createElement("div", { className: "kviz-rs__track", style: { height: ROW_GAP * 3 } }, /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__gl", "aria-hidden": "true", style: { left: X(3) + "%", top: 0, bottom: 0 } }), /* @__PURE__ */ React.createElement("span", { className: "kviz-rl__gl", "aria-hidden": "true", style: { left: X(6) + "%", top: 0, bottom: 0 } }), dots.map((r, i) => {
+      const band = BANDS2.find((b) => b.key === r.band);
+      const notice = noticeByText(r.deadline, asOf);
+      const value = `${format(r.value)}${valueSuffix} \xB7 ends ${fmtDate2(r.endDate)}`;
+      const content = {
+        title: r.title,
+        sub: r.supplier,
+        lines: [{ text: notice, tone: r.band === "m3" ? "warning" : null }, { text: value }],
+        note: onOpen ? OPEN_NOTE : null
+      };
+      const label = `${r.title}, ${r.supplier}. ${notice}. ${format(r.value)}${valueSuffix}, ends ${fmtDate2(r.endDate)}.${onOpen ? " " + OPEN_NOTE : ""}`;
+      const binds = tip.bind(content);
+      return /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: r.id,
+          type: "button",
+          className: "kviz-rs__dia",
+          "data-contract": r.id,
+          "aria-label": label,
+          style: { left: X(r.m) + "%", top: i % 3 * ROW_GAP },
+          ...binds,
+          onPointerDown: (e) => {
+            touch.current = e.pointerType !== "touch" ? {} : touch.current.shown === r.id ? {} : { first: r.id };
+          },
+          onClick: () => {
+            if (touch.current.first === r.id) {
+              touch.current = { shown: r.id };
+              return;
+            }
+            touch.current = {};
+            if (onOpen) {
+              tip.hide();
+              onOpen(r);
+            }
+          }
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "kviz-rs__diamark", "aria-hidden": "true", style: { background: band.color } })
+      );
+    })), /* @__PURE__ */ React.createElement("div", { className: "kviz-rs__axis", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { style: { left: 0 } }, "Now"), /* @__PURE__ */ React.createElement("span", { style: { left: "25%" } }, "3 months"), /* @__PURE__ */ React.createElement("span", { style: { left: "50%" } }, "6 months"), /* @__PURE__ */ React.createElement("span", { style: { right: 0 } }, "12 months")), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
   }
 
   // src/charts/BulletList.jsx
   init_react_shim();
-  var import_react23 = __toESM(require_react(), 1);
+  var import_react24 = __toESM(require_react(), 1);
   var BASIS = { total_term: "Whole term", annual: "Per contract year" };
   var SOURCE = { maximum_stated: "Stated maximum", contract_value: "Contract value (estimate)" };
   function CapStatePill({ state, label, wrap = false }) {
     const s = stateFor(1, CLOSE_AT, state);
     return /* @__PURE__ */ React.createElement("span", { className: "kviz-pill" + (wrap ? " kviz-pill--wrap" : ""), style: { "--c": s.tint || s.color, color: s.text } }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + s.glyph, "aria-hidden": "true" }), label || s.label);
   }
-  function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref, onOpen, limit, format = gbp }) {
+  function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref, onOpen, limit, format = gbp, compact = false, tipNote }) {
     const tip = useChartTip();
     const nav = useArrowNav();
-    const rows = (0, import_react23.useMemo)(() => {
+    const rows = (0, import_react24.useMemo)(() => {
       const all = items.map((it) => {
         const ratio = it.spend / it.cap;
         return { ...it, ratio, st: stateFor(ratio, closeAt, it.state) };
@@ -3126,7 +3051,7 @@
     }, [items, limit, closeAt]);
     const P = (ratio) => Math.min(ratio, axisMax) / axisMax * 100;
     const ticks = [{ r: 0, t: "0%" }, { r: 0.5, t: "50%" }, { r: closeAt, t: Math.round(closeAt * 100) + "%" }, { r: 1, t: "Cap" }, { r: axisMax, t: Math.round(axisMax * 100) + "%" }];
-    return /* @__PURE__ */ React.createElement("div", { className: "kviz-bl", ...nav }, /* @__PURE__ */ React.createElement("div", { className: "kviz-bl__grid kviz-bl__axis", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead" }, "Contract"), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__lane kviz-bl__lane--axis" }, ticks.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.t + t.r, className: "kviz-bl__tickl" + (t.r === 0 ? " is-first" : t.r === axisMax ? " is-last" : ""), style: { left: P(t.r) + "%" } }, t.t))), /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead kviz-bl__num" }, "Spend to date"), /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead kviz-bl__stat" }, "Status")), /* @__PURE__ */ React.createElement("ul", { className: "kviz-bl__list", "aria-label": "Contracts ranked by share of cap used" }, rows.map((r) => {
+    return /* @__PURE__ */ React.createElement("div", { className: "kviz-bl" + (compact ? " kviz-bl--compact" : ""), ...nav }, /* @__PURE__ */ React.createElement("div", { className: "kviz-bl__grid kviz-bl__axis", "aria-hidden": "true" }, compact ? /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__axisgap" }) : /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead" }, "Contract"), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__lane kviz-bl__lane--axis" }, ticks.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.t + t.r, className: "kviz-bl__tickl" + (t.r === 0 ? " is-first" : t.r === axisMax ? " is-last" : ""), style: { left: P(t.r) + "%" } }, t.t))), !compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead kviz-bl__num" }, "Spend to date"), !compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-colhead kviz-bl__stat" }, "Status"), compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__pctfig" })), /* @__PURE__ */ React.createElement("ul", { className: "kviz-bl__list", "aria-label": "Contracts ranked by share of cap used" }, rows.map((r) => {
       const s = r.st;
       const href = getHref ? getHref(r) : void 0;
       const Tag2 = href ? "a" : "button";
@@ -3148,7 +3073,7 @@
           { value: pct(r.ratio, 1), label: "of " + capWord + " used", glyph: s.glyph, glyphColor: s.key === "within" ? "var(--viz-ink-2)" : s.text },
           { value: format(over ? overBy : Math.abs(gap)), label: over ? "Over" : "Headroom left" }
         ],
-        note: r.partial ? "Spend files start after this contract began, so this is a lower bound." : "Select to open the contract and its cap clause."
+        note: r.partial ? "Spend files start after this contract began, so this is a lower bound." : tipNote || "Select to open the contract and its cap clause."
       };
       return /* @__PURE__ */ React.createElement("li", { key: r.id }, /* @__PURE__ */ React.createElement("div", { className: "kviz-row kviz-bl__row kviz-bl__grid", "data-kviz-row": true, ...tip.bindPointer(content) }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__who" }, /* @__PURE__ */ React.createElement(
         Tag2,
@@ -3162,7 +3087,7 @@
           ...tip.bindFocus(content, "[data-kviz-row]")
         },
         r.title
-      ), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__sub", "aria-hidden": "true" }, r.supplier), meta && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__meta", "aria-hidden": "true" }, meta), r.extra && /* @__PURE__ */ React.createElement("span", { className: "kviz-row__extra" }, r.extra)), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__lane", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__track", style: { width: P(1) + "%" } }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__zone", style: { left: closeAt * 100 + "%" } })), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__fill" + (over ? " has-over" : ""), style: { width: P(Math.min(r.ratio, 1)) + "%", background: s.color } }), over && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__over", style: { left: P(1) + "%", width: P(r.ratio) - P(1) + "%" } }, /* @__PURE__ */ React.createElement(Hatch, { color: "var(--viz-danger)", period: 6 })), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__mark kviz-bl__mark--close", style: { left: P(closeAt) + "%" } }), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__mark kviz-bl__mark--cap", style: { left: P(1) + "%" } }), r.ratio > axisMax && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-angles-right kviz-bl__clip" })), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__num", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__spend" }, atLeast && /* @__PURE__ */ React.createElement("small", null, "At least "), format(r.spend)), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__of" }, "of ", format(r.cap), " ", capWord), over && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__over-by" }, format(overBy), " over")), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__stat", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement(CapStatePill, { state: r.state || s.key, label: stateLabel, wrap: true }), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__pct" }, pct(r.ratio, 1), " of ", capWord))));
+      ), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__sub", "aria-hidden": "true" }, r.supplier), meta && !compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__meta", "aria-hidden": "true" }, meta), r.extra && /* @__PURE__ */ React.createElement("span", { className: "kviz-row__extra" }, r.extra)), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__lane", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__track", style: { width: P(1) + "%" } }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__zone", style: { left: closeAt * 100 + "%" } })), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__fill" + (over ? " has-over" : ""), style: { width: P(Math.min(r.ratio, 1)) + "%", background: s.color } }), over && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__over", style: { left: P(1) + "%", width: P(r.ratio) - P(1) + "%" } }, /* @__PURE__ */ React.createElement(Hatch, { color: "var(--viz-danger)", period: 6 })), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__mark kviz-bl__mark--close", style: { left: P(closeAt) + "%" } }), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__mark kviz-bl__mark--cap", style: { left: P(1) + "%" } }), r.ratio > axisMax && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-angles-right kviz-bl__clip" })), compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__pctfig", "aria-hidden": "true", style: { color: s.key === "within" ? "var(--viz-ink-2)" : s.text } }, pct(r.ratio, 1)), !compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__num", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__spend" }, atLeast && /* @__PURE__ */ React.createElement("small", null, "At least "), format(r.spend)), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__of" }, "of ", format(r.cap), " ", capWord), over && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__over-by" }, format(overBy), " over")), !compact && /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__stat", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement(CapStatePill, { state: r.state || s.key, label: stateLabel, wrap: true }), /* @__PURE__ */ React.createElement("span", { className: "kviz-bl__pct" }, pct(r.ratio, 1), " of ", capWord))));
     })), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
   }
   function capSummary(items, closeAt = CLOSE_AT) {
@@ -3214,11 +3139,11 @@
 
   // src/charts/YearBars.jsx
   init_react_shim();
-  var import_react24 = __toESM(require_react(), 1);
+  var import_react25 = __toESM(require_react(), 1);
   function YearBars({ years, cap, height = 220, closeAt = CLOSE_AT, format = gbp }) {
     const tip = useChartTip();
     const nav = useArrowNav();
-    const uid = (0, import_react24.useId)();
+    const uid = (0, import_react25.useId)();
     const max = Math.max(cap * 1.2, ...years.map((y) => y.spend * 1.08));
     const H = (v) => v / max * 100;
     return /* @__PURE__ */ React.createElement("div", { className: "kviz-yb", ...nav }, /* @__PURE__ */ React.createElement("div", { className: "kviz-yb__plot", style: { height, "--n": years.length } }, /* @__PURE__ */ React.createElement("div", { className: "kviz-yb__cap", style: { bottom: H(cap) + "%" } }, /* @__PURE__ */ React.createElement("span", null, "Annual cap ", format(cap))), /* @__PURE__ */ React.createElement("ul", { className: "kviz-yb__cols", "aria-label": "Spend in each contract year" }, years.map((y) => {
@@ -3239,7 +3164,7 @@
 
   // src/charts/CumulativeLine.jsx
   init_react_shim();
-  var import_react25 = __toESM(require_react(), 1);
+  var import_react26 = __toESM(require_react(), 1);
   var M_WIDE = { t: 22, r: 104, b: 36, l: 58 };
   var M_NARROW = { t: 22, r: 76, b: 36, l: 52 };
   function CumulativeLine(props) {
@@ -3248,13 +3173,13 @@
   }
   function CumulativeLinePlot({ series, cap, closeAt = CLOSE_AT, height = 360, subject = "this contract" }) {
     const [wrapRef, W] = useWidth();
-    const hitRef = (0, import_react25.useRef)(null);
+    const hitRef = (0, import_react26.useRef)(null);
     const tip = useChartTip();
-    const [idx, setIdx] = (0, import_react25.useState)(null);
+    const [idx, setIdx] = (0, import_react26.useState)(null);
     const compact = W > 0 && W < 560;
     const M = compact ? M_NARROW : M_WIDE;
     const iw = Math.max(80, W - M.l - M.r), ih = height - M.t - M.b;
-    const g = (0, import_react25.useMemo)(() => {
+    const g = (0, import_react26.useMemo)(() => {
       const pts2 = series.map((p) => ({ ...p, t: toDate(p.date).getTime() }));
       const t0 = pts2[0].t, t1 = pts2[pts2.length - 1].t;
       const maxV = Math.max(...pts2.map((p) => p.cum));
@@ -3403,11 +3328,11 @@
 
   // src/charts/Dumbbell.jsx
   init_react_shim();
-  var import_react26 = __toESM(require_react(), 1);
+  var import_react27 = __toESM(require_react(), 1);
 
   // src/charts/BarList.jsx
   init_react_shim();
-  var import_react27 = __toESM(require_react(), 1);
+  var import_react28 = __toESM(require_react(), 1);
   function FlagBadge({ type, label, muted = false }) {
     const f = FLAGS[type];
     return /* @__PURE__ */ React.createElement("span", { className: "kviz-pill", style: muted ? { "--c": "var(--viz-ink-2)", color: "var(--viz-ink-2)" } : { "--c": f.color, color: f.text } }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + f.glyph, "aria-hidden": "true" }), label || f.short);
@@ -3446,7 +3371,7 @@
     })), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
   }
   function OpportunityList({ items, filter = null, getHref, onOpen, limit, format = gbpFull, max }) {
-    const rows = (0, import_react27.useMemo)(() => {
+    const rows = (0, import_react28.useMemo)(() => {
       const list = items.filter((it) => !filter || it.type === filter);
       return (limit ? list.slice(0, limit) : list).map((it, i) => {
         const f = FLAGS[it.type];
@@ -3497,7 +3422,7 @@
   }
   function CoverageBlock({ matched, total, unmatched, pending = 0, suppliers, topN, getHref, onOpen, unit = "payment", format = gbp, heading = "Largest suppliers with no contract on the register", headingAs: H = "h3" }) {
     const noContract = unmatched != null ? unmatched : total - matched - pending;
-    const sorted = (0, import_react27.useMemo)(() => suppliers.slice().sort((a, b) => b.spend - a.spend), [suppliers]);
+    const sorted = (0, import_react28.useMemo)(() => suppliers.slice().sort((a, b) => b.spend - a.spend), [suppliers]);
     const n = topN == null ? sorted.length : topN;
     const top = sorted.slice(0, n);
     const rest = sorted.slice(n);
@@ -3572,16 +3497,59 @@
     radarTitle: "Renewals coming up",
     radarDesc: "Contracts by the date you must give notice.",
     radarCaption: "Contract value, a year",
-    coverageTitle: "Spend linked to contracts",
-    noContractLabel: "No contract on the register",
-    noContractFoot: (n) => n === 1 ? "1 supplier" : `${n} suppliers`,
-    awaitingLabel: "Waiting for your match review",
-    closeSupport: "Your estate has more contracts, more suppliers and more renewals nobody is tracking.",
-    readSource: (name) => `Read the ${name} source`
+    capTitle: "Cap vs spend",
+    capDesc: "What you have paid against the most each contract allows.",
+    capOpen: "Open cap vs spend",
+    capCounts: "Contracts by cap status",
+    capPills: { over: (n) => `Over cap ${n}`, near: (n) => `Close to cap ${n}`, ok: (n) => `Within cap ${n}` },
+    capAbove: (n) => `paid above the cap, across ${plural(n, "contract")}`,
+    capTipNote: "Select to open this opportunity in the side drawer.",
+    capAll: (n) => `See all ${n} contracts`,
+    closeSupport: "Your estate has more contracts, more suppliers and more renewals nobody is tracking."
   };
-  var FEATURED = evidence.filter((e) => e.featured);
-  function EvidenceCase({ item }) {
-    return /* @__PURE__ */ React.createElement("li", { className: "ov-case" }, /* @__PURE__ */ React.createElement("article", { className: "ov-case__body", "aria-labelledby": "ov-case-" + item.id }, /* @__PURE__ */ React.createElement("div", { className: "ov-case__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ov-case-" + item.id, className: "ov-case__name" }, item.case), /* @__PURE__ */ React.createElement("span", { className: "ov-case__when" }, item.when)), /* @__PURE__ */ React.createElement("p", { className: "ov-case__what" }, item.whatHappened), /* @__PURE__ */ React.createElement("div", { className: "ov-case__foot" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral" }, item.feature), /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: item.url, target: "_blank", rel: "noopener noreferrer" }, TEXT.readSource(item.case), /* @__PURE__ */ React.createElement("span", { className: "ov-link__new" }, " ", COPY.evidenceStrip.newTab), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-up-right-from-square", "aria-hidden": "true" })))));
+  var CAP_ROWS = 5;
+  function capFlagOf(estate, contractId) {
+    const ids = estate.derived[contractId] && estate.derived[contractId].flagIds || [];
+    const id = ids.find((x) => /-(overCap|nearCap)$/.test(x));
+    return id || null;
+  }
+  function CapPanel({ estate }) {
+    const items = capItems(estate);
+    const count = { over: 0, near: 0, ok: 0 };
+    estate.capRows.forEach((r) => {
+      count[r.state] += 1;
+    });
+    const overRows = estate.capRows.filter((r) => r.state === "over");
+    const above = overRows.reduce((s, r) => s + r.excessGBP, 0);
+    return /* @__PURE__ */ React.createElement(
+      Panel,
+      {
+        title: TEXT.capTitle,
+        description: TEXT.capDesc,
+        id: "ov-cap-h",
+        className: "ov-cap",
+        actions: /* @__PURE__ */ React.createElement(Button4, { type: "button", variant: "outline", size: "sm", rightIcon: "arrow-right", onClick: () => navigate("#/spend") }, TEXT.capOpen)
+      },
+      /* @__PURE__ */ React.createElement("ul", { className: "ov-cap__pills", "aria-label": TEXT.capCounts }, ["over", "near", "ok"].map((k) => /* @__PURE__ */ React.createElement("li", { key: k }, /* @__PURE__ */ React.createElement(CapStatePill, { state: k, label: TEXT.capPills[k](count[k]) })))),
+      /* @__PURE__ */ React.createElement("p", { className: "ov-cap__sum" }, /* @__PURE__ */ React.createElement("strong", null, fmtGBP(above)), " ", /* @__PURE__ */ React.createElement("span", null, TEXT.capAbove(overRows.length))),
+      /* @__PURE__ */ React.createElement(
+        BulletList,
+        {
+          items,
+          limit: CAP_ROWS,
+          compact: true,
+          format: fmtGBPCompact,
+          closeAt: estate.opts.nearCapThreshold,
+          tipNote: TEXT.capTipNote,
+          getHref: (r) => capFlagOf(estate, r.id) ? void 0 : "#/spend",
+          onOpen: (r) => {
+            const f = capFlagOf(estate, r.id);
+            if (f) setQuery({ flag: f });
+          }
+        }
+      ),
+      /* @__PURE__ */ React.createElement("p", { className: "ov-cap__all" }, /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/spend" }, TEXT.capAll(estate.capRows.length), /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })))
+    );
   }
   function Overview() {
     const { estate } = useEstate();
@@ -3594,7 +3562,6 @@
     });
     const multiFlag = Object.values(perContract).filter((n) => n > 1).length;
     const cardCounts = Object.values(estate.totals.countByType || {}).reduce((a, b) => a + b, 0);
-    const cov = coverageProps(estate);
     return /* @__PURE__ */ React.createElement("div", { className: "page ov" }, /* @__PURE__ */ React.createElement(
       PageHeader,
       {
@@ -3611,7 +3578,7 @@
         getHref: (type) => "#/opportunities?type=" + type,
         footer: /* @__PURE__ */ React.createElement("div", { className: "ov-sum" }, /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line" }, /* @__PURE__ */ React.createElement("span", { className: "ov-sum__label" }, TEXT.sumLabel), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__eq" }, sumLine(estate.totals))), multiFlag > 0 && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line ov-sum__counts" }, TEXT.countsNote(estate.totals.contractCount, multiFlag, cardCounts)), excluded && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__note", role: "status" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__excluded" }, excluded), /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/opportunities?status=reviewed" }, TEXT.reviewedLink)))
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--2-1 ov-row" }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--halves ov-row" }, /* @__PURE__ */ React.createElement(CapPanel, { estate }), /* @__PURE__ */ React.createElement(
       Panel,
       {
         title: TEXT.radarTitle,
@@ -3627,25 +3594,18 @@
           format: fmtGBPCompact,
           caption: TEXT.radarCaption,
           getHref: () => "#/renewals",
-          attentionHref: "#/renewals"
+          attentionHref: "#/renewals",
+          onOpen: (r) => {
+            if (r.flagId) setQuery({ flag: r.flagId });
+          }
         }
       )
-    ), /* @__PURE__ */ React.createElement(Panel, { title: TEXT.coverageTitle, description: COPY.dataWindowNote(estate.council), id: "ov-cov-h", className: "ov-coverage" }, /* @__PURE__ */ React.createElement(CoverageMeter, { matched: cov.matched, total: cov.total, format: fmtGBPCompact, href: "#/spend/no-contract" }), /* @__PURE__ */ React.createElement("dl", { className: "ov-cov" }, /* @__PURE__ */ React.createElement("div", { className: "ov-cov__row" }, /* @__PURE__ */ React.createElement("dt", null, TEXT.noContractLabel), /* @__PURE__ */ React.createElement("dd", null, fmtGBPCompact(cov.unmatched), /* @__PURE__ */ React.createElement("span", null, TEXT.noContractFoot(cov.suppliers.length)))), cov.pending > 0 && /* @__PURE__ */ React.createElement("div", { className: "ov-cov__row" }, /* @__PURE__ */ React.createElement("dt", null, TEXT.awaitingLabel), /* @__PURE__ */ React.createElement("dd", null, fmtGBPCompact(cov.pending), /* @__PURE__ */ React.createElement("span", null, TEXT.noContractFoot(estate.coverage.awaitingReview.length))))))), /* @__PURE__ */ React.createElement(
-      Panel,
-      {
-        title: COPY.evidenceStrip.heading,
-        description: COPY.evidenceStrip.intro,
-        id: "ov-ev-h",
-        className: "ov-evidence",
-        actions: /* @__PURE__ */ React.createElement("a", { className: "ov-link ov-link--lg", href: "#/evidence" }, COPY.evidenceStrip.all, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }))
-      },
-      /* @__PURE__ */ React.createElement("ul", { className: "ov-cases", "aria-label": COPY.evidenceStrip.heading }, FEATURED.map((item) => /* @__PURE__ */ React.createElement(EvidenceCase, { key: item.id, item })))
-    ), /* @__PURE__ */ React.createElement("section", { className: "kx-card ov-close", "aria-labelledby": "ov-close-h" }, /* @__PURE__ */ React.createElement("div", { className: "ov-close__text" }, /* @__PURE__ */ React.createElement("h2", { id: "ov-close-h", className: "ov-close__line" }, COPY.closePanel.heading), /* @__PURE__ */ React.createElement("p", { className: "ov-close__support" }, TEXT.closeSupport)), /* @__PURE__ */ React.createElement("div", { className: "ov-close__actions" }, /* @__PURE__ */ React.createElement(Button4, { type: "button", leftIcon: "comment-dots", onClick: () => ui.openFeedback() }, COPY.closePanel.primary), /* @__PURE__ */ React.createElement(Button4, { type: "button", variant: "outline", rightIcon: "arrow-right", onClick: () => navigate("#/roadmap") }, COPY.closePanel.secondary))));
+    )), /* @__PURE__ */ React.createElement("section", { className: "kx-card ov-close", "aria-labelledby": "ov-close-h" }, /* @__PURE__ */ React.createElement("div", { className: "ov-close__text" }, /* @__PURE__ */ React.createElement("h2", { id: "ov-close-h", className: "ov-close__line" }, COPY.closePanel.heading), /* @__PURE__ */ React.createElement("p", { className: "ov-close__support" }, TEXT.closeSupport)), /* @__PURE__ */ React.createElement("div", { className: "ov-close__actions" }, /* @__PURE__ */ React.createElement(Button4, { type: "button", leftIcon: "comment-dots", onClick: () => ui.openFeedback() }, COPY.closePanel.primary), /* @__PURE__ */ React.createElement(Button4, { type: "button", variant: "outline", rightIcon: "arrow-right", onClick: () => navigate("#/roadmap") }, COPY.closePanel.secondary))));
   }
 
   // src/views/Opportunities.jsx
   init_react_shim();
-  var import_react28 = __toESM(require_react(), 1);
+  var import_react29 = __toESM(require_react(), 1);
   var { Button: Button5, Input, Select } = ds_default;
   var LABELS = {
     listTitle: "Ranked opportunities",
@@ -3741,15 +3701,15 @@
     const sortParam = query.get("sort");
     const sort = SORT_VALUES.has(sortParam) ? sortParam : "value";
     const qParam = query.get("q") || "";
-    const [text, setText] = (0, import_react28.useState)(qParam);
-    const pushed = (0, import_react28.useRef)(qParam.trim());
-    (0, import_react28.useEffect)(() => {
+    const [text, setText] = (0, import_react29.useState)(qParam);
+    const pushed = (0, import_react29.useRef)(qParam.trim());
+    (0, import_react29.useEffect)(() => {
       if (qParam.trim() !== pushed.current) {
         pushed.current = qParam.trim();
         setText(qParam);
       }
     }, [qParam]);
-    (0, import_react28.useEffect)(() => {
+    (0, import_react29.useEffect)(() => {
       const t = setTimeout(() => {
         const v = text.trim();
         if (v !== pushed.current) {
@@ -3760,9 +3720,9 @@
       return () => clearTimeout(t);
     }, [text]);
     const search = text.trim();
-    const totalsRef = (0, import_react28.useRef)(null);
-    const [view, setView] = (0, import_react28.useState)("list");
-    const all = (0, import_react28.useMemo)(() => {
+    const totalsRef = (0, import_react29.useRef)(null);
+    const [view, setView] = (0, import_react29.useState)("list");
+    const all = (0, import_react29.useMemo)(() => {
       const clauseFor2 = (f) => {
         const t = evidenceFor(f);
         return t ? { label: COPY.buttons.viewClausePage(t.page), href: sourceHref(t, "opportunities") } : null;
@@ -3773,10 +3733,10 @@
         return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null };
       });
     }, [estate]);
-    const bySearch = (0, import_react28.useMemo)(() => all.filter(matcher(search)), [all, search]);
+    const bySearch = (0, import_react29.useMemo)(() => all.filter(matcher(search)), [all, search]);
     const statusOk = (it) => status === "all" ? true : status === "open" ? isOpenStatus(it.status) : !isOpenStatus(it.status);
-    const counts = (0, import_react28.useMemo)(() => opportunityCounts(bySearch.filter(statusOk)), [bySearch, status]);
-    const shown = (0, import_react28.useMemo)(
+    const counts = (0, import_react29.useMemo)(() => opportunityCounts(bySearch.filter(statusOk)), [bySearch, status]);
+    const shown = (0, import_react29.useMemo)(
       () => bySearch.filter(statusOk).filter((it) => !type || it.type === type).sort(SORTERS[sort]),
       [bySearch, status, type, sort]
     );
@@ -3809,7 +3769,7 @@
         ui.toast({ tone: "error", title: title + ".", description: rest.join(". ") });
       }
     };
-    const tableData = (0, import_react28.useMemo)(() => ({
+    const tableData = (0, import_react29.useMemo)(() => ({
       columns: [
         { key: "rank", label: "Rank", align: "right" },
         { key: "type", label: "Type" },
@@ -3869,7 +3829,7 @@
 
   // src/views/Renewals.jsx
   init_react_shim();
-  var import_react29 = __toESM(require_react(), 1);
+  var import_react30 = __toESM(require_react(), 1);
   var TEXT2 = {
     attentionTitle: "Needs attention now",
     attentionDesc: "The notice date has passed, or the contract has ended and you are still paying.",
@@ -3947,8 +3907,8 @@
     };
   }
   function LanesFigure({ title, description, legend, table, footnote, children }) {
-    const uid = (0, import_react29.useId)();
-    const [view, setView] = (0, import_react29.useState)("chart");
+    const uid = (0, import_react30.useId)();
+    const [view, setView] = (0, import_react30.useState)("chart");
     return /* @__PURE__ */ React.createElement("figure", { className: "kviz-fig", "aria-labelledby": uid + "-t" }, /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { id: uid + "-t", className: "kviz-fig__title" }, title), /* @__PURE__ */ React.createElement("p", { className: "kviz-fig__desc" }, description)), /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-btn", "aria-pressed": view === "table", onClick: () => setView(view === "table" ? "chart" : "table") }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + (view === "table" ? "chart-simple" : "table"), "aria-hidden": "true" }), view === "table" ? TEXT2.showChart : TEXT2.showTable))), view === "chart" && legend, /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__body" }, view === "chart" ? children : /* @__PURE__ */ React.createElement(ChartTable, { ...table, caption: title })), /* @__PURE__ */ React.createElement("figcaption", { className: "kviz-fig__note" }, footnote));
   }
   function Lanes({ estate }) {
@@ -3997,15 +3957,15 @@
 
   // src/views/spend/CapTab.jsx
   init_react_shim();
-  var import_react32 = __toESM(require_react(), 1);
+  var import_react33 = __toESM(require_react(), 1);
 
   // src/views/spend/PaymentsDrawer.jsx
   init_react_shim();
-  var import_react31 = __toESM(require_react(), 1);
+  var import_react32 = __toESM(require_react(), 1);
 
   // src/views/spend/PaymentList.jsx
   init_react_shim();
-  var import_react30 = __toESM(require_react(), 1);
+  var import_react31 = __toESM(require_react(), 1);
 
   // src/views/spend/strings.js
   init_react_shim();
@@ -4117,7 +4077,7 @@
   // src/views/spend/PaymentList.jsx
   var sumGBP = (payments) => Math.round(payments.reduce((s, p) => s + p.amountGBP, 0) * 100) / 100;
   function PaymentList({ payments, caption, pageSize = 12, pagerLabel = "Payments pages", withYear = false, yearOf, subtotalLabel, empty = PAY.none, className = "" }) {
-    const [page, setPage] = (0, import_react30.useState)(1);
+    const [page, setPage] = (0, import_react31.useState)(1);
     const pages = Math.max(1, Math.ceil(payments.length / pageSize));
     const current = Math.min(page, pages);
     const shown = payments.slice((current - 1) * pageSize, current * pageSize);
@@ -4160,11 +4120,11 @@
     const c = contract;
     const d = estate.derived[c.id];
     const cap = d.cap;
-    const pay = (0, import_react31.useMemo)(() => paymentsFor(estate, c.id), [estate, c.id]);
+    const pay = (0, import_react32.useMemo)(() => paymentsFor(estate, c.id), [estate, c.id]);
     const years = estate.summaries[c.id].byYear;
     const annual = cap.testable && cap.basis === "annual" && years.length > 0;
     const worst = annual ? years.reduce((m, y) => y.spendGBP > m.spendGBP ? y : m, years[0]) : null;
-    const [sel, setSel] = (0, import_react31.useState)(annual ? String(worst.year) : "all");
+    const [sel, setSel] = (0, import_react32.useState)(annual ? String(worst.year) : "all");
     const yearOfPayment = (p) => {
       const y = years.find((x) => p.date >= x.from && p.date <= x.to);
       return y ? y.year : 0;
@@ -4237,7 +4197,7 @@
   }
   function PayeeDrawer({ payee, onClose }) {
     const { estate } = useEstate();
-    const list = (0, import_react31.useMemo)(() => payee ? estate.data.payments.filter((p) => p.supplierNameRaw === payee).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1) : [], [estate, payee]);
+    const list = (0, import_react32.useMemo)(() => payee ? estate.data.payments.filter((p) => p.supplierNameRaw === payee).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1) : [], [estate, payee]);
     const open = !!payee && list.length > 0;
     const total = sumGBP(list);
     return /* @__PURE__ */ React.createElement(
@@ -4263,8 +4223,8 @@
   function CapTab() {
     const { estate } = useEstate();
     const { query } = useRoute();
-    const [showAll, setShowAll] = (0, import_react32.useState)(false);
-    const [view, setView] = (0, import_react32.useState)("chart");
+    const [showAll, setShowAll] = (0, import_react33.useState)(false);
+    const [view, setView] = (0, import_react33.useState)("chart");
     const closeAt = estate.opts.nearCapThreshold;
     const stateParam = query.get("state");
     const filter = STATE_KEYS.includes(stateParam) ? stateParam : null;
@@ -4272,7 +4232,7 @@
     const payingId = payId && estate.contractsById[payId] ? payId : null;
     const openPayments = (id) => setQuery({ payments: id });
     const closePayments = () => setQuery({ payments: null });
-    const items = (0, import_react32.useMemo)(() => capItems(estate, {
+    const items = (0, import_react33.useMemo)(() => capItems(estate, {
       extraFor: (item, c) => {
         const clause = item.state !== "ok" ? capClauseFor(estate, c.id) : null;
         return /* @__PURE__ */ React.createElement(React.Fragment, null, item.partial && /* @__PURE__ */ React.createElement("span", { className: "cap-note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), " ", COPY.partialCoverageNote(estate.summaries[c.id].coverageFrom)), /* @__PURE__ */ React.createElement("span", { className: "cap-actions" }, clause && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: clause.contractId, extractionId: clause.extractionId, page: clause.page, from: "spend", context: c.title, className: "cap-link" }), /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-textlink cap-link cap-pay", "data-pay-for": c.id, onClick: () => openPayments(c.id) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-list", "aria-hidden": "true" }), " ", CAP.seePayments, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", c.title))));
@@ -4284,7 +4244,7 @@
     const keyOf = (it) => KEY_OF[it.state] || "within";
     const filtered = filter ? items.filter((it) => keyOf(it) === filter) : items;
     const limited = !filter && !showAll && filtered.length > LIMIT;
-    const table = (0, import_react32.useMemo)(() => {
+    const table = (0, import_react33.useMemo)(() => {
       const base = capTable(filtered);
       const byId = Object.fromEntries(items.map((it) => [it.id, it]));
       return {
@@ -4323,7 +4283,7 @@
 
   // src/views/spend/MatchesTab.jsx
   init_react_shim();
-  var import_react33 = __toESM(require_react(), 1);
+  var import_react34 = __toESM(require_react(), 1);
   var { Button: Button8 } = ds_default;
   var STATUS_VALUES2 = ["review", "accepted", "unmatched", "yours"];
   var GROUP_OF = { suggested: "review", auto_accepted: "accepted", unmatched: "unmatched", confirmed: "yours", rejected: "yours" };
@@ -4348,15 +4308,15 @@
     const { estate, state, actions } = useEstate();
     const ui = useUI();
     const { query } = useRoute();
-    const [sort, setSort] = (0, import_react33.useState)({ key: "status", dir: "asc" });
-    const focusAfter = (0, import_react33.useRef)(null);
+    const [sort, setSort] = (0, import_react34.useState)({ key: "status", dir: "asc" });
+    const focusAfter = (0, import_react34.useRef)(null);
     const statusParam = query.get("status");
     const status = STATUS_VALUES2.includes(statusParam) ? statusParam : null;
     const supplierName = (id) => {
       const s = estate.data.suppliers.find((x) => x.id === id);
       return s ? s.legalName : null;
     };
-    const all = (0, import_react33.useMemo)(() => estate.matchList.map((m) => {
+    const all = (0, import_react34.useMemo)(() => estate.matchList.map((m) => {
       const supplier = m.supplierId ? supplierName(m.supplierId) : null;
       return {
         ...m,
@@ -4366,17 +4326,17 @@
         sortValue: { name: m.rawName.toLowerCase(), supplier: supplier || "~", method: matchMethodLabel(m.method), score: m.score, status: PRIORITY[m.status], payments: m.paymentCount, total: m.totalGBP }
       };
     }), [estate]);
-    const counts = (0, import_react33.useMemo)(() => {
+    const counts = (0, import_react34.useMemo)(() => {
       const c = { all: all.length, review: 0, accepted: 0, unmatched: 0, yours: 0 };
       all.forEach((r) => {
         c[r.group] += 1;
       });
       return c;
     }, [all]);
-    const rows = (0, import_react33.useMemo)(() => (status ? all.filter((r) => r.group === status) : all).slice().sort(compare(sort.key, sort.dir)), [all, status, sort]);
+    const rows = (0, import_react34.useMemo)(() => (status ? all.filter((r) => r.group === status) : all).slice().sort(compare(sort.key, sort.dir)), [all, status, sort]);
     const firstSuggested = rows.findIndex((r) => r.status === "suggested");
     const onSort = (key) => setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "total" || key === "payments" || key === "score" ? "desc" : "asc" });
-    (0, import_react33.useEffect)(() => {
+    (0, import_react34.useEffect)(() => {
       const name = focusAfter.current;
       if (!name) return;
       focusAfter.current = null;
@@ -4402,7 +4362,7 @@
       actions.setDecision(m.rawName, null);
       ui.toast({ tone: "info", ...MATCH.undone(m.rawName) });
     };
-    const effects = (0, import_react33.useMemo)(() => all.filter((r) => r.status === "confirmed").flatMap((r) => {
+    const effects = (0, import_react34.useMemo)(() => all.filter((r) => r.status === "confirmed").flatMap((r) => {
       const ids = [...new Set(estate.attributed.filter((a) => a.payment.supplierNameRaw === r.rawName && a.contractId).map((a) => a.contractId))];
       return ids.map((cid) => ({ key: r.rawName + cid, name: r.rawName, cid, contract: estate.contractsById[cid], cap: estate.derived[cid].cap }));
     }), [all, estate]);
@@ -4437,7 +4397,7 @@
 
   // src/views/spend/NoContractTab.jsx
   init_react_shim();
-  var import_react34 = __toESM(require_react(), 1);
+  var import_react35 = __toESM(require_react(), 1);
   function NoContractTab() {
     const { estate } = useEstate();
     const { query } = useRoute();
@@ -4445,8 +4405,8 @@
     const payeeParam = query.get("payee");
     const payee = payeeParam && cov.noContract.some((x) => x.name === payeeParam) ? payeeParam : null;
     const props = coverageProps(estate, { noteFor: () => NOC.rowNote });
-    const cov$ = (0, import_react34.useRef)(null);
-    (0, import_react34.useEffect)(() => {
+    const cov$ = (0, import_react35.useRef)(null);
+    (0, import_react35.useEffect)(() => {
       const bar = cov$.current && cov$.current.querySelector(".kviz-stack");
       if (!bar) return;
       bar.removeAttribute("role");
@@ -4481,7 +4441,7 @@
 
   // src/views/Contracts.jsx
   init_react_shim();
-  var import_react35 = __toESM(require_react(), 1);
+  var import_react36 = __toESM(require_react(), 1);
 
   // src/views/contracts/strings.js
   init_react_shim();
@@ -4625,12 +4585,12 @@
   function Contracts() {
     const { estate, state } = useEstate();
     const { query } = useRoute();
-    const categories = (0, import_react35.useMemo)(() => {
+    const categories = (0, import_react36.useMemo)(() => {
       const counts = /* @__PURE__ */ new Map();
       estate.data.contracts.forEach((c) => counts.set(c.serviceCategory, (counts.get(c.serviceCategory) || 0) + 1));
       return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [estate]);
-    const rows = (0, import_react35.useMemo)(() => {
+    const rows = (0, import_react36.useMemo)(() => {
       const flagCount = {};
       estate.ranked.forEach((f) => {
         flagCount[f.contractId] = (flagCount[f.contractId] || 0) + 1;
@@ -4644,15 +4604,15 @@
     const dirParam = query.get("dir");
     const dir = dirParam === "asc" || dirParam === "desc" ? dirParam : SORTS[sortKey].first;
     const qParam = query.get("q") || "";
-    const [text, setText] = (0, import_react35.useState)(qParam);
-    const pushed = (0, import_react35.useRef)(qParam.trim());
-    (0, import_react35.useEffect)(() => {
+    const [text, setText] = (0, import_react36.useState)(qParam);
+    const pushed = (0, import_react36.useRef)(qParam.trim());
+    (0, import_react36.useEffect)(() => {
       if (qParam.trim() !== pushed.current) {
         pushed.current = qParam.trim();
         setText(qParam);
       }
     }, [qParam]);
-    (0, import_react35.useEffect)(() => {
+    (0, import_react36.useEffect)(() => {
       const t = setTimeout(() => {
         const v = text.trim();
         if (v !== pushed.current) {
@@ -4663,13 +4623,13 @@
       return () => clearTimeout(t);
     }, [text]);
     const search = text.trim();
-    const shown = (0, import_react35.useMemo)(() => {
+    const shown = (0, import_react36.useMemo)(() => {
       const get = SORTS[sortKey].get;
       const sign = dir === "asc" ? 1 : -1;
       return rows.filter(matcher2(search)).filter((r) => !category || r.c.serviceCategory === category).sort((a, b) => sign * compare2(get(a), get(b)) || a.c.id.localeCompare(b.c.id));
     }, [rows, search, category, sortKey, dir]);
     const filtersOn = !!search || !!category;
-    const statusRef = (0, import_react35.useRef)(null);
+    const statusRef = (0, import_react36.useRef)(null);
     const clearFilters = () => {
       pushed.current = "";
       setText("");
@@ -4681,7 +4641,7 @@
       else setQuery({ sort: key, dir: SORTS[key].first });
     };
     const hand = handcheckSummary(state);
-    const sources = (0, import_react35.useMemo)(() => {
+    const sources = (0, import_react36.useMemo)(() => {
       const by = /* @__PURE__ */ new Map();
       estate.data.contracts.forEach((c) => by.set(c.source, (by.get(c.source) || 0) + 1));
       return [...by.entries()].map(([source, n]) => ({ source, n }));
@@ -4856,7 +4816,7 @@
 
   // src/views/contracts/SpendSection.jsx
   init_react_shim();
-  var import_react36 = __toESM(require_react(), 1);
+  var import_react37 = __toESM(require_react(), 1);
   function yearRows(estate, contract) {
     const from = estate.council.spendDataFrom;
     return estate.summaries[contract.id].byYear.map((y) => {
@@ -4871,8 +4831,8 @@
     const cap = contract.cap;
     const annual = !!cap && cap.basis === "annual";
     const closeAt = estate.opts.nearCapThreshold;
-    const series = (0, import_react36.useMemo)(() => cumulativeSeries(estate, contract.id), [estate, contract.id]);
-    const rows = (0, import_react36.useMemo)(() => yearRows(estate, contract), [estate, contract]);
+    const series = (0, import_react37.useMemo)(() => cumulativeSeries(estate, contract.id), [estate, contract.id]);
+    const rows = (0, import_react37.useMemo)(() => yearRows(estate, contract), [estate, contract]);
     const partial = d.spend.coverage === "partial";
     const over = d.cap.testable && d.cap.utilisation > 1 && d.cap.utilisation < 1.35;
     const columns = [
@@ -4916,15 +4876,15 @@
 
   // src/views/contracts/Payments.jsx
   init_react_shim();
-  var import_react37 = __toESM(require_react(), 1);
+  var import_react38 = __toESM(require_react(), 1);
   var PAGE_SIZE = 20;
   function PaymentsSection({ contract, estate }) {
     const P = DETAIL.payments;
-    const pay = (0, import_react37.useMemo)(() => paymentsFor(estate, contract.id), [estate, contract.id]);
-    const suppliers = (0, import_react37.useMemo)(() => Object.fromEntries(estate.data.suppliers.map((s) => [s.id, s.legalName])), [estate]);
-    const [page, setPage] = (0, import_react37.useState)(1);
-    const [sort, setSort] = (0, import_react37.useState)({ key: "date", dir: "desc" });
-    const sorted = (0, import_react37.useMemo)(() => {
+    const pay = (0, import_react38.useMemo)(() => paymentsFor(estate, contract.id), [estate, contract.id]);
+    const suppliers = (0, import_react38.useMemo)(() => Object.fromEntries(estate.data.suppliers.map((s) => [s.id, s.legalName])), [estate]);
+    const [page, setPage] = (0, import_react38.useState)(1);
+    const [sort, setSort] = (0, import_react38.useState)({ key: "date", dir: "desc" });
+    const sorted = (0, import_react38.useMemo)(() => {
       const sign = sort.dir === "asc" ? 1 : -1;
       const get = sort.key === "amount" ? (a) => a.payment.amountGBP : (a) => a.payment.date;
       return [...pay.all].sort((a, b) => {
@@ -5055,7 +5015,7 @@
 
   // src/views/Source.jsx
   init_react_shim();
-  var import_react38 = __toESM(require_react(), 1);
+  var import_react39 = __toESM(require_react(), 1);
   var { Breadcrumb: Breadcrumb2 } = window.Springboard20DesignSystem_019e02;
   var SOURCE_COPY = {
     eyebrow: "Source viewer",
@@ -5141,9 +5101,9 @@
     const blocks = prov && doc ? doc.pages[prov.page] : null;
     const found = !!(blocks && blocks.some((b) => b.extractionIds && b.extractionIds.includes(extraction.id)));
     usePageTitle(found ? prov.clauseRef : void 0);
-    const markRef = (0, import_react38.useRef)(null);
+    const markRef = (0, import_react39.useRef)(null);
     const extractionKey = found ? extraction.id : null;
-    (0, import_react38.useEffect)(() => {
+    (0, import_react39.useEffect)(() => {
       if (!extractionKey) return void 0;
       const main = document.getElementById("shell-main") || document;
       let moved = false;
@@ -5174,9 +5134,9 @@
         ["wheel", "touchmove", "keydown", "pointerdown"].forEach((ev) => main.removeEventListener(ev, onMove));
       };
     }, [extractionKey]);
-    const panelRef = (0, import_react38.useRef)(null);
-    const [sticky, setSticky] = (0, import_react38.useState)(false);
-    (0, import_react38.useEffect)(() => {
+    const panelRef = (0, import_react39.useRef)(null);
+    const [sticky, setSticky] = (0, import_react39.useState)(false);
+    (0, import_react39.useEffect)(() => {
       const panel = panelRef.current;
       const main = document.getElementById("shell-main");
       if (!panel || !main) return void 0;
@@ -5191,7 +5151,7 @@
     const list = contract ? estate.extractionsByContract[contract.id] || [] : [];
     const index = found ? list.findIndex((x) => x.id === extraction.id) : -1;
     const question = found ? estate.data.questions.find((q) => q.id === extraction.questionId) : null;
-    const answer = (0, import_react38.useMemo)(() => found ? answerFor(extraction, contract) : null, [found, extraction, contract]);
+    const answer = (0, import_react39.useMemo)(() => found ? answerFor(extraction, contract) : null, [found, extraction, contract]);
     if (!found) return /* @__PURE__ */ React.createElement(Missing, { contract, from });
     const origin = ORIGINS[from] || ORIGINS.opportunities;
     const backHref = backHrefOf(origin, contract);
@@ -5250,7 +5210,117 @@
 
   // src/views/Method.jsx
   init_react_shim();
-  var import_react39 = __toESM(require_react(), 1);
+  var import_react40 = __toESM(require_react(), 1);
+
+  // src/data/evidence.js
+  init_react_shim();
+  var CHECKED_ON = "2026-10-06";
+  var CHECKED_NOTE = "Every case below was checked against its source on 6 October 2026.";
+  var OPENS_IN_NEW_TAB = "(opens in a new tab)";
+  var evidence = [
+    {
+      id: "exeter",
+      case: "Exeter",
+      when: "June 2025 audit",
+      whatHappened: "Procurement wasn't consistently monitoring supplier spend against contract value; only 42% of supplier payments were linked to a purchase order",
+      feature: "Cap vs actual spend",
+      url: "https://committees.exeter.gov.uk/documents/s100161/SMB.07.02d%20Appendix%204%20Procurement%20Action%20Plan.pdf",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }]
+    },
+    {
+      id: "haringey",
+      case: "Haringey",
+      when: "January 2025",
+      whatHappened: "External auditor raised a value-for-money risk over weak oversight of renewals and KPI monitoring",
+      feature: "Renewal radar",
+      url: "https://www.minutes.haringey.gov.uk/documents/s150205/15.2%20Appendix%202%20-%20Procurement%20Section.pdf",
+      checkedOn: CHECKED_ON,
+      featured: true,
+      featureLinks: [{ "label": "Renewal radar", "href": "#/renewals" }]
+    },
+    {
+      id: "guildford",
+      case: "Guildford",
+      when: "2020\u201323, reported May 2024",
+      whatHappened: "Spent \xA318.9m on a contract with a \xA35.4m maximum; later referred to police as a possible fraud",
+      feature: "Cap vs actual spend",
+      url: "https://localgovernmentlawyer.co.uk/procurement-and-contracts/402-procurement-news/57355-whistleblowing-allegations-at-council-relating-to-13m-contract-overspend-went-unheard-report-suggests",
+      checkedOn: CHECKED_ON,
+      featured: true,
+      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }]
+    },
+    {
+      id: "edinburgh",
+      case: "Edinburgh",
+      when: "2022/23 data, audited 2024",
+      whatHappened: "\xA391m went to the top 100 suppliers with no contract on the register; total non-contracted spend was \xA3134m (Scottish council)",
+      feature: "Contract register built from documents",
+      url: "https://www.edinburgh.gov.uk/downloads/file/35881/cd2402-non-contracted-spend-and-waivers",
+      checkedOn: CHECKED_ON,
+      featured: true,
+      featureLinks: [{ "label": "Contract register built from documents", "href": "#/spend/no-contract" }]
+    },
+    {
+      id: "gedling",
+      case: "Gedling",
+      when: "March 2023 audit",
+      whatHappened: "Only 2 of 10 contracts reviewed had KPIs; two high-value framework contracts missing from the register",
+      feature: "Financial question set",
+      url: "https://democracy.gedling.gov.uk/documents/s34010/GBC%20Contract%20Management%20and%20Procurement%20-Final%20-%20020323%20002.docx.pdf",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Financial question set", "href": "#/contracts" }]
+    },
+    {
+      id: "windsor-maidenhead",
+      case: "Windsor & Maidenhead",
+      when: "Date not stated",
+      whatHappened: "Register was incomplete and inaccurate; rebuilt by contacting about 85 officers",
+      feature: "Contract register built from documents",
+      url: "https://rbwm.moderngov.co.uk/mgAi.aspx?ID=27980",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Contract register built from documents", "href": "#/contracts" }]
+    },
+    {
+      id: "brighton-hove",
+      case: "Brighton & Hove",
+      when: "Date not stated",
+      whatHappened: "Internal audit found housing repairs overpayments via a subcontractor; contractor working with council to refund",
+      feature: "Cap vs actual spend, clause checks",
+      url: "https://democracy.brighton-hove.gov.uk/mgAi.aspx?ID=49681",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Cap vs actual spend", "href": "#/spend" }, { "label": "Clause checks", "href": "#/opportunities?type=overCap" }]
+    },
+    {
+      id: "sefton",
+      case: "Sefton (LGA)",
+      when: "2019",
+      whatHappened: "\xA31.7m potential savings shrank to possibly nil once outliers turned out to have legitimate reasons; its duplicate-payment software couldn't catch charges that differed from contract terms",
+      feature: "Caveat: frame as opportunities; supports reading terms, not just payments",
+      url: "https://www.local.gov.uk/case-studies/testing-savings-around-contract-compliance-and-negotiation",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Caveat: frame as opportunities", "href": "#/method" }, { "label": "Reading terms, not just payments", "href": "#/contracts" }]
+    },
+    {
+      id: "sheffield",
+      case: "Sheffield (LGA)",
+      when: "2012/13",
+      whatHappened: "Saved \xA315.5m across seven contracts, 8% of their annual cost; separately recovered \xA3232,000 from a PFI where excessive indexation had been applied",
+      feature: "Savings opportunities list, uplift check",
+      url: "https://www.local.gov.uk/sites/default/files/documents/L13-795%20Making%20savings%20from%20contract%20management.pdf",
+      checkedOn: CHECKED_ON,
+      featured: false,
+      featureLinks: [{ "label": "Savings opportunities list", "href": "#/opportunities" }, { "label": "Uplift check", "href": "#/opportunities?type=uplift" }]
+    }
+  ];
+  var evidenceById = Object.fromEntries(evidence.map((e) => [e.id, e]));
+
+  // src/views/Method.jsx
   var SECTIONS = COPY.method;
   var IDS = SECTIONS.map((s) => s.id);
   var METHOD_COPY = {
@@ -5332,10 +5402,10 @@
     const ui = useUI();
     const route = useRoute();
     const wanted = route.query.get("s");
-    const [active, setActive] = (0, import_react39.useState)(IDS[0]);
-    const [tocOpen, setTocOpen] = (0, import_react39.useState)(false);
-    const first = (0, import_react39.useRef)(true);
-    (0, import_react39.useEffect)(() => {
+    const [active, setActive] = (0, import_react40.useState)(IDS[0]);
+    const [tocOpen, setTocOpen] = (0, import_react40.useState)(false);
+    const first = (0, import_react40.useRef)(true);
+    (0, import_react40.useEffect)(() => {
       if (!wanted || !IDS.includes(wanted)) {
         first.current = false;
         return void 0;
@@ -5355,7 +5425,7 @@
         cancelAnimationFrame(r2);
       };
     }, [wanted]);
-    (0, import_react39.useEffect)(() => {
+    (0, import_react40.useEffect)(() => {
       const main = document.getElementById("shell-main");
       if (!main) return void 0;
       let raf = 0;
@@ -5683,7 +5753,7 @@
 
   // src/views/Evidence.jsx
   init_react_shim();
-  var import_react40 = __toESM(require_react(), 1);
+  var import_react41 = __toESM(require_react(), 1);
   var PHONE = "(max-width: 1099px)";
   var subscribe2 = (cb) => {
     const m = window.matchMedia(PHONE);
@@ -5691,7 +5761,7 @@
     return () => m.removeEventListener("change", cb);
   };
   function useIsPhone() {
-    return (0, import_react40.useSyncExternalStore)(subscribe2, () => window.matchMedia(PHONE).matches, () => false);
+    return (0, import_react41.useSyncExternalStore)(subscribe2, () => window.matchMedia(PHONE).matches, () => false);
   }
   function ResponsiveTable({ caption, columns, rows, rowKey = "id", phoneTitle }) {
     const phone = useIsPhone();
@@ -5886,11 +5956,11 @@
 
   // src/views/Guide.jsx
   init_react_shim();
-  var import_react42 = __toESM(require_react(), 1);
+  var import_react43 = __toESM(require_react(), 1);
 
   // src/lib/theme.js
   init_react_shim();
-  var import_react41 = __toESM(require_react(), 1);
+  var import_react42 = __toESM(require_react(), 1);
   var THEME_KEY = KEYS.theme;
   var THEME_EVENT = "kontor-theme";
   function getTheme() {
@@ -5907,8 +5977,8 @@
     return t;
   }
   function useTheme() {
-    const [theme, setLocal] = (0, import_react41.useState)(getTheme);
-    (0, import_react41.useEffect)(() => {
+    const [theme, setLocal] = (0, import_react42.useState)(getTheme);
+    (0, import_react42.useEffect)(() => {
       const sync = () => setLocal(getTheme());
       const onStorage = (e) => {
         if (e.key === THEME_KEY && (e.newValue === "light" || e.newValue === "dark")) {
@@ -6633,10 +6703,10 @@
     const ui = useUI();
     const route = useRoute();
     const wanted = route.query.get("s");
-    const [active, setActive] = (0, import_react42.useState)(SECTION_IDS[0]);
-    const f = (0, import_react42.useMemo)(() => guideFacts(estate, state), [estate, state]);
-    const first = (0, import_react42.useRef)(true);
-    (0, import_react42.useEffect)(() => {
+    const [active, setActive] = (0, import_react43.useState)(SECTION_IDS[0]);
+    const f = (0, import_react43.useMemo)(() => guideFacts(estate, state), [estate, state]);
+    const first = (0, import_react43.useRef)(true);
+    (0, import_react43.useEffect)(() => {
       if (!wanted || !SECTION_IDS.includes(wanted)) {
         first.current = false;
         return void 0;
@@ -6656,7 +6726,7 @@
         cancelAnimationFrame(r2);
       };
     }, [wanted]);
-    (0, import_react42.useEffect)(() => {
+    (0, import_react43.useEffect)(() => {
       const main = document.getElementById("shell-main");
       if (!main) return void 0;
       let raf = 0;
@@ -6843,12 +6913,12 @@
 
   // src/lib/useResetDemo.js
   init_react_shim();
-  var import_react43 = __toESM(require_react(), 1);
+  var import_react44 = __toESM(require_react(), 1);
   function useResetDemo() {
     const ui = useUI();
     const { state, actions } = useEstate();
     const changeCount = Object.keys(state.triage || {}).length + Object.keys(state.decisions || {}).length + Object.keys(state.assumptions || {}).length + Object.keys(state.handcheck || {}).length + (state.feedback || []).length;
-    const reset = (0, import_react43.useCallback)(async () => {
+    const reset = (0, import_react44.useCallback)(async () => {
       const start = computeEstate({});
       const headline = fmtGBPCompact(start.totals.totalGBP);
       const contracts = start.totals.contractCount;
@@ -6900,7 +6970,7 @@
 
   // src/components/ToastHost.jsx
   init_react_shim();
-  var import_react44 = __toESM(require_react(), 1);
+  var import_react45 = __toESM(require_react(), 1);
   function ToastHost2() {
     const { toasts } = useUIState();
     const { dismissToast } = useUI();
@@ -6908,7 +6978,7 @@
   }
   function ToastBridge({ children }) {
     const ui = useUI();
-    const api = (0, import_react44.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
+    const api = (0, import_react45.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
     return /* @__PURE__ */ React.createElement(ToastContext.Provider, { value: api }, children);
   }
 
@@ -7019,7 +7089,7 @@
 
   // src/components/FlagDrawer.jsx
   init_react_shim();
-  var import_react45 = __toESM(require_react(), 1);
+  var import_react46 = __toESM(require_react(), 1);
 
   // src/data/reasons.js
   init_react_shim();
@@ -7125,8 +7195,8 @@
     const contract = flag ? estate.contractsById[flag.contractId] : null;
     const derived = flag ? estate.derived[flag.contractId] : null;
     const open = !!(flag && contract && derived);
-    const wasOpen = (0, import_react45.useRef)(false);
-    (0, import_react45.useEffect)(() => {
+    const wasOpen = (0, import_react46.useRef)(false);
+    (0, import_react46.useEffect)(() => {
       if (open) {
         wasOpen.current = true;
         return void 0;
@@ -7141,7 +7211,7 @@
       }, 30);
       return () => clearTimeout(t);
     }, [open]);
-    (0, import_react45.useEffect)(() => {
+    (0, import_react46.useEffect)(() => {
       if (!open) return void 0;
       let frames = 0;
       let raf = 0;
@@ -7222,7 +7292,7 @@
 
   // src/components/overlays/FeedbackDialog.jsx
   init_react_shim();
-  var import_react46 = __toESM(require_react(), 1);
+  var import_react47 = __toESM(require_react(), 1);
   var { Button: Button14, Textarea } = ds_default;
   var TEXT8 = {
     savedTitle: "Saved on this device",
@@ -7263,12 +7333,12 @@
   function FeedbackDialog({ open, onClose }) {
     const { state, actions } = useEstate();
     const ui = useUI();
-    const [answer, setAnswer] = (0, import_react46.useState)("");
-    const [comment, setComment] = (0, import_react46.useState)("");
-    const [error, setError] = (0, import_react46.useState)(null);
-    const group = (0, import_react46.useRef)(null);
+    const [answer, setAnswer] = (0, import_react47.useState)("");
+    const [comment, setComment] = (0, import_react47.useState)("");
+    const [error, setError] = (0, import_react47.useState)(null);
+    const group = (0, import_react47.useRef)(null);
     const saved2 = state.feedback;
-    (0, import_react46.useEffect)(() => {
+    (0, import_react47.useEffect)(() => {
       if (open) {
         setAnswer("");
         setComment("");
@@ -7454,7 +7524,7 @@
 
   // src/components/overlays/MenuPopover.jsx
   init_react_shim();
-  var import_react47 = __toESM(require_react(), 1);
+  var import_react48 = __toESM(require_react(), 1);
   var ITEM = '[role="menuitem"]';
   function placementFor(anchor) {
     try {
@@ -7467,8 +7537,8 @@
   function MenuPopover({ open, anchor, onClose }) {
     const ui = useUI();
     const { reset } = useResetDemo();
-    const list = (0, import_react47.useRef)(null);
-    const [ready, setReady] = (0, import_react47.useState)(false);
+    const list = (0, import_react48.useRef)(null);
+    const [ready, setReady] = (0, import_react48.useState)(false);
     const items = [
       { id: "why", label: "Why this matters", icon: "scale-balanced", href: "#/evidence" },
       { id: "how", label: "How this is calculated", icon: "calculator", href: "#/method" },
@@ -7482,7 +7552,7 @@
       { id: "reset", label: "Reset demo data", icon: "rotate-left", onSelect: () => reset() }
       // also the way to reset on phones, where the header button is hidden
     ];
-    (0, import_react47.useEffect)(() => {
+    (0, import_react48.useEffect)(() => {
       if (!open) {
         setReady(false);
         return void 0;
@@ -7490,7 +7560,7 @@
       const raf = requestAnimationFrame(() => setReady(true));
       return () => cancelAnimationFrame(raf);
     }, [open]);
-    (0, import_react47.useEffect)(() => {
+    (0, import_react48.useEffect)(() => {
       if (!open || !ready || !list.current) return;
       const first = list.current.querySelector(ITEM);
       if (first) first.focus({ preventScroll: true });
