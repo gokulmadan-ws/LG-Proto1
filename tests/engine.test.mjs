@@ -449,7 +449,7 @@ t('copy lint: no "!", no emoji, "saving" only where allowed, no banned button la
   for (const a of Object.values(ActionSeed.SEED_ACTIONS)) walk([a.log.map((l) => l.text), a.notes.map((n) => n.text), a.closeNote].filter(Boolean), 'actions.seed');
   // the action tracker's UI copy (src/lib/actions-copy.js): every string, and every function called with sample arguments
   const actSamples = {
-    'ACT.footer.stage': [['checking']], 'ACT.footer.closed': [['resolved', 188200], ['no_action', 58000]],
+    'ACT.valueText': [[150000, 0], [12400, 31200], [0, 54000]], 'ACT.footer.stage': [['checking']], 'ACT.footer.closed': [['resolved'], ['no_action']],
     'ACT.closedSummary.resolved': [[150000, 0], [12400, 31200], [0, 54000]], 'ACT.closedSummary.on': [['2026-10-06']],
     'ACT.who.dueHelp': [['2026-10-20'], ['2026-10-06'], ['2026-10-01']], 'ACT.steps.done': [[2, 5]],
     'ACT.contacts.source': [["Authority's Representative", 'Clause 3.1', 6]], 'ACT.contacts.why': [['Contract owner', 'Knows if a variation was agreed.']], 'ACT.contacts.supplierRole': [['Contract Director', 'Fennimore Highways Ltd']],
@@ -460,7 +460,7 @@ t('copy lint: no "!", no emoji, "saving" only where allowed, no banned button la
     'ACT.toast.valueNow': [[353100]], 'ACT.toast.headlineNow': [['£6.0m']], 'ACT.toast.moved': [['Street cleansing', 'checking']], 'ACT.toast.reopened': [['Street cleansing', 'to_start']],
     'ACT.dialog.subtitle': [['Street lighting and signage maintenance', 'Price increase above cap', 188200]],
     'ACT.board.columnLabel': [['Checking internally', 2], ['To start', 1]], 'ACT.board.progress': [[2, 5]], 'ACT.board.progressLabel': [[2, 5]],
-    'ACT.board.closedLine': [['£150,000 cash recovered', 'cash', '£188,200', '2026-10-06']], 'ACT.board.closedPlain': [['£58,000', '2026-09-03']],
+    'ACT.board.closedLine': [['£150,000 cash recovered', '£188,200', '2026-10-06']], 'ACT.board.closedPlain': [['£58,000', '2026-09-03']],
     'ACT.board.moveLabel': [['Street cleansing']], 'ACT.board.open': [['Street cleansing']],
     'ACT.results.since': [['2026-05']], 'ACT.results.count': [[1], [4]], 'ACT.results.split': [[4, 1, 1]], 'ACT.results.barLabel': [['May 2026', 12400, 31200]],
     'ACT.home.notStartedFoot': [[15], [1]], 'ACT.home.workingFoot': [[4, 1], [1, 0]], 'ACT.home.valueFoot': [[3, '2026-05'], [1, '2026-10']],

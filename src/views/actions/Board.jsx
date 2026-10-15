@@ -22,10 +22,6 @@ import { useActionCommands } from '../../components/useActionCommands.js';
 const { Button, Select } = DS;
 const B = ACT.board;
 
-function closedValueText(a) {
-  const parts = [a.cashRecoveredGBP > 0 ? `${fmtGBP(a.cashRecoveredGBP)} cash recovered` : null, a.costAvoidedGBP > 0 ? `${fmtGBP(a.costAvoidedGBP)} cost avoided` : null].filter(Boolean);
-  return parts.join(' and ');
-}
 
 function Card({ card, contract, highlight, onOpen, onMove, dragging, setDragging }) {
   const a = card.action;
@@ -36,7 +32,7 @@ function Card({ card, contract, highlight, onOpen, onMove, dragging, setDragging
   const due = dueState(a.due);
   const fresh = !closed && isJustAdded(a.flagId);
   const items = STAGES.filter((s) => s !== a.stage).map((s) => ({ id: s, label: STAGE_LABEL[s], onSelect: () => onMove(f, s) }));
-  const value = closedValueText(a);
+  const value = a.outcome === 'resolved' ? ACT.valueText(a.cashRecoveredGBP, a.costAvoidedGBP) : '';
   return (
     <li className={'acts-card' + (highlight ? ' is-highlight' : '') + (fresh ? ' is-fresh' : '') + (dragging === a.flagId ? ' is-dragging' : '')}
       data-card={a.flagId} draggable="true"
@@ -70,7 +66,7 @@ function Card({ card, contract, highlight, onOpen, onMove, dragging, setDragging
             <OutcomePill outcome={a.outcome} />
             <PersonAvatar person={owner} label={owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned} />
           </div>
-          <p className="acts-card__next">{value ? B.closedLine(value, 'value', fmtGBP(a.flaggedGBP), a.closedAt) : B.closedPlain(fmtGBP(a.flaggedGBP), a.closedAt)}</p>
+          <p className="acts-card__next">{value ? B.closedLine(value, fmtGBP(a.flaggedGBP), a.closedAt) : B.closedPlain(fmtGBP(a.flaggedGBP), a.closedAt)}</p>
         </>
       )}
       <div className="acts-card__foot">
@@ -133,7 +129,7 @@ export default function Board({ route }) {
     return () => clearTimeout(t);
   }, [refocus]);
 
-  const open = (flagId) => setQuery({ flag: flagId, tab: 'action' });
+  const open = (flagId) => { setHighlight(null); setQuery({ flag: flagId, tab: 'action', card: null }); };
   const move = (flag, stage) => {
     if (stage === 'closed') { setClosing(flag.id); return; }
     cmd.move(flag, stage);

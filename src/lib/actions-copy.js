@@ -38,13 +38,15 @@ export const ACT = {
   tabs: { label: 'Opportunity views', details: 'Details', action: 'Action' },
   footer: {
     stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
-    closed: (outcome, gbp) => `Not counted. ${fmtGBP(gbp)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`,
+    closed: (outcome) => `Closed as ${OUTCOME_LABEL[outcome]}.`,
   },
   empty: {
     title: 'Nobody is working on this yet.',
     body: 'Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.',
     button: 'Start action',
   },
+  /** '£150,000 cash recovered' | '£12,400 cash recovered and £31,200 cost avoided' | '' */
+  valueText: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(' and '),
   closedSummary: {
     resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(' and ') + ' (your figures).',
     on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
@@ -120,7 +122,7 @@ export const ACT = {
     justAdded: 'Just added', unassigned: 'No owner yet',
     progress: (d, t) => `${d} of ${t}`, progressLabel: (d, t) => `${d} of ${t} steps done`,
     next: 'Next:', allDone: 'Every step is done. Close the action when you are ready.',
-    closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+    closedLine: (value, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
     closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
     moveTo: 'Move to', moveLabel: (title) => `Move ${title} to another stage`,
     open: (title) => `Open the action for ${title}`,

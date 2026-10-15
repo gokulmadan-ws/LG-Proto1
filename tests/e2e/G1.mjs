@@ -51,7 +51,8 @@ const SECTIONS = [
   ['real', 'What is real and what is not'], ['glossary', 'Words you will see'], ['keys', 'Keyboard and links'], ['faq', 'Questions people ask'],
 ];
 const EMOJI = /\p{Extended_Pictographic}/u;
-const PROPER = new Set(['Kontor', 'Stage', 'Marchbank', 'Borough', 'Council', 'Find', 'Tender', 'Contracts', 'Finder', 'Transparency', 'Code', 'Local', 'Government', 'Needs', 'Explained']);
+// 'Resolved' is a review status name, like 'Explained' (action tracker build spec 7.1)
+const PROPER = new Set(['Kontor', 'Stage', 'Marchbank', 'Borough', 'Council', 'Find', 'Tender', 'Contracts', 'Finder', 'Transparency', 'Code', 'Local', 'Government', 'Needs', 'Explained', 'Resolved']);
 const sentenceCase = (t) => {
   const bad = t.replace(/"[^"]*"/g, '').replace(/[:.,?]/g, '').split(/\s+/).slice(1).filter((w) => /^[A-Z][a-z]/.test(w) && !PROPER.has(w));
   if (bad.length) throw new Error(`not sentence case: "${t}" (${bad.join(', ')})`);
@@ -82,7 +83,7 @@ try {
     eq(await p.locator('#shell-main h1').count(), 1, 'h1 in main');
     eq(await text(p.locator('#shell-main h1')), 'Guide', 'h1 text');
     eq(await p.locator('nav[aria-label="Primary"] [aria-current="page"]').count(), 0, 'rail highlights nothing');
-    eq(await p.locator('nav[aria-label="Primary"] li').count(), 6, 'rail still has six items');
+    eq(await p.locator('nav[aria-label="Primary"] li').count(), 7, 'rail still has seven items (Actions added by the action tracker build spec)');
     eq(await p.locator('#shell-main h2').count(), SECTIONS.length, 'nine section headings');
   });
 
@@ -266,18 +267,21 @@ try {
     }
   });
 
-  await check('screens: nine cards, each with an icon, what it answers, who uses it and a link; Cap vs spend lists its three tabs; links point at real screens', async () => {
+  // The action tracker build spec (8.6) adds an Actions card after Opportunities.
+  await check('screens: ten cards, each with an icon, what it answers, who uses it and a link; Cap vs spend lists its three tabs, Actions its two; links point at real screens', async () => {
     const cards = p.locator('section[aria-labelledby="screens"] .gd-screen');
-    eq(await cards.count(), 9, 'nine cards');
-    eq(await cards.locator('h3').allInnerTexts(), ['Overview', 'Opportunities', 'Renewal radar', 'Cap vs spend', 'Contracts and contract detail', 'Source viewer', 'How this is calculated', 'Roadmap', 'Why this matters'], 'titles');
-    eq(await cards.locator('.gd-screen__icon i').count(), 9, 'icons');
-    eq(await cards.locator('dt', { hasText: 'Answers' }).count(), 9, 'answers');
-    eq(await cards.locator('dt', { hasText: 'Who uses it' }).count(), 9, 'who');
-    const cap = await cards.nth(3).locator('a').evaluateAll((as) => as.map((a) => [a.textContent.trim(), a.getAttribute('href')]));
+    eq(await cards.count(), 10, 'ten cards');
+    eq(await cards.locator('h3').allInnerTexts(), ['Overview', 'Opportunities', 'Actions', 'Renewal radar', 'Cap vs spend', 'Contracts and contract detail', 'Source viewer', 'How this is calculated', 'Roadmap', 'Why this matters'], 'titles');
+    eq(await cards.locator('.gd-screen__icon i').count(), 10, 'icons');
+    eq(await cards.locator('dt', { hasText: 'Answers' }).count(), 10, 'answers');
+    eq(await cards.locator('dt', { hasText: 'Who uses it' }).count(), 10, 'who');
+    const acts = await cards.nth(2).locator('a').evaluateAll((as) => as.map((a) => [a.textContent.trim(), a.getAttribute('href')]));
+    eq(acts, [['Open the Actions board', '#/actions'], ['Open results', '#/actions/results']], 'actions tabs');
+    const cap = await cards.nth(4).locator('a').evaluateAll((as) => as.map((a) => [a.textContent.trim(), a.getAttribute('href')]));
     eq(cap, [['Open cap vs spend', '#/spend'], ['Open supplier matches', '#/spend/matches'], ['See spend with no contract', '#/spend/no-contract']], 'cap vs spend tabs');
     const hrefs = await cards.evaluateAll((els) => els.map((e) => [...e.querySelectorAll('a')].map((a) => a.getAttribute('href'))));
-    eq(hrefs[5], [`#/source/${topClause.contractId}/${topClause.extractionId}?from=opportunities`], 'source viewer link');
-    has(await text(cards.nth(5)), 'Open clause 14.3, page 23', 'source link label');
+    eq(hrefs[6], [`#/source/${topClause.contractId}/${topClause.extractionId}?from=opportunities`], 'source viewer link');
+    has(await text(cards.nth(6)), 'Open clause 14.3, page 23', 'source link label');
   });
 
   await check('numbers: the four cards equal the engine (value, count, basis) and the sum line equals the headline; confidence, notice window and cap states are explained with live counts', async () => {
@@ -314,10 +318,10 @@ try {
     for (const x of ['#/method', '#/evidence', '#/roadmap']) ok(hrefs.some((hh) => hh.startsWith(x)), 'link ' + x);
   });
 
-  await check('glossary: a definition list with all fourteen terms, each one or two short sentences', async () => {
+  await check('glossary: a definition list with all eighteen terms (four from the action tracker), each one or two short sentences', async () => {
     const terms = await p.locator('section[aria-labelledby="glossary"] dl dt').allInnerTexts();
-    eq(terms.length, 14, 'term count');
-    for (const t of ['contract cap or maximum value', 'notice period', 'auto-renewal', 'extension option', 'indexation', 'uplift', 'service credits', 'termination for convenience', 'exit fee', 'transparency code spend file', 'find a tender', 'contracts finder', 'framework', 'buying group']) {
+    eq(terms.length, 18, 'term count');
+    for (const t of ['contract cap or maximum value', 'notice period', 'auto-renewal', 'extension option', 'indexation', 'uplift', 'service credits', 'termination for convenience', 'exit fee', 'transparency code spend file', 'find a tender', 'contracts finder', 'framework', 'buying group', 'action', 'value secured', 'cash recovered', 'cost avoided']) {
       ok(terms.some((x) => x.trim().toLowerCase() === t), 'term ' + t);
     }
     const defs = await p.locator('section[aria-labelledby="glossary"] dl dd').allInnerTexts();
@@ -390,7 +394,13 @@ try {
   await check('a change made in the app moves the Guide (no reload): mark the highways flag Explained in its drawer, come back to the Guide, the headline is £2.8m', async () => {
     const t = await fresh({ hangExternal: true });
     await visit(t, `#/opportunities?flag=${top.id}`);
-    await t.page.getByLabel('Review status').selectOption('explained');
+    // build spec 7.3: Explained goes through the close dialog (one line on what happened)
+    await t.page.locator('.flag-drawer .flag-foot select').selectOption('explained');
+    const dlg = t.page.locator('[role="dialog"].act-close');
+    await dlg.waitFor({ state: 'visible' });
+    await dlg.locator('input[maxlength="140"]').fill('A variation raised the cap.');
+    await dlg.getByRole('button', { name: 'Close action' }).click();
+    await dlg.waitFor({ state: 'detached' });
     await settle(t.page, 300);
     await t.page.keyboard.press('Escape');
     await go(t.page, '#/guide');
@@ -399,16 +409,23 @@ try {
   });
 
   /* ============================================================ the Try actions */
-  await check('try: seven hands-on rows, each with an action; no primary button among them', async () => {
+  // The action tracker build spec (8.6) adds four rows before Reset: start an action, copy the draft email, close one as Resolved, open Results.
+  await check('try: eleven hands-on rows, each with an action; no primary button among them', async () => {
     await visit(t1, '#/guide');
     const rows = p.locator('section[aria-labelledby="try"] .gd-try');
-    eq(await rows.count(), 7, 'seven rows');
-    eq(await rows.locator('h3').allInnerTexts(), ['Switch between dark and light', 'Mark a flag as Explained', 'Confirm a suggested supplier match', 'Change the renewal rate', 'Check an answer by hand', 'Share a link', 'Reset your changes'], 'titles');
-    eq(await rows.locator('.gd-expect').count(), 7, 'every row says what you should see');
+    eq(await rows.count(), 11, 'eleven rows');
+    eq(await rows.locator('h3').allInnerTexts(), ['Switch between dark and light', 'Mark a flag as Explained', 'Confirm a suggested supplier match', 'Change the renewal rate', 'Check an answer by hand', 'Share a link',
+      'Start an action', 'Copy the draft email', 'Close an action as Resolved', 'Open the results', 'Reset your changes'], 'titles');
+    eq(await rows.locator('.gd-expect').count(), 11, 'every row says what you should see');
     const acts = await rows.locator('.gd-try__action').evaluateAll((els) => els.map((e) => [...e.querySelectorAll('a,button')].map((x) => [x.tagName, x.textContent.trim(), x.getAttribute('href')])));
-    eq(acts.map((a) => a[0][1]), ['Switch to light mode', 'Open the top spend over cap flag', 'Open supplier matches', 'Open settings', 'Open clause 14.3, page 23', 'Open spend over cap', 'Reset demo data'], 'actions');
+    eq(acts.map((a) => a[0][1]), ['Switch to light mode', 'Open the top spend over cap flag', 'Open supplier matches', 'Open settings', 'Open clause 14.3, page 23', 'Open spend over cap',
+      'Open the highways flag', 'Open the Action tab', 'Open the Actions board', 'Open results', 'Reset demo data'], 'actions');
     eq(acts[1][0][2], `#/opportunities?flag=${top.id}`, 'explain link'); eq(acts[2][0][2], '#/spend/matches', 'matches link'); eq(acts[5][0][2], '#/opportunities?type=overCap', 'share link');
-    has(await sec(p, 'try'), 'Open the top spend over cap flag. In the panel, set Review status to Explained.', 'explain steps');
+    eq(acts.slice(6, 10).map((a) => a[0][2]), [`#/opportunities?flag=${top.id}`, `#/opportunities?flag=${top.id}&tab=action`, '#/actions', '#/actions/results'], 'action tracker links');
+    has(await sec(p, 'try'), 'Open the top spend over cap flag. In the panel, set Review status to Explained and add one line on what happened.', 'explain steps');
+    const tr = await sec(p, 'try');
+    has(tr, 'Set Dana Okafor as the owner, then choose Copy email.', 'the owner from clause 3');
+    has(tr, 'Choose Resolved and enter £150,000 cash recovered.', 'close step'); has(tr, 'Value secured goes from £203,100 to £353,100.', 'value secured, computed');
   });
 
   await check('try: Switch to light mode flips the theme at once and the label flips; the default is dark', async () => {

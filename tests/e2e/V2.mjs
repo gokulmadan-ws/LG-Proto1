@@ -57,6 +57,20 @@ const settle = (page, ms = 120) => page.waitForTimeout(ms);
 const drawer = (page) => page.locator('[role="dialog"].flag-drawer');
 const openDrawerById = async (page, id) => { await go(page, '#/opportunities?flag=' + id); await drawer(page).waitFor({ state: 'visible' }); await settle(page, 260); };
 const drawerText = (page) => drawer(page).innerText();
+// Action tracker build spec 7.3: Resolved, Explained and No action go through the close dialog first (one line on what happened is required).
+const CLOSE_DIALOG = '[role="dialog"].act-close';
+async function review(page, value, note = 'Checked against the contract file.') {
+  await drawer(page).locator('.flag-foot select').selectOption(value);
+  if (['resolved', 'explained', 'not_an_issue'].includes(value)) {
+    const dlg = page.locator(CLOSE_DIALOG);
+    await dlg.waitFor({ state: 'visible' });
+    await dlg.locator('input[maxlength="140"]').fill(note);
+    await dlg.getByRole('button', { name: 'Close action' }).click();
+    await dlg.waitFor({ state: 'detached' });
+  }
+}
+// The demo starts with four example actions, all Under review (build spec 6.6): they are in kontor-triage once anything is saved.
+const SEED_TRIAGE = { 'F-C-007-overCap': 'under_review', 'F-C-001-nearCap': 'under_review', 'F-C-003-renewal': 'under_review', 'F-C-004-uplift': 'under_review' };
 const csvParse = (text) => {
   const out = []; let row = [], cell = '', q = false;
   for (let i = 0; i < text.length; i++) {
@@ -519,21 +533,29 @@ try {
   });
 
   /* ------------------------------------------------------------ R61 triage */
-  await check('R61 mark F-C-005-overCap Explained: headline falls to £2,795,238 (£2.8m) live, the row leaves Open, the toast says so, the drawer stays open', async () => {
+  await check('R61 mark F-C-005-overCap Explained: the close dialog asks first, then the headline falls to £2,795,238 (£2.8m) live, the row leaves Open, the toast says so, the drawer stays open', async () => {
     await go(page, '#/opportunities');
     await page.locator(LIST).nth(0).locator('.kviz-row__link').click();
     await drawer(page).waitFor({ state: 'visible' });
     await settle(page, 260);
     eq(await drawer(page).locator('select').inputValue(), 'to_investigate', 'default status');
-    eq((await drawer(page).locator('select option').allTextContents()), ['To investigate', 'Under review', 'Explained', 'No action'], 'options');
+    eq((await drawer(page).locator('select option').allTextContents()), ['To investigate', 'Under review', 'Resolved', 'Explained', 'No action'], 'options (build spec 7.1 adds Resolved)');
+    // Cancel leaves the status as it was
     await drawer(page).locator('select').selectOption('explained');
+    await page.locator(CLOSE_DIALOG).waitFor({ state: 'visible' });
+    eq(await page.locator(CLOSE_DIALOG).locator('input[type="radio"]:checked').inputValue(), 'explained', 'Explained is preselected');
+    await page.locator(CLOSE_DIALOG).getByRole('button', { name: 'Cancel' }).click();
+    await page.locator(CLOSE_DIALOG).waitFor({ state: 'detached' });
+    eq(await drawer(page).locator('select').inputValue(), 'to_investigate', 'Cancel keeps the status');
+    eq(await totals(page), 'Showing 19 opportunities, £6,145,238 indicative', 'Cancel keeps the headline');
+    await review(page, 'explained', 'A variation raised the cap.');
     await settle(page, 300);
     ok(await drawer(page).isVisible(), 'drawer still open (driven from flagsById)');
     const txt = (await drawerText(page)).replace(/\s+/g, ' ');
     ok(txt.includes('Not counted. £3,350,000 is excluded from the headline after your review.'), 'excluded hint: ' + txt.slice(-200));
     ok(await drawer(page).locator('.kviz-pill', { hasText: 'Explained' }).count() > 0, 'Explained pill');
     const toast = (await page.locator('.kx-toasts').innerText()).replace(/\s+/g, ' ');
-    ok(toast.includes('Highways reactive maintenance and minor works: marked Explained.') && toast.includes('The headline is now £2.8m.'), 'toast: ' + toast);
+    ok(toast.includes('Highways reactive maintenance and minor works: closed as Explained.') && toast.includes('The headline is now £2.8m.'), 'toast: ' + toast);
     await page.keyboard.press('Escape');
     await drawer(page).waitFor({ state: 'detached' });
     eq(await totals(page), 'Showing 18 opportunities, £2,795,238 indicative', 'totals bar');
@@ -563,7 +585,8 @@ try {
     await page.reload(); await page.waitForSelector(LIST);
     eq(await hash(page), '#/opportunities?status=all', 'address survives');
     eq(await totals(page), 'Showing 19 opportunities, £2,795,238 indicative', 'totals after reload');
-    eq(await page.evaluate(() => JSON.parse(localStorage.getItem('kontor-triage'))), { 'F-C-005-overCap': 'explained' }, 'stored');
+    eq(await page.evaluate(() => JSON.parse(localStorage.getItem('kontor-triage'))), { ...SEED_TRIAGE, 'F-C-005-overCap': 'explained' }, 'stored');
+    eq(await page.evaluate(() => { const a = JSON.parse(localStorage.getItem('kontor-actions'))['F-C-005-overCap']; return [a.stage, a.outcome, a.closeNote]; }), ['closed', 'explained', 'A variation raised the cap.'], 'the action is closed too');
     await go(page, '#/overview');
     const h1 = (await page.locator('#shell-main h1').innerText()).replace(/\s+/g, ' ').trim();
     if (/across \d+ contracts?/.test(h1)) {
@@ -573,7 +596,7 @@ try {
   });
   await check('R61 set it back (To investigate): the row returns to Open and the headline returns to £6,145,238', async () => {
     await openDrawerById(page, 'F-C-005-overCap');
-    await drawer(page).locator('select').selectOption('to_investigate');
+    await review(page, 'to_investigate');
     await settle(page, 300);
     const toast = (await page.locator('.kx-toasts').innerText()).replace(/\s+/g, ' ');
     ok(toast.includes('The headline is now £6.1m.'), 'toast: ' + toast);
@@ -581,31 +604,31 @@ try {
     await drawer(page).waitFor({ state: 'detached' });
     await go(page, '#/opportunities');
     eq(await totals(page), 'Showing 19 opportunities, £6,145,238 indicative', 'totals');
-    eq(await page.evaluate(() => localStorage.getItem('kontor-triage')), '{}', 'cleared from storage');
+    eq(await page.evaluate(() => JSON.parse(localStorage.getItem('kontor-triage'))), SEED_TRIAGE, 'cleared from storage (the example actions stay)');
   });
   await check('R61 Under review stays in Open and in the headline; No action excludes like Explained; two reviews give £2,035,238', async () => {
-    await openDrawerById(page, 'F-C-007-overCap');
-    await drawer(page).locator('select').selectOption('under_review');
+    await openDrawerById(page, 'F-C-005-overCap');
+    await review(page, 'under_review');
     await settle(page, 250);
-    ok((await drawerText(page)).includes('Counted in the headline.'), 'still counted');
+    ok((await drawerText(page)).includes('Counted in the headline. Stage: To start.'), 'still counted, and on the board');
     await page.keyboard.press('Escape');
     await drawer(page).waitFor({ state: 'detached' });
     eq(await totals(page), 'Showing 19 opportunities, £6,145,238 indicative', 'under review keeps the total');
-    ok((await page.locator(LIST).nth(1).innerText()).includes('Under review'), 'Under review pill on the row');
+    ok((await page.locator(LIST).nth(0).innerText()).includes('Under review'), 'Under review pill on the row');
     await openDrawerById(page, 'F-C-005-overCap');
-    await drawer(page).locator('select').selectOption('explained');
+    await review(page, 'explained');
     await settle(page, 200);
-    await drawer(page).locator('select').selectOption('not_an_issue');
+    await review(page, 'not_an_issue');
     await settle(page, 200);
-    ok((await page.locator('.kx-toasts').innerText()).includes('marked No action'), 'No action toast');
-    await drawer(page).locator('select').selectOption('to_investigate');
+    ok((await page.locator('.kx-toasts').innerText()).includes('closed as No action'), 'No action toast');
+    await review(page, 'to_investigate');
     await settle(page, 200);
     await go(page, '#/opportunities');
     await openDrawerById(page, 'F-C-007-overCap');
-    await drawer(page).locator('select').selectOption('not_an_issue');
+    await review(page, 'not_an_issue');
     await settle(page, 200);
     await openDrawerById(page, 'F-C-005-overCap');
-    await drawer(page).locator('select').selectOption('explained');
+    await review(page, 'explained');
     await settle(page, 200);
     await page.keyboard.press('Escape');
     await drawer(page).waitFor({ state: 'detached' });
@@ -613,7 +636,7 @@ try {
     await go(page, '#/opportunities');
     for (const id of ['F-C-005-overCap', 'F-C-007-overCap']) {
       await openDrawerById(page, id);
-      await drawer(page).locator('select').selectOption('to_investigate');
+      await review(page, 'to_investigate');
       await settle(page, 150);
       await go(page, '#/opportunities');
     }
@@ -633,7 +656,7 @@ try {
     const d = await h.newPage({ theme: 'dark', blockStorage: true });
     await visit(d, '#/opportunities?flag=F-C-005-overCap');
     await drawer(d.page).waitFor({ state: 'visible' });
-    await drawer(d.page).locator('select').selectOption('explained');
+    await review(d.page, 'explained');
     await settle(d.page, 250);
     ok((await drawerText(d.page)).includes('Your browser is blocking local storage'), 'storage note');
     await d.page.keyboard.press('Escape');
@@ -651,7 +674,8 @@ try {
     const head = await tbl.locator('thead th').allTextContents();
     eq(head, ['Rank', 'Type', 'Contract', 'Supplier', 'Indicative value', 'Basis', 'Act by', 'Confidence', 'Review status', 'Clause'], 'columns');
     const first = (await tbl.locator('tbody tr').nth(0).innerText()).replace(/\s+/g, ' ');
-    ok(first.includes('£310,000') && first.includes('Per year') && first.includes('31 Oct 2026') && first.includes('High confidence') && first.includes('To investigate'), 'first row: ' + first);
+    // Waste collection is one of the four example actions (build spec 6.6): Under review, with its board stage and owner
+    ok(first.includes('£310,000') && first.includes('Per year') && first.includes('31 Oct 2026') && first.includes('High confidence') && first.includes('Under review (With supplier · SA)'), 'first row: ' + first);
     await tbl.locator('tbody tr').nth(0).locator('button').click();
     await drawer(page).waitFor({ state: 'visible' });
     eq(await hash(page), '#/opportunities?type=renewal&flag=F-C-003-renewal', 'drawer from the table keeps the filter');

@@ -4281,13 +4281,15 @@
     tabs: { label: "Opportunity views", details: "Details", action: "Action" },
     footer: {
       stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
-      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
+      closed: (outcome) => `Closed as ${OUTCOME_LABEL[outcome]}.`
     },
     empty: {
       title: "Nobody is working on this yet.",
       body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
       button: "Start action"
     },
+    /** '£150,000 cash recovered' | '£12,400 cash recovered and £31,200 cost avoided' | '' */
+    valueText: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and "),
     closedSummary: {
       resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
       on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
@@ -4397,7 +4399,7 @@
       progressLabel: (d, t) => `${d} of ${t} steps done`,
       next: "Next:",
       allDone: "Every step is done. Close the action when you are ready.",
-      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      closedLine: (value, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
       closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
       moveTo: "Move to",
       moveLabel: (title) => `Move ${title} to another stage`,
@@ -8068,10 +8070,6 @@
   // src/views/actions/Board.jsx
   var { Button: Button14, Select: Select4 } = ds_default;
   var B = ACT.board;
-  function closedValueText(a) {
-    const parts2 = [a.cashRecoveredGBP > 0 ? `${fmtGBP(a.cashRecoveredGBP)} cash recovered` : null, a.costAvoidedGBP > 0 ? `${fmtGBP(a.costAvoidedGBP)} cost avoided` : null].filter(Boolean);
-    return parts2.join(" and ");
-  }
   function Card({ card, contract, highlight, onOpen, onMove, dragging, setDragging }) {
     const a = card.action;
     const f = card.flag;
@@ -8081,7 +8079,7 @@
     const due = dueState(a.due);
     const fresh = !closed2 && isJustAdded(a.flagId);
     const items = STAGES.filter((s) => s !== a.stage).map((s) => ({ id: s, label: STAGE_LABEL[s], onSelect: () => onMove(f, s) }));
-    const value = closedValueText(a);
+    const value = a.outcome === "resolved" ? ACT.valueText(a.cashRecoveredGBP, a.costAvoidedGBP) : "";
     return /* @__PURE__ */ React.createElement(
       "li",
       {
@@ -8101,7 +8099,7 @@
       !closed2 && /* @__PURE__ */ React.createElement("p", { className: "acts-card__value" }, fmtGBP(card.value)),
       !closed2 && /* @__PURE__ */ React.createElement("div", { className: "acts-card__prog" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner, label: owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned }), /* @__PURE__ */ React.createElement("span", { className: "acts-prog", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { style: { width: (prog.total ? prog.done / prog.total * 100 : 0) + "%" } })), /* @__PURE__ */ React.createElement("span", { className: "acts-card__count", "aria-label": B.progressLabel(prog.done, prog.total) }, B.progress(prog.done, prog.total))),
       !closed2 && /* @__PURE__ */ React.createElement("p", { className: "acts-card__next" }, prog.next ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, B.next), " ", prog.next.text) : B.allDone),
-      closed2 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "acts-card__prog" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: a.outcome }), /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner, label: owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned })), /* @__PURE__ */ React.createElement("p", { className: "acts-card__next" }, value ? B.closedLine(value, "value", fmtGBP(a.flaggedGBP), a.closedAt) : B.closedPlain(fmtGBP(a.flaggedGBP), a.closedAt))),
+      closed2 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "acts-card__prog" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: a.outcome }), /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner, label: owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned })), /* @__PURE__ */ React.createElement("p", { className: "acts-card__next" }, value ? B.closedLine(value, fmtGBP(a.flaggedGBP), a.closedAt) : B.closedPlain(fmtGBP(a.flaggedGBP), a.closedAt))),
       /* @__PURE__ */ React.createElement("div", { className: "acts-card__foot" }, /* @__PURE__ */ React.createElement(MenuButton, { label: B.moveLabel(contract.title), items, icon: "arrow-right-arrow-left", variant: "ghost", size: "sm", placement: "bottom-start" }, B.moveTo, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ": ", contract.title)))
     );
   }
@@ -8160,7 +8158,10 @@
       }, 30);
       return () => clearTimeout(t);
     }, [refocus]);
-    const open = (flagId) => setQuery({ flag: flagId, tab: "action" });
+    const open = (flagId) => {
+      setHighlight(null);
+      setQuery({ flag: flagId, tab: "action", card: null });
+    };
     const move = (flag, stage) => {
       if (stage === "closed") {
         setClosing(flag.id);
@@ -9078,7 +9079,7 @@ ${email.body}` : "";
         },
         options: contacts.map((c) => ({ value: c.id, label: ACT.email.toOption(c.name, c.email) }))
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "act-mail__text", ref: mailRef }, /* @__PURE__ */ React.createElement("p", { className: "act-mail__subject" }, /* @__PURE__ */ React.createElement("span", { className: "act-mail__label" }, ACT.email.subject), " ", /* @__PURE__ */ React.createElement("span", { "data-mail-subject": true }, mail.subject)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__body", role: "textbox", "aria-readonly": "true", "aria-multiline": "true", "aria-label": ACT.email.body, tabIndex: 0, "data-mail-body": true }, mail.body)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__foot" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__btns" }, /* @__PURE__ */ React.createElement(Button15, { type: "button", leftIcon: "copy", onClick: copy }, ACT.email.copy), /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", leftIcon: "paper-plane", onClick: markSent }, ACT.email.sent)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__hint" }, ACT.email.hint)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__msg", role: "status", "aria-live": "polite" }, msg))), /* @__PURE__ */ React.createElement(Section3, { n: 5, title: ACT.exit.title, note: ACT.exit.note, id: `${uid}-exit` }, /* @__PURE__ */ React.createElement("dl", { className: "act-exit" }, facts.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "act-exit__fact" }, /* @__PURE__ */ React.createElement("dt", null, f.label), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "act-exit__val" }, f.value), f.src && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: f.src.id, page: f.src.page, from, context: f.label }, ACT.exit.clause(f.src.clauseRef, f.src.page))))))), /* @__PURE__ */ React.createElement(Section3, { n: 6, title: ACT.activity.title, id: `${uid}-activity` }, /* @__PURE__ */ React.createElement("form", { className: "act-note", onSubmit: addNote2 }, /* @__PURE__ */ React.createElement(Field, { label: ACT.activity.noteLabel, hideLabel: true }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", maxLength: 500, autoComplete: "off", placeholder: ACT.activity.noteLabel, value: noteText, onChange: (e) => setNoteText(e.target.value) })), /* @__PURE__ */ React.createElement(Button15, { type: "submit", variant: "outline" }, ACT.activity.addNote)), activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "act-activity__empty" }, ACT.activity.empty) : /* @__PURE__ */ React.createElement("ol", { className: "act-activity" }, activity.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.kind + l.i, className: "act-activity__item" + (l.kind === "note" ? " is-note" : "") }, /* @__PURE__ */ React.createElement("i", { className: l.kind === "note" ? "fa-regular fa-note-sticky" : "fa-regular fa-circle", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "act-activity__when" }, whenText(l.at)), /* @__PURE__ */ React.createElement("span", { className: "act-activity__text" }, l.kind === "note" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ACT.activity.noteTag, ": "), l.text) : l.text.startsWith("You ") ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "You"), l.text.slice(3)) : l.text))))));
+    ))), /* @__PURE__ */ React.createElement("div", { className: "act-mail__text", ref: mailRef }, /* @__PURE__ */ React.createElement("p", { className: "act-mail__subject" }, /* @__PURE__ */ React.createElement("span", { className: "act-mail__label" }, ACT.email.subject), " ", /* @__PURE__ */ React.createElement("span", { "data-mail-subject": true }, mail.subject)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__body", role: "textbox", "aria-readonly": "true", "aria-multiline": "true", "aria-label": ACT.email.body, tabIndex: 0, "data-mail-body": true }, mail.body)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__foot" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__btns" }, /* @__PURE__ */ React.createElement(Button15, { type: "button", leftIcon: "copy", onClick: copy }, ACT.email.copy), /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", leftIcon: "paper-plane", onClick: markSent }, ACT.email.sent)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__hint" }, ACT.email.hint)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__msg", role: "status", "aria-live": "polite" }, msg))), /* @__PURE__ */ React.createElement(Section3, { n: 5, title: ACT.exit.title, note: ACT.exit.note, id: `${uid}-exit` }, /* @__PURE__ */ React.createElement("dl", { className: "act-exit" }, facts.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "act-exit__fact" }, /* @__PURE__ */ React.createElement("dt", null, f.label), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "act-exit__val" }, f.value), f.src && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: f.src.id, page: f.src.page, from, context: f.label }, ACT.exit.clause(f.src.clauseRef, f.src.page))))))), /* @__PURE__ */ React.createElement(Section3, { n: 6, title: ACT.activity.title, id: `${uid}-activity` }, /* @__PURE__ */ React.createElement("form", { className: "act-note", onSubmit: addNote2 }, /* @__PURE__ */ React.createElement(Field, { label: ACT.activity.noteLabel, hideLabel: true }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", maxLength: 500, autoComplete: "off", placeholder: ACT.activity.noteLabel, value: noteText, onChange: (e) => setNoteText(e.target.value) })), /* @__PURE__ */ React.createElement(Button15, { type: "submit", variant: "outline" }, ACT.activity.addNote)), activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "act-activity__empty" }, ACT.activity.empty) : /* @__PURE__ */ React.createElement("ol", { className: "act-activity" }, activity.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.kind + l.i, className: "act-activity__item" + (l.kind === "note" ? " is-note" : "") }, /* @__PURE__ */ React.createElement("i", { className: l.kind === "note" ? "fa-regular fa-note-sticky" : "fa-regular fa-circle", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "act-activity__when" }, whenText(l.at), /* @__PURE__ */ React.createElement("span", { className: "act-activity__sep", "aria-hidden": "true" }, " \xB7 ")), /* @__PURE__ */ React.createElement("span", { className: "act-activity__text" }, l.kind === "note" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ACT.activity.noteTag, ": "), l.text) : l.text.startsWith("You ") ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "You"), l.text.slice(3)) : l.text))))));
   }
 
   // src/components/FlagDrawer.jsx
@@ -9169,7 +9170,7 @@ ${email.body}` : "";
       const from = RAIL_IDS.has(route.name) ? route.name : "opportunities";
       const reasons2 = reasonsFor(flag);
       const action = activeAction(state.actions, flag.id);
-      const hint = flag.indicativeGBP === 0 ? TEXT6.zeroValue : action && action.stage === "closed" && reviewed ? ACT.footer.closed(action.outcome, flag.indicativeGBP) : reviewed ? TEXT6.excluded(flag.indicativeGBP) : action ? ACT.footer.stage(action.stage) : TEXT6.counted;
+      const hint = flag.indicativeGBP === 0 ? TEXT6.zeroValue : action && action.stage === "closed" && reviewed ? `${TEXT6.excluded(flag.indicativeGBP)} ${ACT.footer.closed(action.outcome)}` : reviewed ? TEXT6.excluded(flag.indicativeGBP) : action ? ACT.footer.stage(action.stage) : TEXT6.counted;
       const onTriage = (value) => {
         if (value === status) return;
         if (value === "under_review") cmd.start(flag);

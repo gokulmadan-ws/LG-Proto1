@@ -134,7 +134,7 @@ export default function FlagDrawer() {
     const reasons = reasonsFor(flag);
     const action = activeAction(state.actions, flag.id);
     const hint = flag.indicativeGBP === 0 ? TEXT.zeroValue
-      : action && action.stage === 'closed' && reviewed ? ACT.footer.closed(action.outcome, flag.indicativeGBP)
+      : action && action.stage === 'closed' && reviewed ? `${TEXT.excluded(flag.indicativeGBP)} ${ACT.footer.closed(action.outcome)}`
         : reviewed ? TEXT.excluded(flag.indicativeGBP)
           : action ? ACT.footer.stage(action.stage) : TEXT.counted;
 

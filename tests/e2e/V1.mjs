@@ -373,7 +373,7 @@ try {
     eq(lv[0], 1, 'first is h1');
     eq(lv.filter((x) => x === 1).length, 1, 'one h1');
     lv.forEach((x, i) => { if (i > 0) ok(x - lv[i - 1] <= 1, 'skipped a level at ' + i + ': ' + lv.join(',')); });
-    eq(await page.$$eval('#shell-main h2', (hs) => hs.map((x) => x.textContent.trim())), ['Where the total comes from', 'Cap vs spend', 'Renewals coming up', CLOSE_LINE], 'h2 sections');
+    eq(await page.$$eval('#shell-main h2', (hs) => hs.map((x) => x.textContent.trim())), ['Where the total comes from', 'Action progress', 'Cap vs spend', 'Renewals coming up', CLOSE_LINE], 'h2 sections');
   });
 
   /* ============================================================ OVERVIEW: keyboard */
@@ -468,7 +468,13 @@ try {
     const drawer = d.page.locator('[role="dialog"].flag-drawer');
     await drawer.waitFor({ state: 'visible' });
     await settle(d.page, 300);
-    await drawer.locator('select').selectOption('explained');
+    // build spec 7.3: Explained goes through the close dialog (one line on what happened)
+    await drawer.locator('.flag-foot select').selectOption('explained');
+    const dlg = d.page.locator('[role="dialog"].act-close');
+    await dlg.waitFor({ state: 'visible' });
+    await dlg.locator('input[maxlength="140"]').fill('A variation raised the cap.');
+    await dlg.getByRole('button', { name: 'Close action' }).click();
+    await dlg.waitFor({ state: 'detached' });
     await settle(d.page, 300);
     await d.page.keyboard.press('Escape');
     await drawer.waitFor({ state: 'detached' });
@@ -477,11 +483,12 @@ try {
     await d.page.waitForSelector('.ov');
     eq(await text(d.page.locator(ov.h1)), '£2.8m across 15 contracts flagged as opportunities to investigate', 'headline after the review');
     eq(await text(d.page.locator('.ov-sum__excluded')), '£3,350,000 excluded after your review.', 'excluded note');
-    eq(await d.page.evaluate(() => JSON.parse(localStorage.getItem('kontor-triage'))), { 'F-C-005-overCap': 'explained' }, 'stored');
+    // the four example actions are Under review from the start (build spec 6.6), so they are saved alongside
+    eq(await d.page.evaluate(() => JSON.parse(localStorage.getItem('kontor-triage'))), { 'F-C-007-overCap': 'under_review', 'F-C-001-nearCap': 'under_review', 'F-C-003-renewal': 'under_review', 'F-C-004-uplift': 'under_review', 'F-C-005-overCap': 'explained' }, 'stored');
     await go(d.page, '#/opportunities?flag=F-C-005-overCap');
     await drawer.waitFor({ state: 'visible' });
     await settle(d.page, 300);
-    await drawer.locator('select').selectOption('to_investigate');
+    await drawer.locator('.flag-foot select').selectOption('to_investigate');
     await settle(d.page, 300);
     await d.page.keyboard.press('Escape');
     await go(d.page, '#/overview');

@@ -238,7 +238,7 @@ export default function ActionPanel({ flag, contract, derived, action, from, onS
               {activity.map((l) => (
                 <li key={l.kind + l.i} className={'act-activity__item' + (l.kind === 'note' ? ' is-note' : '')}>
                   <i className={l.kind === 'note' ? 'fa-regular fa-note-sticky' : 'fa-regular fa-circle'} aria-hidden="true" />
-                  <span className="act-activity__when">{whenText(l.at)}</span>
+                  <span className="act-activity__when">{whenText(l.at)}<span className="act-activity__sep" aria-hidden="true"> · </span></span>
                   <span className="act-activity__text">
                     {l.kind === 'note' ? <><span className="sr-only">{ACT.activity.noteTag}: </span>{l.text}</> : l.text.startsWith('You ') ? <><b>You</b>{l.text.slice(3)}</> : l.text}
                   </span>
