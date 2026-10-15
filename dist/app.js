@@ -360,7 +360,7 @@
       const t = typeof arg === "string" ? { title: arg } : arg || {};
       idRef.current += 1;
       const id = idRef.current;
-      const item = { id, tone: t.tone || t.type || "info", title: t.title || "", description: (t.description != null ? t.description : t.message) || "", duration: t.duration, persist: t.persist };
+      const item = { id, tone: t.tone || t.type || "info", title: t.title || "", description: (t.description != null ? t.description : t.message) || "", duration: t.duration, persist: t.persist, action: t.action };
       setToasts((s) => [...s, item].slice(-MAX_TOASTS));
       return id;
     }, []);
@@ -1006,6 +1006,9 @@
     email: `${name.toLowerCase().replace(/\s+/g, ".")}@${EMAIL_DOMAIN}`
   }));
   var peopleById = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
+  var PROCUREMENT_LEAD = "P-priya";
+  var FINANCE = "P-tom";
+  var FALLBACK = { owner: PROCUREMENT_LEAD, budget: "P-morgan" };
   var BY_CATEGORY = {
     "Highways and street lighting": { owner: "P-dana", budget: "P-jo" },
     "Parking and traffic": { owner: "P-dana", budget: "P-jo" },
@@ -1023,6 +1026,10 @@
     Housing: { owner: "P-ash", budget: "P-kim" }
   };
   var SERVICE_CATEGORIES = Object.keys(BY_CATEGORY);
+  var rolesFor = (contract) => BY_CATEGORY[contract && contract.serviceCategory] || FALLBACK;
+  var ownerFor = (contract) => rolesFor(contract).owner;
+  var budgetHolderFor = (contract) => rolesFor(contract).budget;
+  var firstName = (name) => String(name || "").split(/\s+/)[0];
 
   // src/data/action-steps.js
   init_react_shim();
@@ -1058,6 +1065,9 @@
   var typeOf = (flagOrType) => typeof flagOrType === "string" ? flagOrType : flagOrType && (flagOrType.type || flagOrType.flagType);
   var stepsFor = (flagOrType) => STEPS[typeOf(flagOrType)] || [];
   var ALL_STEP_IDS = new Set(Object.values(STEPS).flat().map((s) => s.id));
+  function nextStep(flagOrType, ticked2 = {}) {
+    return stepsFor(flagOrType).find((s) => !ticked2[s.id]) || null;
+  }
 
   // src/data/actions-seed.js
   init_react_shim();
@@ -1324,6 +1334,38 @@
     const text = kind === "sent" ? `You marked the email to ${recipientName} as sent.` : `You copied the email to ${recipientName}.`;
     return put(state, log(cur, at2, text));
   }
+  var isClosed = (a) => !!a && !a.archived && a.stage === "closed";
+  var activeAction = (actions, flagId) => {
+    const a = actions && actions[flagId];
+    return a && !a.archived ? a : null;
+  };
+  var stepProgress = (a) => {
+    const all = stepsFor(a.flagType);
+    return { done: all.filter((s) => a.steps[s.id]).length, total: all.length, next: nextStep(a.flagType, a.steps) };
+  };
+  function activityOf(a) {
+    return [...a.log.map((l, i) => ({ ...l, kind: "log", i })), ...a.notes.map((n, i) => ({ ...n, kind: "note", i: 1e3 + i }))].sort((x, y) => x.at < y.at ? 1 : x.at > y.at ? -1 : y.i - x.i);
+  }
+  function resultsOf(actions) {
+    const closed2 = Object.values(actions || {}).filter(isClosed).sort((a, b) => a.closedAt < b.closedAt ? 1 : a.closedAt > b.closedAt ? -1 : a.flagId.localeCompare(b.flagId));
+    const resolved = closed2.filter((a) => a.outcome === "resolved");
+    const cashGBP = resolved.reduce((s, a) => s + (a.cashRecoveredGBP || 0), 0);
+    const costGBP = resolved.reduce((s, a) => s + (a.costAvoidedGBP || 0), 0);
+    const first = closed2.length ? closed2[closed2.length - 1].closedAt : null;
+    return {
+      closed: closed2,
+      valueSecuredGBP: cashGBP + costGBP,
+      cashGBP,
+      costGBP,
+      cashCount: resolved.filter((a) => a.cashRecoveredGBP > 0).length,
+      costCount: resolved.filter((a) => a.costAvoidedGBP > 0).length,
+      resolvedCount: resolved.length,
+      explainedCount: closed2.filter((a) => a.outcome === "explained").length,
+      noActionCount: closed2.filter((a) => a.outcome === "no_action").length,
+      sinceMonth: first ? first.slice(0, 7) : null,
+      latestId: closed2.length ? closed2[0].flagId : null
+    };
+  }
   var sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function triageChanges(triage) {
     const keys = /* @__PURE__ */ new Set([...Object.keys(triage || {}), ...Object.keys(SEED_TRIAGE)]);
@@ -1344,6 +1386,37 @@
     ];
   }
   var changeCount = (state) => changeParts(state).reduce((s, [n]) => s + n, 0);
+
+  // src/lib/just-added.js
+  init_react_shim();
+  var KEY = "kontor-just-added";
+  var memory2 = [];
+  function read() {
+    try {
+      const v = JSON.parse(window.sessionStorage.getItem(KEY) || "[]");
+      return Array.isArray(v) ? v : [];
+    } catch (e) {
+      return memory2;
+    }
+  }
+  function write(list) {
+    memory2 = list;
+    try {
+      window.sessionStorage.setItem(KEY, JSON.stringify(list));
+    } catch (e) {
+    }
+  }
+  function markJustAdded(flagId) {
+    const list = read();
+    if (!list.includes(flagId)) write([...list, flagId]);
+  }
+  function clearJustAdded() {
+    write([]);
+    try {
+      window.sessionStorage.removeItem(KEY);
+    } catch (e) {
+    }
+  }
 
   // src/lib/evidenceFor.js
   init_react_shim();
@@ -1523,6 +1596,7 @@
         const cur = { triage: ref.current.triage, actions: ref.current.actions };
         const out = fn(cur, flag, ...args, (/* @__PURE__ */ new Date()).toISOString());
         if (!out || out.triage === cur.triage && out.actions === cur.actions) return false;
+        if (!cur.actions[flag.id] && out.actions[flag.id]) markJustAdded(flag.id);
         const next = { ...ref.current, triage: out.triage, actions: out.actions };
         ref.current = next;
         setState(next);
@@ -1604,6 +1678,7 @@
             clearKontorKeys();
           } catch (e) {
           }
+          clearJustAdded();
           ref.current = initialState();
           setState(ref.current);
         }
@@ -1913,12 +1988,12 @@
         return missing("Not found");
     }
   }
-  function upliftResultText(uplift, opts = DEFAULTS) {
-    if (!uplift || !uplift.testable) return `Cannot test: ${uplift && uplift.reason ? uplift.reason : "no price review clause found"}`;
-    if (uplift.flagged) return `Payments rose ${fmtPct(uplift.yoy)} against a cap of ${fmtPct(uplift.capPct)}`;
-    if (uplift.yoy < 0) return `Payments fell ${fmtPct(-uplift.yoy)}`;
-    const within = uplift.yoy - uplift.capPct <= opts.upliftTolerancePp && uplift.yoy > uplift.capPct;
-    return `${fmtPct(uplift.yoy)} against a cap of ${fmtPct(uplift.capPct)}${within ? ". Within tolerance" : ""}`;
+  function upliftResultText(uplift2, opts = DEFAULTS) {
+    if (!uplift2 || !uplift2.testable) return `Cannot test: ${uplift2 && uplift2.reason ? uplift2.reason : "no price review clause found"}`;
+    if (uplift2.flagged) return `Payments rose ${fmtPct(uplift2.yoy)} against a cap of ${fmtPct(uplift2.capPct)}`;
+    if (uplift2.yoy < 0) return `Payments fell ${fmtPct(-uplift2.yoy)}`;
+    const within = uplift2.yoy - uplift2.capPct <= opts.upliftTolerancePp && uplift2.yoy > uplift2.capPct;
+    return `${fmtPct(uplift2.yoy)} against a cap of ${fmtPct(uplift2.capPct)}${within ? ". Within tolerance" : ""}`;
   }
   var latestEndText = (derived) => fmtDateLong(derived.latestEndDate);
   function capUsedText(capStatus2) {
@@ -2319,13 +2394,13 @@
   // src/ui/Drawer.jsx
   init_react_shim();
   var import_react8 = __toESM(require_react(), 1);
-  function Drawer({ open, onClose, title, subtitle, children, footer, size = "md", closeLabel = "Close panel", className = "" }) {
+  function Drawer({ open, onClose, title, subtitle, subhead, children, footer, size = "md", closeLabel = "Close panel", className = "" }) {
     const ref = (0, import_react8.useRef)(null);
     const uid = (0, import_react8.useId)();
     useOverlay(open, onClose, ref);
     if (!open) return null;
     const close = (reason) => onClose && onClose(reason);
-    return /* @__PURE__ */ React.createElement(Portal, null, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer-scrim", onMouseDown: () => close("scrim") }), /* @__PURE__ */ React.createElement("div", { ref, role: "dialog", "aria-modal": "true", "aria-labelledby": uid + "-t", tabIndex: -1, className: `kx-drawer kx-drawer--${size} ${className}`.trim() }, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__head" }, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__titles" }, /* @__PURE__ */ React.createElement("h2", { className: "kx-section-title", id: uid + "-t" }, title), subtitle && /* @__PURE__ */ React.createElement("div", { className: "kx-caption kx-drawer__sub" }, subtitle)), /* @__PURE__ */ React.createElement(Button3, { type: "button", variant: "ghost", size: "sm", className: "kx-hit", "aria-label": closeLabel, leftIcon: "xmark", onClick: () => close("close"), style: { width: 28, padding: 0 } })), /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__body" }, children), footer && /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__foot" }, footer)));
+    return /* @__PURE__ */ React.createElement(Portal, null, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer-scrim", onMouseDown: () => close("scrim") }), /* @__PURE__ */ React.createElement("div", { ref, role: "dialog", "aria-modal": "true", "aria-labelledby": uid + "-t", tabIndex: -1, className: `kx-drawer kx-drawer--${size} ${className}`.trim() }, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__head" }, /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__titles" }, /* @__PURE__ */ React.createElement("h2", { className: "kx-section-title", id: uid + "-t" }, title), subtitle && /* @__PURE__ */ React.createElement("div", { className: "kx-caption kx-drawer__sub" }, subtitle)), /* @__PURE__ */ React.createElement(Button3, { type: "button", variant: "ghost", size: "sm", className: "kx-hit", "aria-label": closeLabel, leftIcon: "xmark", onClick: () => close("close"), style: { width: 28, padding: 0 } })), subhead && /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__subhead" }, subhead), /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__body" }, children), footer && /* @__PURE__ */ React.createElement("div", { className: "kx-drawer__foot" }, footer)));
   }
 
   // src/ui/Popover.jsx
@@ -2639,6 +2714,25 @@
   // src/ui/Fields.jsx
   init_react_shim();
   var import_react16 = __toESM(require_react(), 1);
+  function Check({ checked, indeterminate, onChange, label, description, disabled, hideLabel, className = "", ...rest }) {
+    const ref = (0, import_react16.useRef)(null);
+    const did = (0, import_react16.useId)();
+    (0, import_react16.useEffect)(() => {
+      if (ref.current) ref.current.indeterminate = !!indeterminate;
+    }, [indeterminate]);
+    return /* @__PURE__ */ React.createElement("div", { className: ("kx-fieldrow " + className).trim() }, /* @__PURE__ */ React.createElement("label", { className: "kx-field" + (disabled ? " kx-field--disabled" : "") }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        ref,
+        type: "checkbox",
+        checked: !!checked,
+        disabled,
+        "aria-describedby": description ? did : void 0,
+        onChange: (e) => onChange && onChange(e.target.checked),
+        ...rest
+      }
+    ), /* @__PURE__ */ React.createElement("span", { className: "kx-box", "aria-hidden": "true" }, indeterminate ? /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-minus" }) : checked ? /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-check" }) : null), hideLabel ? /* @__PURE__ */ React.createElement("span", { className: "kx-sr-only" }, label) : label), description && /* @__PURE__ */ React.createElement("p", { className: "kx-field__desc", id: did }, description));
+  }
   function RadioField({ checked, onChange, label, description, disabled, name, value, className = "", ...rest }) {
     const did = (0, import_react16.useId)();
     return /* @__PURE__ */ React.createElement("div", { className: ("kx-fieldrow " + className).trim() }, /* @__PURE__ */ React.createElement("label", { className: "kx-field" + (disabled ? " kx-field--disabled" : "") }, /* @__PURE__ */ React.createElement(
@@ -2696,21 +2790,64 @@
     })));
   }
 
-  // src/ui/Toast.jsx
+  // src/ui/Tabs.jsx
   init_react_shim();
   var import_react17 = __toESM(require_react(), 1);
+  function Tabs({ label, items, value, onChange, idPrefix, className = "" }) {
+    const refs = (0, import_react17.useRef)([]);
+    const idx = Math.max(0, items.findIndex((it) => it.id === value));
+    const onKey = (e) => {
+      let n = null;
+      if (e.key === "ArrowRight") n = (idx + 1) % items.length;
+      else if (e.key === "ArrowLeft") n = (idx - 1 + items.length) % items.length;
+      else if (e.key === "Home") n = 0;
+      else if (e.key === "End") n = items.length - 1;
+      if (n == null) return;
+      e.preventDefault();
+      onChange(items[n].id);
+      if (refs.current[n]) refs.current[n].focus();
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: ("kx-routetabs kx-tabs " + className).trim() }, /* @__PURE__ */ React.createElement("ul", { role: "tablist", "aria-label": label, onKeyDown: onKey }, items.map((it, i) => {
+      const on = i === idx;
+      return /* @__PURE__ */ React.createElement("li", { key: it.id, role: "presentation" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          role: "tab",
+          ref: (el) => {
+            refs.current[i] = el;
+          },
+          id: tabId(idPrefix, it.id),
+          "aria-controls": panelId(idPrefix, it.id),
+          "aria-selected": on,
+          tabIndex: on ? 0 : -1,
+          className: "kx-routetab" + (on ? " is-current" : ""),
+          onClick: () => onChange(it.id)
+        },
+        it.icon && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + it.icon, "aria-hidden": "true" }),
+        it.label,
+        it.count != null && /* @__PURE__ */ React.createElement("span", { className: "kx-routetab__count" }, it.count)
+      ));
+    })));
+  }
+  var tabId = (prefix, id) => `${prefix}-tab-${id}`;
+  var panelId = (prefix, id) => `${prefix}-panel-${id}`;
+
+  // src/ui/Toast.jsx
+  init_react_shim();
+  var import_react18 = __toESM(require_react(), 1);
   var ICON = { info: "circle-info", success: "circle-check", warning: "triangle-exclamation", error: "circle-exclamation" };
   var SHOW_MS = 6e3;
   function ToastItem({ t, onDismiss }) {
     const tone = ICON[t.tone] ? t.tone : "info";
     const error = tone === "error";
     const sticky = error || t.persist === true || t.duration === 0;
-    const [paused, setPaused] = (0, import_react17.useState)(false);
-    const left = (0, import_react17.useRef)(t.duration || SHOW_MS);
-    const started = (0, import_react17.useRef)(0);
-    const dismiss = (0, import_react17.useRef)(onDismiss);
+    const [paused, setPaused] = (0, import_react18.useState)(false);
+    const left = (0, import_react18.useRef)(t.duration || SHOW_MS);
+    const started = (0, import_react18.useRef)(0);
+    const dismiss = (0, import_react18.useRef)(onDismiss);
     dismiss.current = onDismiss;
-    (0, import_react17.useEffect)(() => {
+    (0, import_react18.useEffect)(() => {
       if (sticky || paused) return void 0;
       started.current = performance.now();
       const timer = setTimeout(() => dismiss.current(), left.current);
@@ -2730,7 +2867,10 @@
         onBlur: () => setPaused(false)
       },
       /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + ICON[tone] + " kx-toast__icon", "aria-hidden": "true" }),
-      /* @__PURE__ */ React.createElement("div", { className: "kx-toast__text" }, t.title && /* @__PURE__ */ React.createElement("div", { className: "kx-toast__title" }, t.title), t.description && /* @__PURE__ */ React.createElement("div", { className: "kx-toast__desc" }, t.description)),
+      /* @__PURE__ */ React.createElement("div", { className: "kx-toast__text" }, t.title && /* @__PURE__ */ React.createElement("div", { className: "kx-toast__title" }, t.title), t.description && /* @__PURE__ */ React.createElement("div", { className: "kx-toast__desc" }, t.description), t.action && t.action.label && /* @__PURE__ */ React.createElement("button", { type: "button", className: "kx-toast__action", onClick: () => {
+        if (t.action.onClick) t.action.onClick();
+        onDismiss();
+      } }, t.action.label)),
       /* @__PURE__ */ React.createElement("button", { type: "button", className: "kx-toast__close", "aria-label": "Close notification" + (t.title ? ": " + (typeof t.title === "string" ? t.title : "") : ""), onClick: onDismiss }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" }))
     );
   }
@@ -2739,7 +2879,7 @@
     const errs = toasts.filter((t) => t.tone === "error");
     return /* @__PURE__ */ React.createElement(Portal, null, /* @__PURE__ */ React.createElement("div", { className: "kx-toasts", role: "region", "aria-label": label }, /* @__PURE__ */ React.createElement("div", { className: "kx-toasts__list", "aria-live": "polite", "aria-atomic": "false" }, calm.map((t) => /* @__PURE__ */ React.createElement(ToastItem, { key: t.id, t, onDismiss: () => onDismiss(t.id) }))), /* @__PURE__ */ React.createElement("div", { className: "kx-toasts__list", "aria-live": "assertive", "aria-atomic": "false" }, errs.map((t) => /* @__PURE__ */ React.createElement(ToastItem, { key: t.id, t, onDismiss: () => onDismiss(t.id) })))));
   }
-  var ToastCtx = (0, import_react17.createContext)(null);
+  var ToastCtx = (0, import_react18.createContext)(null);
   var ToastContext = ToastCtx;
   var NOOP = Object.assign(() => 0, { dismiss: () => {
   }, clear: () => {
@@ -2921,11 +3061,11 @@
 
   // src/charts/hooks.js
   init_react_shim();
-  var import_react18 = __toESM(require_react(), 1);
+  var import_react19 = __toESM(require_react(), 1);
   function useWidth() {
-    const ref = (0, import_react18.useRef)(null);
-    const [w, setW] = (0, import_react18.useState)(0);
-    (0, import_react18.useLayoutEffect)(() => {
+    const ref = (0, import_react19.useRef)(null);
+    const [w, setW] = (0, import_react19.useState)(0);
+    (0, import_react19.useLayoutEffect)(() => {
       const el = ref.current;
       if (!el) return void 0;
       setW(Math.round(el.getBoundingClientRect().width));
@@ -2937,7 +3077,7 @@
     return [ref, w];
   }
   function useArrowNav(selector = "[data-kviz-mark]") {
-    const onKeyDown2 = (0, import_react18.useCallback)((e) => {
+    const onKeyDown2 = (0, import_react19.useCallback)((e) => {
       const keys = ["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"];
       if (!keys.includes(e.key)) return;
       const items = Array.from(e.currentTarget.querySelectorAll(selector));
@@ -3084,30 +3224,30 @@
 
   // src/charts/Tip.jsx
   init_react_shim();
-  var import_react19 = __toESM(require_react(), 1);
+  var import_react20 = __toESM(require_react(), 1);
   var import_react_dom2 = __toESM(require_react_dom(), 1);
   var rectOf = (el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
   };
   function useChartTip() {
-    const [tip, setTip] = (0, import_react19.useState)(null);
-    const timer = (0, import_react19.useRef)(0);
-    const keep = (0, import_react19.useCallback)(() => clearTimeout(timer.current), []);
-    const hide = (0, import_react19.useCallback)(() => {
+    const [tip, setTip] = (0, import_react20.useState)(null);
+    const timer = (0, import_react20.useRef)(0);
+    const keep = (0, import_react20.useCallback)(() => clearTimeout(timer.current), []);
+    const hide = (0, import_react20.useCallback)(() => {
       clearTimeout(timer.current);
       setTip(null);
     }, []);
-    const hideSoon = (0, import_react19.useCallback)(() => {
+    const hideSoon = (0, import_react20.useCallback)(() => {
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setTip(null), 160);
     }, []);
-    const show = (0, import_react19.useCallback)((rect, content, px, getRect) => {
+    const show = (0, import_react20.useCallback)((rect, content, px, getRect) => {
       clearTimeout(timer.current);
       setTip({ rect, content, px, getRect });
     }, []);
     const open = !!tip;
-    (0, import_react19.useEffect)(() => {
+    (0, import_react20.useEffect)(() => {
       if (!open) return void 0;
       const onKey = (e) => {
         if (e.key === "Escape") hide();
@@ -3125,7 +3265,7 @@
         window.removeEventListener("scroll", onScroll, true);
       };
     }, [open, hide]);
-    const bindPointer = (0, import_react19.useCallback)((content) => ({
+    const bindPointer = (0, import_react20.useCallback)((content) => ({
       onPointerEnter: (e) => show(rectOf(e.currentTarget), content, e.clientX),
       onPointerMove: (e) => {
         if (e.pointerType !== "touch") {
@@ -3137,7 +3277,7 @@
         if (e.pointerType !== "touch") hideSoon();
       }
     }), [show, hideSoon]);
-    const bindFocus = (0, import_react19.useCallback)((content, rowSelector) => ({
+    const bindFocus = (0, import_react20.useCallback)((content, rowSelector) => ({
       "data-kviz-mark": "",
       onFocus: (e) => {
         const el = rowSelector && e.currentTarget.closest(rowSelector) || e.currentTarget;
@@ -3145,7 +3285,7 @@
       },
       onBlur: hide
     }), [show, hide]);
-    const bind = (0, import_react19.useCallback)((content) => ({ ...bindPointer(content), ...bindFocus(content) }), [bindPointer, bindFocus]);
+    const bind = (0, import_react20.useCallback)((content) => ({ ...bindPointer(content), ...bindFocus(content) }), [bindPointer, bindFocus]);
     return { tip, bind, bindPointer, bindFocus, show, hide, hideSoon, keep };
   }
   function TipBody({ c }) {
@@ -3153,9 +3293,9 @@
   }
   function ChartTip({ api }) {
     const { tip, keep, hideSoon } = api;
-    const ref = (0, import_react19.useRef)(null);
-    const [pos, setPos] = (0, import_react19.useState)(null);
-    (0, import_react19.useLayoutEffect)(() => {
+    const ref = (0, import_react20.useRef)(null);
+    const [pos, setPos] = (0, import_react20.useState)(null);
+    (0, import_react20.useLayoutEffect)(() => {
       if (!tip || !ref.current) {
         setPos(null);
         return;
@@ -3188,15 +3328,15 @@
 
   // src/charts/Hatch.jsx
   init_react_shim();
-  var import_react20 = __toESM(require_react(), 1);
+  var import_react21 = __toESM(require_react(), 1);
   function Hatch({ color = "var(--viz-danger)", period = 6, tint = 8 }) {
-    const id = "kh" + (0, import_react20.useId)().replace(/[^a-zA-Z0-9]/g, "");
+    const id = "kh" + (0, import_react21.useId)().replace(/[^a-zA-Z0-9]/g, "");
     return /* @__PURE__ */ React.createElement("svg", { className: "kviz-hatch", "aria-hidden": "true", focusable: "false", preserveAspectRatio: "none" }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("pattern", { id, width: period, height: period, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, /* @__PURE__ */ React.createElement("rect", { width: period, height: period, style: { fill: `color-mix(in srgb, ${color} ${tint}%, var(--viz-surface))` } }), /* @__PURE__ */ React.createElement("rect", { width: "2", height: period, style: { fill: color } }))), /* @__PURE__ */ React.createElement("rect", { width: "100%", height: "100%", fill: `url(#${id})` }));
   }
 
   // src/charts/ChartFigure.jsx
   init_react_shim();
-  var import_react21 = __toESM(require_react(), 1);
+  var import_react22 = __toESM(require_react(), 1);
   function Legend({ items, label = "Legend", className = "" }) {
     return /* @__PURE__ */ React.createElement("ul", { className: "kviz-legend " + className, "aria-label": label }, items.map((it) => /* @__PURE__ */ React.createElement("li", { key: it.key || it.label, className: "kviz-legend__item" }, it.shape === "glyph" ? /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + it.glyph, style: { color: it.color }, "aria-hidden": "true" }) : /* @__PURE__ */ React.createElement("span", { className: "kviz-key kviz-key--" + (it.shape || "bar"), style: { "--c": it.color }, "aria-hidden": "true" }, it.shape === "hatch" && /* @__PURE__ */ React.createElement(Hatch, { color: it.color, period: 5 })), /* @__PURE__ */ React.createElement("span", null, it.label))));
   }
@@ -3204,8 +3344,8 @@
     return /* @__PURE__ */ React.createElement("div", { className: "kviz-tablewrap", tabIndex: 0, role: "region", "aria-label": caption + " (table)" }, /* @__PURE__ */ React.createElement("table", { className: "kviz-table" }, /* @__PURE__ */ React.createElement("caption", { className: "kviz-sr" }, caption), /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, columns.map((c) => /* @__PURE__ */ React.createElement("th", { key: c.key, scope: "col", className: c.align === "right" ? "is-num" : void 0 }, c.label)))), /* @__PURE__ */ React.createElement("tbody", null, rows.map((r, i) => /* @__PURE__ */ React.createElement("tr", { key: r.id != null ? r.id : i }, columns.map((c) => /* @__PURE__ */ React.createElement("td", { key: c.key, className: c.align === "right" ? "is-num" : void 0 }, c.render ? c.render(r) : r[c.key])))))));
   }
   function ChartFigure({ title, description, legend, table, footnote, actions, as: H = "h3", children, className = "" }) {
-    const uid = (0, import_react21.useId)();
-    const [view, setView] = (0, import_react21.useState)("chart");
+    const uid = (0, import_react22.useId)();
+    const [view, setView] = (0, import_react22.useState)("chart");
     return /* @__PURE__ */ React.createElement("figure", { className: "kviz-fig " + className, "aria-labelledby": uid + "-t" }, /* @__PURE__ */ React.createElement("header", { className: "kviz-fig__head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(H, { id: uid + "-t", className: "kviz-fig__title" }, title), description && /* @__PURE__ */ React.createElement("p", { className: "kviz-fig__desc" }, description)), /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__actions" }, actions, table && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -3253,7 +3393,7 @@
 
   // src/charts/Headline.jsx
   init_react_shim();
-  var import_react22 = __toESM(require_react(), 1);
+  var import_react23 = __toESM(require_react(), 1);
   var CARD_ORDER = FLAG_CARD_ORDER;
   function HeadlineSentence({ total, contractCount, format = gbp }) {
     const tip = useChartTip();
@@ -3366,12 +3506,12 @@
 
   // src/charts/RadarStrip.jsx
   init_react_shim();
-  var import_react23 = __toESM(require_react(), 1);
+  var import_react24 = __toESM(require_react(), 1);
   var ROW_GAP = 44;
   var OPEN_NOTE = "Opens the opportunity in the side drawer.";
   function RadarStrip({ rows, asOf = AS_OF2, horizon = 12, getHref, attentionHref, valueSuffix = " a year", format = gbp, caption, onOpen }) {
     const tip = useChartTip();
-    const touch = (0, import_react23.useRef)({});
+    const touch = (0, import_react24.useRef)({});
     const timed = BANDS2.filter((b) => !b.attention);
     const stats = timed.map((b) => {
       const mine = rows.filter((r) => r.band === b.key);
@@ -3440,7 +3580,7 @@
 
   // src/charts/BulletList.jsx
   init_react_shim();
-  var import_react24 = __toESM(require_react(), 1);
+  var import_react25 = __toESM(require_react(), 1);
   var BASIS = { total_term: "Whole term", annual: "Per contract year" };
   var SOURCE = { maximum_stated: "Stated maximum", contract_value: "Contract value (estimate)" };
   function CapStatePill({ state, label, wrap = false }) {
@@ -3450,7 +3590,7 @@
   function BulletList({ items, axisMax = 1.25, closeAt = CLOSE_AT, getHref, onOpen, limit, format = gbp, compact = false, tipNote }) {
     const tip = useChartTip();
     const nav = useArrowNav();
-    const rows = (0, import_react24.useMemo)(() => {
+    const rows = (0, import_react25.useMemo)(() => {
       const all = items.map((it) => {
         const ratio = it.spend / it.cap;
         return { ...it, ratio, st: stateFor(ratio, closeAt, it.state) };
@@ -3547,11 +3687,11 @@
 
   // src/charts/YearBars.jsx
   init_react_shim();
-  var import_react25 = __toESM(require_react(), 1);
+  var import_react26 = __toESM(require_react(), 1);
   function YearBars({ years, cap, height = 220, closeAt = CLOSE_AT, format = gbp }) {
     const tip = useChartTip();
     const nav = useArrowNav();
-    const uid = (0, import_react25.useId)();
+    const uid = (0, import_react26.useId)();
     const max = Math.max(cap * 1.2, ...years.map((y) => y.spend * 1.08));
     const H = (v) => v / max * 100;
     return /* @__PURE__ */ React.createElement("div", { className: "kviz-yb", ...nav }, /* @__PURE__ */ React.createElement("div", { className: "kviz-yb__plot", style: { height, "--n": years.length } }, /* @__PURE__ */ React.createElement("div", { className: "kviz-yb__cap", style: { bottom: H(cap) + "%" } }, /* @__PURE__ */ React.createElement("span", null, "Annual cap ", format(cap))), /* @__PURE__ */ React.createElement("ul", { className: "kviz-yb__cols", "aria-label": "Spend in each contract year" }, years.map((y) => {
@@ -3572,7 +3712,7 @@
 
   // src/charts/CumulativeLine.jsx
   init_react_shim();
-  var import_react26 = __toESM(require_react(), 1);
+  var import_react27 = __toESM(require_react(), 1);
   var M_WIDE = { t: 22, r: 104, b: 36, l: 58 };
   var M_NARROW = { t: 22, r: 76, b: 36, l: 52 };
   function CumulativeLine(props) {
@@ -3581,13 +3721,13 @@
   }
   function CumulativeLinePlot({ series, cap, closeAt = CLOSE_AT, height = 360, subject = "this contract" }) {
     const [wrapRef, W] = useWidth();
-    const hitRef = (0, import_react26.useRef)(null);
+    const hitRef = (0, import_react27.useRef)(null);
     const tip = useChartTip();
-    const [idx, setIdx] = (0, import_react26.useState)(null);
+    const [idx, setIdx] = (0, import_react27.useState)(null);
     const compact = W > 0 && W < 560;
     const M = compact ? M_NARROW : M_WIDE;
     const iw = Math.max(80, W - M.l - M.r), ih = height - M.t - M.b;
-    const g = (0, import_react26.useMemo)(() => {
+    const g = (0, import_react27.useMemo)(() => {
       const pts2 = series.map((p) => ({ ...p, t: toDate(p.date).getTime() }));
       const t0 = pts2[0].t, t1 = pts2[pts2.length - 1].t;
       const maxV = Math.max(...pts2.map((p) => p.cum));
@@ -3736,11 +3876,11 @@
 
   // src/charts/Dumbbell.jsx
   init_react_shim();
-  var import_react27 = __toESM(require_react(), 1);
+  var import_react28 = __toESM(require_react(), 1);
 
   // src/charts/BarList.jsx
   init_react_shim();
-  var import_react28 = __toESM(require_react(), 1);
+  var import_react29 = __toESM(require_react(), 1);
   function FlagBadge({ type, label, muted = false }) {
     const f = FLAGS[type];
     return /* @__PURE__ */ React.createElement("span", { className: "kviz-pill", style: muted ? { "--c": "var(--viz-ink-2)", color: "var(--viz-ink-2)" } : { "--c": f.color, color: f.text } }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + f.glyph, "aria-hidden": "true" }), label || f.short);
@@ -3779,7 +3919,7 @@
     })), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
   }
   function OpportunityList({ items, filter = null, getHref, onOpen, limit, format = gbpFull, max }) {
-    const rows = (0, import_react28.useMemo)(() => {
+    const rows = (0, import_react29.useMemo)(() => {
       const list = items.filter((it) => !filter || it.type === filter);
       return (limit ? list.slice(0, limit) : list).map((it, i) => {
         const f = FLAGS[it.type];
@@ -3830,7 +3970,7 @@
   }
   function CoverageBlock({ matched, total, unmatched, pending = 0, suppliers, topN, getHref, onOpen, unit = "payment", format = gbp, heading = "Largest suppliers with no contract on the register", headingAs: H = "h3" }) {
     const noContract = unmatched != null ? unmatched : total - matched - pending;
-    const sorted = (0, import_react28.useMemo)(() => suppliers.slice().sort((a, b) => b.spend - a.spend), [suppliers]);
+    const sorted = (0, import_react29.useMemo)(() => suppliers.slice().sort((a, b) => b.spend - a.spend), [suppliers]);
     const n = topN == null ? sorted.length : topN;
     const top = sorted.slice(0, n);
     const rest = sorted.slice(n);
@@ -4013,7 +4153,7 @@
 
   // src/views/Opportunities.jsx
   init_react_shim();
-  var import_react29 = __toESM(require_react(), 1);
+  var import_react30 = __toESM(require_react(), 1);
   var { Button: Button5, Input, Select } = ds_default;
   var LABELS = {
     listTitle: "Ranked opportunities",
@@ -4109,15 +4249,15 @@
     const sortParam = query.get("sort");
     const sort = SORT_VALUES.has(sortParam) ? sortParam : "value";
     const qParam = query.get("q") || "";
-    const [text, setText] = (0, import_react29.useState)(qParam);
-    const pushed = (0, import_react29.useRef)(qParam.trim());
-    (0, import_react29.useEffect)(() => {
+    const [text, setText] = (0, import_react30.useState)(qParam);
+    const pushed = (0, import_react30.useRef)(qParam.trim());
+    (0, import_react30.useEffect)(() => {
       if (qParam.trim() !== pushed.current) {
         pushed.current = qParam.trim();
         setText(qParam);
       }
     }, [qParam]);
-    (0, import_react29.useEffect)(() => {
+    (0, import_react30.useEffect)(() => {
       const t = setTimeout(() => {
         const v = text.trim();
         if (v !== pushed.current) {
@@ -4128,9 +4268,9 @@
       return () => clearTimeout(t);
     }, [text]);
     const search = text.trim();
-    const totalsRef = (0, import_react29.useRef)(null);
-    const [view, setView] = (0, import_react29.useState)("list");
-    const all = (0, import_react29.useMemo)(() => {
+    const totalsRef = (0, import_react30.useRef)(null);
+    const [view, setView] = (0, import_react30.useState)("list");
+    const all = (0, import_react30.useMemo)(() => {
       const clauseFor2 = (f) => {
         const t = evidenceFor(f);
         return t ? { label: COPY.buttons.viewClausePage(t.page), href: sourceHref(t, "opportunities") } : null;
@@ -4141,10 +4281,10 @@
         return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null };
       });
     }, [estate]);
-    const bySearch = (0, import_react29.useMemo)(() => all.filter(matcher(search)), [all, search]);
+    const bySearch = (0, import_react30.useMemo)(() => all.filter(matcher(search)), [all, search]);
     const statusOk = (it) => status === "all" ? true : status === "open" ? isOpenStatus(it.status) : !isOpenStatus(it.status);
-    const counts = (0, import_react29.useMemo)(() => opportunityCounts(bySearch.filter(statusOk)), [bySearch, status]);
-    const shown = (0, import_react29.useMemo)(
+    const counts = (0, import_react30.useMemo)(() => opportunityCounts(bySearch.filter(statusOk)), [bySearch, status]);
+    const shown = (0, import_react30.useMemo)(
       () => bySearch.filter(statusOk).filter((it) => !type || it.type === type).sort(SORTERS[sort]),
       [bySearch, status, type, sort]
     );
@@ -4177,7 +4317,7 @@
         ui.toast({ tone: "error", title: title + ".", description: rest.join(". ") });
       }
     };
-    const tableData = (0, import_react29.useMemo)(() => ({
+    const tableData = (0, import_react30.useMemo)(() => ({
       columns: [
         { key: "rank", label: "Rank", align: "right" },
         { key: "type", label: "Type" },
@@ -4237,7 +4377,7 @@
 
   // src/views/Renewals.jsx
   init_react_shim();
-  var import_react30 = __toESM(require_react(), 1);
+  var import_react31 = __toESM(require_react(), 1);
   var TEXT2 = {
     attentionTitle: "Needs attention now",
     attentionDesc: "The notice date has passed, or the contract has ended and you are still paying.",
@@ -4315,8 +4455,8 @@
     };
   }
   function LanesFigure({ title, description, legend, table, footnote, children }) {
-    const uid = (0, import_react30.useId)();
-    const [view, setView] = (0, import_react30.useState)("chart");
+    const uid = (0, import_react31.useId)();
+    const [view, setView] = (0, import_react31.useState)("chart");
     return /* @__PURE__ */ React.createElement("figure", { className: "kviz-fig", "aria-labelledby": uid + "-t" }, /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { id: uid + "-t", className: "kviz-fig__title" }, title), /* @__PURE__ */ React.createElement("p", { className: "kviz-fig__desc" }, description)), /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-btn", "aria-pressed": view === "table", onClick: () => setView(view === "table" ? "chart" : "table") }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + (view === "table" ? "chart-simple" : "table"), "aria-hidden": "true" }), view === "table" ? TEXT2.showChart : TEXT2.showTable))), view === "chart" && legend, /* @__PURE__ */ React.createElement("div", { className: "kviz-fig__body" }, view === "chart" ? children : /* @__PURE__ */ React.createElement(ChartTable, { ...table, caption: title })), /* @__PURE__ */ React.createElement("figcaption", { className: "kviz-fig__note" }, footnote));
   }
   function Lanes({ estate }) {
@@ -4365,15 +4505,15 @@
 
   // src/views/spend/CapTab.jsx
   init_react_shim();
-  var import_react33 = __toESM(require_react(), 1);
+  var import_react34 = __toESM(require_react(), 1);
 
   // src/views/spend/PaymentsDrawer.jsx
   init_react_shim();
-  var import_react32 = __toESM(require_react(), 1);
+  var import_react33 = __toESM(require_react(), 1);
 
   // src/views/spend/PaymentList.jsx
   init_react_shim();
-  var import_react31 = __toESM(require_react(), 1);
+  var import_react32 = __toESM(require_react(), 1);
 
   // src/views/spend/strings.js
   init_react_shim();
@@ -4485,7 +4625,7 @@
   // src/views/spend/PaymentList.jsx
   var sumGBP = (payments) => Math.round(payments.reduce((s, p) => s + p.amountGBP, 0) * 100) / 100;
   function PaymentList({ payments, caption, pageSize = 12, pagerLabel = "Payments pages", withYear = false, yearOf, subtotalLabel, empty = PAY.none, className = "" }) {
-    const [page, setPage] = (0, import_react31.useState)(1);
+    const [page, setPage] = (0, import_react32.useState)(1);
     const pages = Math.max(1, Math.ceil(payments.length / pageSize));
     const current = Math.min(page, pages);
     const shown = payments.slice((current - 1) * pageSize, current * pageSize);
@@ -4528,11 +4668,11 @@
     const c = contract;
     const d = estate.derived[c.id];
     const cap = d.cap;
-    const pay = (0, import_react32.useMemo)(() => paymentsFor(estate, c.id), [estate, c.id]);
+    const pay = (0, import_react33.useMemo)(() => paymentsFor(estate, c.id), [estate, c.id]);
     const years = estate.summaries[c.id].byYear;
     const annual = cap.testable && cap.basis === "annual" && years.length > 0;
     const worst = annual ? years.reduce((m, y) => y.spendGBP > m.spendGBP ? y : m, years[0]) : null;
-    const [sel, setSel] = (0, import_react32.useState)(annual ? String(worst.year) : "all");
+    const [sel, setSel] = (0, import_react33.useState)(annual ? String(worst.year) : "all");
     const yearOfPayment = (p) => {
       const y = years.find((x) => p.date >= x.from && p.date <= x.to);
       return y ? y.year : 0;
@@ -4605,7 +4745,7 @@
   }
   function PayeeDrawer({ payee, onClose }) {
     const { estate } = useEstate();
-    const list = (0, import_react32.useMemo)(() => payee ? estate.data.payments.filter((p) => p.supplierNameRaw === payee).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1) : [], [estate, payee]);
+    const list = (0, import_react33.useMemo)(() => payee ? estate.data.payments.filter((p) => p.supplierNameRaw === payee).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1) : [], [estate, payee]);
     const open = !!payee && list.length > 0;
     const total = sumGBP(list);
     return /* @__PURE__ */ React.createElement(
@@ -4631,8 +4771,8 @@
   function CapTab() {
     const { estate } = useEstate();
     const { query } = useRoute();
-    const [showAll, setShowAll] = (0, import_react33.useState)(false);
-    const [view, setView] = (0, import_react33.useState)("chart");
+    const [showAll, setShowAll] = (0, import_react34.useState)(false);
+    const [view, setView] = (0, import_react34.useState)("chart");
     const closeAt = estate.opts.nearCapThreshold;
     const stateParam = query.get("state");
     const filter = STATE_KEYS.includes(stateParam) ? stateParam : null;
@@ -4640,7 +4780,7 @@
     const payingId = payId && estate.contractsById[payId] ? payId : null;
     const openPayments = (id) => setQuery({ payments: id });
     const closePayments = () => setQuery({ payments: null });
-    const items = (0, import_react33.useMemo)(() => capItems(estate, {
+    const items = (0, import_react34.useMemo)(() => capItems(estate, {
       extraFor: (item, c) => {
         const clause = item.state !== "ok" ? capClauseFor(estate, c.id) : null;
         return /* @__PURE__ */ React.createElement(React.Fragment, null, item.partial && /* @__PURE__ */ React.createElement("span", { className: "cap-note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), " ", COPY.partialCoverageNote(estate.summaries[c.id].coverageFrom)), /* @__PURE__ */ React.createElement("span", { className: "cap-actions" }, clause && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: clause.contractId, extractionId: clause.extractionId, page: clause.page, from: "spend", context: c.title, className: "cap-link" }), /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-textlink cap-link cap-pay", "data-pay-for": c.id, onClick: () => openPayments(c.id) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-list", "aria-hidden": "true" }), " ", CAP.seePayments, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", c.title))));
@@ -4652,7 +4792,7 @@
     const keyOf = (it) => KEY_OF[it.state] || "within";
     const filtered = filter ? items.filter((it) => keyOf(it) === filter) : items;
     const limited = !filter && !showAll && filtered.length > LIMIT;
-    const table = (0, import_react33.useMemo)(() => {
+    const table = (0, import_react34.useMemo)(() => {
       const base2 = capTable(filtered);
       const byId = Object.fromEntries(items.map((it) => [it.id, it]));
       return {
@@ -4691,7 +4831,7 @@
 
   // src/views/spend/MatchesTab.jsx
   init_react_shim();
-  var import_react34 = __toESM(require_react(), 1);
+  var import_react35 = __toESM(require_react(), 1);
   var { Button: Button8 } = ds_default;
   var STATUS_VALUES2 = ["review", "accepted", "unmatched", "yours"];
   var GROUP_OF = { suggested: "review", auto_accepted: "accepted", unmatched: "unmatched", confirmed: "yours", rejected: "yours" };
@@ -4716,15 +4856,15 @@
     const { estate, state, actions } = useEstate();
     const ui = useUI();
     const { query } = useRoute();
-    const [sort, setSort] = (0, import_react34.useState)({ key: "status", dir: "asc" });
-    const focusAfter = (0, import_react34.useRef)(null);
+    const [sort, setSort] = (0, import_react35.useState)({ key: "status", dir: "asc" });
+    const focusAfter = (0, import_react35.useRef)(null);
     const statusParam = query.get("status");
     const status = STATUS_VALUES2.includes(statusParam) ? statusParam : null;
     const supplierName = (id) => {
       const s = estate.data.suppliers.find((x) => x.id === id);
       return s ? s.legalName : null;
     };
-    const all = (0, import_react34.useMemo)(() => estate.matchList.map((m) => {
+    const all = (0, import_react35.useMemo)(() => estate.matchList.map((m) => {
       const supplier = m.supplierId ? supplierName(m.supplierId) : null;
       return {
         ...m,
@@ -4734,17 +4874,17 @@
         sortValue: { name: m.rawName.toLowerCase(), supplier: supplier || "~", method: matchMethodLabel(m.method), score: m.score, status: PRIORITY[m.status], payments: m.paymentCount, total: m.totalGBP }
       };
     }), [estate]);
-    const counts = (0, import_react34.useMemo)(() => {
+    const counts = (0, import_react35.useMemo)(() => {
       const c = { all: all.length, review: 0, accepted: 0, unmatched: 0, yours: 0 };
       all.forEach((r) => {
         c[r.group] += 1;
       });
       return c;
     }, [all]);
-    const rows = (0, import_react34.useMemo)(() => (status ? all.filter((r) => r.group === status) : all).slice().sort(compare(sort.key, sort.dir)), [all, status, sort]);
+    const rows = (0, import_react35.useMemo)(() => (status ? all.filter((r) => r.group === status) : all).slice().sort(compare(sort.key, sort.dir)), [all, status, sort]);
     const firstSuggested = rows.findIndex((r) => r.status === "suggested");
     const onSort = (key) => setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "total" || key === "payments" || key === "score" ? "desc" : "asc" });
-    (0, import_react34.useEffect)(() => {
+    (0, import_react35.useEffect)(() => {
       const name = focusAfter.current;
       if (!name) return;
       focusAfter.current = null;
@@ -4770,7 +4910,7 @@
       actions.setDecision(m.rawName, null);
       ui.toast({ tone: "info", ...MATCH.undone(m.rawName) });
     };
-    const effects = (0, import_react34.useMemo)(() => all.filter((r) => r.status === "confirmed").flatMap((r) => {
+    const effects = (0, import_react35.useMemo)(() => all.filter((r) => r.status === "confirmed").flatMap((r) => {
       const ids = [...new Set(estate.attributed.filter((a) => a.payment.supplierNameRaw === r.rawName && a.contractId).map((a) => a.contractId))];
       return ids.map((cid) => ({ key: r.rawName + cid, name: r.rawName, cid, contract: estate.contractsById[cid], cap: estate.derived[cid].cap }));
     }), [all, estate]);
@@ -4805,7 +4945,7 @@
 
   // src/views/spend/NoContractTab.jsx
   init_react_shim();
-  var import_react35 = __toESM(require_react(), 1);
+  var import_react36 = __toESM(require_react(), 1);
   function NoContractTab() {
     const { estate } = useEstate();
     const { query } = useRoute();
@@ -4813,8 +4953,8 @@
     const payeeParam = query.get("payee");
     const payee = payeeParam && cov.noContract.some((x) => x.name === payeeParam) ? payeeParam : null;
     const props = coverageProps(estate, { noteFor: () => NOC.rowNote });
-    const cov$ = (0, import_react35.useRef)(null);
-    (0, import_react35.useEffect)(() => {
+    const cov$ = (0, import_react36.useRef)(null);
+    (0, import_react36.useEffect)(() => {
       const bar = cov$.current && cov$.current.querySelector(".kviz-stack");
       if (!bar) return;
       bar.removeAttribute("role");
@@ -4849,7 +4989,7 @@
 
   // src/views/Contracts.jsx
   init_react_shim();
-  var import_react36 = __toESM(require_react(), 1);
+  var import_react37 = __toESM(require_react(), 1);
 
   // src/views/contracts/strings.js
   init_react_shim();
@@ -4993,12 +5133,12 @@
   function Contracts() {
     const { estate, state } = useEstate();
     const { query } = useRoute();
-    const categories = (0, import_react36.useMemo)(() => {
+    const categories = (0, import_react37.useMemo)(() => {
       const counts = /* @__PURE__ */ new Map();
       estate.data.contracts.forEach((c) => counts.set(c.serviceCategory, (counts.get(c.serviceCategory) || 0) + 1));
       return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [estate]);
-    const rows = (0, import_react36.useMemo)(() => {
+    const rows = (0, import_react37.useMemo)(() => {
       const flagCount = {};
       estate.ranked.forEach((f) => {
         flagCount[f.contractId] = (flagCount[f.contractId] || 0) + 1;
@@ -5012,15 +5152,15 @@
     const dirParam = query.get("dir");
     const dir = dirParam === "asc" || dirParam === "desc" ? dirParam : SORTS[sortKey].first;
     const qParam = query.get("q") || "";
-    const [text, setText] = (0, import_react36.useState)(qParam);
-    const pushed = (0, import_react36.useRef)(qParam.trim());
-    (0, import_react36.useEffect)(() => {
+    const [text, setText] = (0, import_react37.useState)(qParam);
+    const pushed = (0, import_react37.useRef)(qParam.trim());
+    (0, import_react37.useEffect)(() => {
       if (qParam.trim() !== pushed.current) {
         pushed.current = qParam.trim();
         setText(qParam);
       }
     }, [qParam]);
-    (0, import_react36.useEffect)(() => {
+    (0, import_react37.useEffect)(() => {
       const t = setTimeout(() => {
         const v = text.trim();
         if (v !== pushed.current) {
@@ -5031,13 +5171,13 @@
       return () => clearTimeout(t);
     }, [text]);
     const search = text.trim();
-    const shown = (0, import_react36.useMemo)(() => {
+    const shown = (0, import_react37.useMemo)(() => {
       const get = SORTS[sortKey].get;
       const sign = dir === "asc" ? 1 : -1;
       return rows.filter(matcher2(search)).filter((r) => !category || r.c.serviceCategory === category).sort((a, b) => sign * compare2(get(a), get(b)) || a.c.id.localeCompare(b.c.id));
     }, [rows, search, category, sortKey, dir]);
     const filtersOn = !!search || !!category;
-    const statusRef = (0, import_react36.useRef)(null);
+    const statusRef = (0, import_react37.useRef)(null);
     const clearFilters = () => {
       pushed.current = "";
       setText("");
@@ -5049,7 +5189,7 @@
       else setQuery({ sort: key, dir: SORTS[key].first });
     };
     const hand = handcheckSummary(state);
-    const sources = (0, import_react36.useMemo)(() => {
+    const sources = (0, import_react37.useMemo)(() => {
       const by = /* @__PURE__ */ new Map();
       estate.data.contracts.forEach((c) => by.set(c.source, (by.get(c.source) || 0) + 1));
       return [...by.entries()].map(([source, n]) => ({ source, n }));
@@ -5164,22 +5304,22 @@
     return p ? { extractionId: x.id, page: p.page, label: null } : null;
   }
   function RateCard({ rows }) {
-    const T = DETAIL.questions;
-    return /* @__PURE__ */ React.createElement("table", { className: "cd-rates" }, /* @__PURE__ */ React.createElement("caption", { className: "sr-only" }, T.rateCardCaption), /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { scope: "col" }, T.rateCols.item), /* @__PURE__ */ React.createElement("th", { scope: "col" }, T.rateCols.unit), /* @__PURE__ */ React.createElement("th", { scope: "col", className: "num" }, T.rateCols.rate))), /* @__PURE__ */ React.createElement("tbody", null, rows.map((r) => /* @__PURE__ */ React.createElement("tr", { key: r.item }, /* @__PURE__ */ React.createElement("td", null, r.item), /* @__PURE__ */ React.createElement("td", null, r.unit), /* @__PURE__ */ React.createElement("td", { className: "num" }, r.rate)))));
+    const T2 = DETAIL.questions;
+    return /* @__PURE__ */ React.createElement("table", { className: "cd-rates" }, /* @__PURE__ */ React.createElement("caption", { className: "sr-only" }, T2.rateCardCaption), /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { scope: "col" }, T2.rateCols.item), /* @__PURE__ */ React.createElement("th", { scope: "col" }, T2.rateCols.unit), /* @__PURE__ */ React.createElement("th", { scope: "col", className: "num" }, T2.rateCols.rate))), /* @__PURE__ */ React.createElement("tbody", null, rows.map((r) => /* @__PURE__ */ React.createElement("tr", { key: r.item }, /* @__PURE__ */ React.createElement("td", null, r.item), /* @__PURE__ */ React.createElement("td", null, r.unit), /* @__PURE__ */ React.createElement("td", { className: "num" }, r.rate)))));
   }
   function Field2({ contract, x, checked }) {
-    const T = DETAIL.questions;
+    const T2 = DETAIL.questions;
     const a = answerFor(x, contract);
     const band = confidenceBand(x.confidence);
     const clause = clauseFor(contract, x, a);
     const missing = a.kind === "not_found";
-    return /* @__PURE__ */ React.createElement("div", { className: "cd-field" + (missing ? " is-missing" : "") + (band === "review" ? " is-review" : ""), "data-field": x.fieldKey, "data-extraction-id": x.id }, /* @__PURE__ */ React.createElement("dt", { className: "cd-field__label" }, sentence(fieldLabel(x.fieldKey))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__answer" }, a.rows ? /* @__PURE__ */ React.createElement(RateCard, { rows: a.rows }) : /* @__PURE__ */ React.createElement("span", { className: "cd-answer", "data-testid": "answer" }, missing && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-question cd-answer__icon", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, a.text)), band === "review" && /* @__PURE__ */ React.createElement("span", { className: "cd-field__warn" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation", "aria-hidden": "true" }), " ", T.notSure), checked && /* @__PURE__ */ React.createElement("span", { className: "cd-field__checked" }, /* @__PURE__ */ React.createElement(Pill, { icon: checked === "correct" ? "user-check" : "user-xmark" }, T.checked[checked]))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__conf" }, /* @__PURE__ */ React.createElement(ConfidencePill, { score: x.confidence }), /* @__PURE__ */ React.createElement("span", { className: "cd-score" }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, T.scorePrefix, " "), x.confidence.toFixed(2))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__clause" }, clause && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: clause.extractionId, page: clause.page, from: "contracts", context: sentence(fieldLabel(x.fieldKey)) }, clause.label || COPY.buttons.viewClausePage(clause.page))));
+    return /* @__PURE__ */ React.createElement("div", { className: "cd-field" + (missing ? " is-missing" : "") + (band === "review" ? " is-review" : ""), "data-field": x.fieldKey, "data-extraction-id": x.id }, /* @__PURE__ */ React.createElement("dt", { className: "cd-field__label" }, sentence(fieldLabel(x.fieldKey))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__answer" }, a.rows ? /* @__PURE__ */ React.createElement(RateCard, { rows: a.rows }) : /* @__PURE__ */ React.createElement("span", { className: "cd-answer", "data-testid": "answer" }, missing && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-question cd-answer__icon", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, a.text)), band === "review" && /* @__PURE__ */ React.createElement("span", { className: "cd-field__warn" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-triangle-exclamation", "aria-hidden": "true" }), " ", T2.notSure), checked && /* @__PURE__ */ React.createElement("span", { className: "cd-field__checked" }, /* @__PURE__ */ React.createElement(Pill, { icon: checked === "correct" ? "user-check" : "user-xmark" }, T2.checked[checked]))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__conf" }, /* @__PURE__ */ React.createElement(ConfidencePill, { score: x.confidence }), /* @__PURE__ */ React.createElement("span", { className: "cd-score" }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, T2.scorePrefix, " "), x.confidence.toFixed(2))), /* @__PURE__ */ React.createElement("dd", { className: "cd-field__clause" }, clause && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: clause.extractionId, page: clause.page, from: "contracts", context: sentence(fieldLabel(x.fieldKey)) }, clause.label || COPY.buttons.viewClausePage(clause.page))));
   }
   function QuestionsPanel({ contract, estate, handcheck }) {
-    const T = DETAIL.questions;
+    const T2 = DETAIL.questions;
     const answered = estate.extractionsByContract[contract.id] || [];
     const checkedCount = answered.filter((x) => handcheck && handcheck[x.id]).length;
-    return /* @__PURE__ */ React.createElement(Panel, { as: "h2", id: "cd-questions-title", title: COPY.questionsGroupLabel, description: T.description, padded: false, footer: /* @__PURE__ */ React.createElement("p", { className: "cd-qfoot", "data-testid": "contract-handcheck" }, T.footer(checkedCount, answered.length)) }, /* @__PURE__ */ React.createElement("ol", { className: "cd-qs" }, estate.data.questions.map((q) => {
+    return /* @__PURE__ */ React.createElement(Panel, { as: "h2", id: "cd-questions-title", title: COPY.questionsGroupLabel, description: T2.description, padded: false, footer: /* @__PURE__ */ React.createElement("p", { className: "cd-qfoot", "data-testid": "contract-handcheck" }, T2.footer(checkedCount, answered.length)) }, /* @__PURE__ */ React.createElement("ol", { className: "cd-qs" }, estate.data.questions.map((q) => {
       const xs = q.fields.map((f) => estate.extractionsById[contract.extractionIds[f]]).filter(Boolean);
       return /* @__PURE__ */ React.createElement("li", { key: q.id, className: "cd-q", "data-question": q.id }, /* @__PURE__ */ React.createElement("section", { "aria-labelledby": `cd-${q.id}` }, /* @__PURE__ */ React.createElement("header", { className: "cd-q__head" }, /* @__PURE__ */ React.createElement("span", { className: "cd-q__num", "aria-hidden": "true" }, q.id), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { id: `cd-${q.id}`, className: "cd-q__title" }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, q.id, ": "), q.label), /* @__PURE__ */ React.createElement("p", { className: "cd-q__help" }, q.help))), /* @__PURE__ */ React.createElement("dl", { className: "cd-fields" }, xs.map((x) => /* @__PURE__ */ React.createElement(Field2, { key: x.id, contract, x, checked: handcheck && handcheck[x.id] })))));
     })));
@@ -5198,7 +5338,7 @@
     return u.yoy - u.capPct > 0 ? UPLIFT_STATES.tolerance : UPLIFT_STATES.ok;
   }
   function DerivedPanel({ contract: c, estate }) {
-    const T = DETAIL.derived;
+    const T2 = DETAIL.derived;
     const d = estate.derived[c.id];
     const cap = d.cap;
     const up = d.uplift;
@@ -5214,17 +5354,17 @@
       {
         as: "h2",
         id: "cd-derived-title",
-        title: T.title,
+        title: T2.title,
         padded: false,
-        footer: /* @__PURE__ */ React.createElement("p", { className: "cd-dfoot" }, T.footer, " ", /* @__PURE__ */ React.createElement(AsAt, null))
+        footer: /* @__PURE__ */ React.createElement("p", { className: "cd-dfoot" }, T2.footer, " ", /* @__PURE__ */ React.createElement(AsAt, null))
       },
-      /* @__PURE__ */ React.createElement("dl", { className: "cd-derived" }, /* @__PURE__ */ React.createElement(Row, { id: "notice", label: T.noticeDeadline, section: "notice" }, /* @__PURE__ */ React.createElement(Value, null, fmtDateLong(d.deadline)), /* @__PURE__ */ React.createElement(Sub, null, relativeText(d.deadline), ".", d.usedEndDate && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", noticeDeadlineNote(d)), noticeReview && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(ConfidencePill, { score: noticeX.confidence })))), /* @__PURE__ */ React.createElement(Row, { id: "band", label: T.band, section: "radar" }, /* @__PURE__ */ React.createElement(Value, null, ATTENTION.has(d.band) ? /* @__PURE__ */ React.createElement(Pill, { tone: "warning", icon: "triangle-exclamation" }, bandLabel(d.band)) : /* @__PURE__ */ React.createElement(Pill, { icon: d.band === "later" ? "calendar" : "calendar-days" }, bandLabel(d.band))), /* @__PURE__ */ React.createElement(Sub, null, attention || (d.band === "later" ? T.bandOff : d.band === "history" ? "" : T.bandOn))), /* @__PURE__ */ React.createElement(Row, { id: "latest-end", label: T.latestEnd, section: "notice" }, /* @__PURE__ */ React.createElement(Value, null, latestEndText(d)), /* @__PURE__ */ React.createElement(Sub, null, T.latestEndIf, " ", ext.count > 0 ? T.latestEndWith(`${plural(ext.count, "extension")} of ${ext.lengthMonths} months${ext.count > 1 ? " each" : ""}`) : T.latestEndNone)), /* @__PURE__ */ React.createElement(Row, { id: "next-review", label: T.nextReview, section: "ranking" }, /* @__PURE__ */ React.createElement(Value, null, reviewKnown ? fmtDateLong(d.nextReviewDate) : fixed ? T.none : T.notFound), /* @__PURE__ */ React.createElement(Sub, null, reviewKnown ? `${relativeText(d.nextReviewDate)}.` : fixed ? T.fixedNote : T.nextReviewMissing)), /* @__PURE__ */ React.createElement(Row, { id: "cap-used", label: T.capUsed, section: "cap" }, /* @__PURE__ */ React.createElement(Value, null, capUsedText(cap), " ", cap.testable && /* @__PURE__ */ React.createElement(CapStatePill, { state: cap.state, label: capStateLabel(cap), wrap: true })), cap.testable && /* @__PURE__ */ React.createElement(Sub, null, cap.basis === "annual" ? `Highest contract year: ${fmtGBP(cap.spendAgainstCap)} of ${fmtGBP(cap.capGBP)} a year.` : `${fmtGBP(cap.spendAgainstCap)} of ${fmtGBP(cap.capGBP)}.`, " ", capBasisLabel(cap), ", ", capSourceLabel(cap).toLowerCase(), ".", cap.excessGBP > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", fmtGBP(cap.excessGBP), " over. Indicative.")), cap.testable && d.spend.coverage === "partial" && /* @__PURE__ */ React.createElement(Sub, null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), " ", COPY.partialCoverageNote(d.spend.coverageFrom))), /* @__PURE__ */ React.createElement(Row, { id: "uplift", label: T.upliftCheck, section: "uplift" }, /* @__PURE__ */ React.createElement(Value, null, up.testable ? /* @__PURE__ */ React.createElement(React.Fragment, null, upliftResultText(up).replace(/\. Within tolerance$/, ""), " ", /* @__PURE__ */ React.createElement("span", { className: "kviz-pill", style: { "--c": upliftState(up).color, color: upliftState(up).text } }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + upliftState(up).glyph, "aria-hidden": "true" }), upliftState(up).label)) : upliftResultText(up)), up.testable && up.flagged && /* @__PURE__ */ React.createElement(Sub, null, T.upliftExcess(fmtGBP(up.excessGBP))), suggested && /* @__PURE__ */ React.createElement(Sub, { "data-testid": "suggested-match" }, T.suggested(suggested.paymentCount, fmtGBP(suggested.totalGBP)), " ", /* @__PURE__ */ React.createElement("a", { href: "#/spend/matches" }, T.reviewMatches))))
+      /* @__PURE__ */ React.createElement("dl", { className: "cd-derived" }, /* @__PURE__ */ React.createElement(Row, { id: "notice", label: T2.noticeDeadline, section: "notice" }, /* @__PURE__ */ React.createElement(Value, null, fmtDateLong(d.deadline)), /* @__PURE__ */ React.createElement(Sub, null, relativeText(d.deadline), ".", d.usedEndDate && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", noticeDeadlineNote(d)), noticeReview && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(ConfidencePill, { score: noticeX.confidence })))), /* @__PURE__ */ React.createElement(Row, { id: "band", label: T2.band, section: "radar" }, /* @__PURE__ */ React.createElement(Value, null, ATTENTION.has(d.band) ? /* @__PURE__ */ React.createElement(Pill, { tone: "warning", icon: "triangle-exclamation" }, bandLabel(d.band)) : /* @__PURE__ */ React.createElement(Pill, { icon: d.band === "later" ? "calendar" : "calendar-days" }, bandLabel(d.band))), /* @__PURE__ */ React.createElement(Sub, null, attention || (d.band === "later" ? T2.bandOff : d.band === "history" ? "" : T2.bandOn))), /* @__PURE__ */ React.createElement(Row, { id: "latest-end", label: T2.latestEnd, section: "notice" }, /* @__PURE__ */ React.createElement(Value, null, latestEndText(d)), /* @__PURE__ */ React.createElement(Sub, null, T2.latestEndIf, " ", ext.count > 0 ? T2.latestEndWith(`${plural(ext.count, "extension")} of ${ext.lengthMonths} months${ext.count > 1 ? " each" : ""}`) : T2.latestEndNone)), /* @__PURE__ */ React.createElement(Row, { id: "next-review", label: T2.nextReview, section: "ranking" }, /* @__PURE__ */ React.createElement(Value, null, reviewKnown ? fmtDateLong(d.nextReviewDate) : fixed ? T2.none : T2.notFound), /* @__PURE__ */ React.createElement(Sub, null, reviewKnown ? `${relativeText(d.nextReviewDate)}.` : fixed ? T2.fixedNote : T2.nextReviewMissing)), /* @__PURE__ */ React.createElement(Row, { id: "cap-used", label: T2.capUsed, section: "cap" }, /* @__PURE__ */ React.createElement(Value, null, capUsedText(cap), " ", cap.testable && /* @__PURE__ */ React.createElement(CapStatePill, { state: cap.state, label: capStateLabel(cap), wrap: true })), cap.testable && /* @__PURE__ */ React.createElement(Sub, null, cap.basis === "annual" ? `Highest contract year: ${fmtGBP(cap.spendAgainstCap)} of ${fmtGBP(cap.capGBP)} a year.` : `${fmtGBP(cap.spendAgainstCap)} of ${fmtGBP(cap.capGBP)}.`, " ", capBasisLabel(cap), ", ", capSourceLabel(cap).toLowerCase(), ".", cap.excessGBP > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", fmtGBP(cap.excessGBP), " over. Indicative.")), cap.testable && d.spend.coverage === "partial" && /* @__PURE__ */ React.createElement(Sub, null, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), " ", COPY.partialCoverageNote(d.spend.coverageFrom))), /* @__PURE__ */ React.createElement(Row, { id: "uplift", label: T2.upliftCheck, section: "uplift" }, /* @__PURE__ */ React.createElement(Value, null, up.testable ? /* @__PURE__ */ React.createElement(React.Fragment, null, upliftResultText(up).replace(/\. Within tolerance$/, ""), " ", /* @__PURE__ */ React.createElement("span", { className: "kviz-pill", style: { "--c": upliftState(up).color, color: upliftState(up).text } }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + upliftState(up).glyph, "aria-hidden": "true" }), upliftState(up).label)) : upliftResultText(up)), up.testable && up.flagged && /* @__PURE__ */ React.createElement(Sub, null, T2.upliftExcess(fmtGBP(up.excessGBP))), suggested && /* @__PURE__ */ React.createElement(Sub, { "data-testid": "suggested-match" }, T2.suggested(suggested.paymentCount, fmtGBP(suggested.totalGBP)), " ", /* @__PURE__ */ React.createElement("a", { href: "#/spend/matches" }, T2.reviewMatches))))
     );
   }
 
   // src/views/contracts/SpendSection.jsx
   init_react_shim();
-  var import_react37 = __toESM(require_react(), 1);
+  var import_react38 = __toESM(require_react(), 1);
   function yearRows(estate, contract) {
     const from = estate.council.spendDataFrom;
     return estate.summaries[contract.id].byYear.map((y) => {
@@ -5239,8 +5379,8 @@
     const cap = contract.cap;
     const annual = !!cap && cap.basis === "annual";
     const closeAt = estate.opts.nearCapThreshold;
-    const series = (0, import_react37.useMemo)(() => cumulativeSeries(estate, contract.id), [estate, contract.id]);
-    const rows = (0, import_react37.useMemo)(() => yearRows(estate, contract), [estate, contract]);
+    const series = (0, import_react38.useMemo)(() => cumulativeSeries(estate, contract.id), [estate, contract.id]);
+    const rows = (0, import_react38.useMemo)(() => yearRows(estate, contract), [estate, contract]);
     const partial = d.spend.coverage === "partial";
     const over = d.cap.testable && d.cap.utilisation > 1 && d.cap.utilisation < 1.35;
     const columns = [
@@ -5284,15 +5424,15 @@
 
   // src/views/contracts/Payments.jsx
   init_react_shim();
-  var import_react38 = __toESM(require_react(), 1);
+  var import_react39 = __toESM(require_react(), 1);
   var PAGE_SIZE = 20;
   function PaymentsSection({ contract, estate }) {
     const P = DETAIL.payments;
-    const pay = (0, import_react38.useMemo)(() => paymentsFor(estate, contract.id), [estate, contract.id]);
-    const suppliers = (0, import_react38.useMemo)(() => Object.fromEntries(estate.data.suppliers.map((s) => [s.id, s.legalName])), [estate]);
-    const [page, setPage] = (0, import_react38.useState)(1);
-    const [sort, setSort] = (0, import_react38.useState)({ key: "date", dir: "desc" });
-    const sorted = (0, import_react38.useMemo)(() => {
+    const pay = (0, import_react39.useMemo)(() => paymentsFor(estate, contract.id), [estate, contract.id]);
+    const suppliers = (0, import_react39.useMemo)(() => Object.fromEntries(estate.data.suppliers.map((s) => [s.id, s.legalName])), [estate]);
+    const [page, setPage] = (0, import_react39.useState)(1);
+    const [sort, setSort] = (0, import_react39.useState)({ key: "date", dir: "desc" });
+    const sorted = (0, import_react39.useMemo)(() => {
       const sign = sort.dir === "asc" ? 1 : -1;
       const get = sort.key === "amount" ? (a) => a.payment.amountGBP : (a) => a.payment.date;
       return [...pay.all].sort((a, b) => {
@@ -5423,7 +5563,7 @@
 
   // src/views/Source.jsx
   init_react_shim();
-  var import_react39 = __toESM(require_react(), 1);
+  var import_react40 = __toESM(require_react(), 1);
   var { Breadcrumb: Breadcrumb2 } = window.Springboard20DesignSystem_019e02;
   var SOURCE_COPY = {
     eyebrow: "Source viewer",
@@ -5509,9 +5649,9 @@
     const blocks = prov && doc ? doc.pages[prov.page] : null;
     const found = !!(blocks && blocks.some((b) => b.extractionIds && b.extractionIds.includes(extraction.id)));
     usePageTitle(found ? prov.clauseRef : void 0);
-    const markRef = (0, import_react39.useRef)(null);
+    const markRef = (0, import_react40.useRef)(null);
     const extractionKey = found ? extraction.id : null;
-    (0, import_react39.useEffect)(() => {
+    (0, import_react40.useEffect)(() => {
       if (!extractionKey) return void 0;
       const main = document.getElementById("shell-main") || document;
       let moved = false;
@@ -5542,9 +5682,9 @@
         ["wheel", "touchmove", "keydown", "pointerdown"].forEach((ev) => main.removeEventListener(ev, onMove));
       };
     }, [extractionKey]);
-    const panelRef = (0, import_react39.useRef)(null);
-    const [sticky, setSticky] = (0, import_react39.useState)(false);
-    (0, import_react39.useEffect)(() => {
+    const panelRef = (0, import_react40.useRef)(null);
+    const [sticky, setSticky] = (0, import_react40.useState)(false);
+    (0, import_react40.useEffect)(() => {
       const panel = panelRef.current;
       const main = document.getElementById("shell-main");
       if (!panel || !main) return void 0;
@@ -5559,7 +5699,7 @@
     const list = contract ? estate.extractionsByContract[contract.id] || [] : [];
     const index = found ? list.findIndex((x) => x.id === extraction.id) : -1;
     const question = found ? estate.data.questions.find((q) => q.id === extraction.questionId) : null;
-    const answer = (0, import_react39.useMemo)(() => found ? answerFor(extraction, contract) : null, [found, extraction, contract]);
+    const answer = (0, import_react40.useMemo)(() => found ? answerFor(extraction, contract) : null, [found, extraction, contract]);
     if (!found) return /* @__PURE__ */ React.createElement(Missing, { contract, from });
     const origin = ORIGINS[from] || ORIGINS.opportunities;
     const backHref = backHrefOf(origin, contract);
@@ -5618,7 +5758,7 @@
 
   // src/views/Method.jsx
   init_react_shim();
-  var import_react40 = __toESM(require_react(), 1);
+  var import_react41 = __toESM(require_react(), 1);
 
   // src/data/evidence.js
   init_react_shim();
@@ -5810,10 +5950,10 @@
     const ui = useUI();
     const route = useRoute();
     const wanted = route.query.get("s");
-    const [active, setActive] = (0, import_react40.useState)(IDS[0]);
-    const [tocOpen, setTocOpen] = (0, import_react40.useState)(false);
-    const first = (0, import_react40.useRef)(true);
-    (0, import_react40.useEffect)(() => {
+    const [active, setActive] = (0, import_react41.useState)(IDS[0]);
+    const [tocOpen, setTocOpen] = (0, import_react41.useState)(false);
+    const first = (0, import_react41.useRef)(true);
+    (0, import_react41.useEffect)(() => {
       if (!wanted || !IDS.includes(wanted)) {
         first.current = false;
         return void 0;
@@ -5833,7 +5973,7 @@
         cancelAnimationFrame(r2);
       };
     }, [wanted]);
-    (0, import_react40.useEffect)(() => {
+    (0, import_react41.useEffect)(() => {
       const main = document.getElementById("shell-main");
       if (!main) return void 0;
       let raf = 0;
@@ -6161,7 +6301,7 @@
 
   // src/views/Evidence.jsx
   init_react_shim();
-  var import_react41 = __toESM(require_react(), 1);
+  var import_react42 = __toESM(require_react(), 1);
   var PHONE = "(max-width: 1099px)";
   var subscribe2 = (cb) => {
     const m = window.matchMedia(PHONE);
@@ -6169,7 +6309,7 @@
     return () => m.removeEventListener("change", cb);
   };
   function useIsPhone() {
-    return (0, import_react41.useSyncExternalStore)(subscribe2, () => window.matchMedia(PHONE).matches, () => false);
+    return (0, import_react42.useSyncExternalStore)(subscribe2, () => window.matchMedia(PHONE).matches, () => false);
   }
   function ResponsiveTable({ caption, columns, rows, rowKey = "id", phoneTitle }) {
     const phone = useIsPhone();
@@ -6364,11 +6504,11 @@
 
   // src/views/Guide.jsx
   init_react_shim();
-  var import_react43 = __toESM(require_react(), 1);
+  var import_react44 = __toESM(require_react(), 1);
 
   // src/lib/theme.js
   init_react_shim();
-  var import_react42 = __toESM(require_react(), 1);
+  var import_react43 = __toESM(require_react(), 1);
   var THEME_KEY = KEYS.theme;
   var THEME_EVENT = "kontor-theme";
   function getTheme() {
@@ -6385,8 +6525,8 @@
     return t;
   }
   function useTheme() {
-    const [theme, setLocal] = (0, import_react42.useState)(getTheme);
-    (0, import_react42.useEffect)(() => {
+    const [theme, setLocal] = (0, import_react43.useState)(getTheme);
+    (0, import_react43.useEffect)(() => {
       const sync = () => setLocal(getTheme());
       const onStorage = (e) => {
         if (e.key === THEME_KEY && (e.newValue === "light" || e.newValue === "dark")) {
@@ -7105,10 +7245,10 @@
     const ui = useUI();
     const route = useRoute();
     const wanted = route.query.get("s");
-    const [active, setActive] = (0, import_react43.useState)(SECTION_IDS[0]);
-    const f = (0, import_react43.useMemo)(() => guideFacts(estate, state), [estate, state]);
-    const first = (0, import_react43.useRef)(true);
-    (0, import_react43.useEffect)(() => {
+    const [active, setActive] = (0, import_react44.useState)(SECTION_IDS[0]);
+    const f = (0, import_react44.useMemo)(() => guideFacts(estate, state), [estate, state]);
+    const first = (0, import_react44.useRef)(true);
+    (0, import_react44.useEffect)(() => {
       if (!wanted || !SECTION_IDS.includes(wanted)) {
         first.current = false;
         return void 0;
@@ -7128,7 +7268,7 @@
         cancelAnimationFrame(r2);
       };
     }, [wanted]);
-    (0, import_react43.useEffect)(() => {
+    (0, import_react44.useEffect)(() => {
       const main = document.getElementById("shell-main");
       if (!main) return void 0;
       let raf = 0;
@@ -7315,12 +7455,12 @@
 
   // src/lib/useResetDemo.js
   init_react_shim();
-  var import_react44 = __toESM(require_react(), 1);
+  var import_react45 = __toESM(require_react(), 1);
   function useResetDemo() {
     const ui = useUI();
     const { state, actions } = useEstate();
     const changeCount2 = changeCount(state);
-    const reset = (0, import_react44.useCallback)(async () => {
+    const reset = (0, import_react45.useCallback)(async () => {
       const start = computeEstate({});
       const headline = fmtGBPCompact(start.totals.totalGBP);
       const contracts = start.totals.contractCount;
@@ -7372,7 +7512,7 @@
 
   // src/components/ToastHost.jsx
   init_react_shim();
-  var import_react45 = __toESM(require_react(), 1);
+  var import_react46 = __toESM(require_react(), 1);
   function ToastHost2() {
     const { toasts } = useUIState();
     const { dismissToast } = useUI();
@@ -7380,7 +7520,7 @@
   }
   function ToastBridge({ children }) {
     const ui = useUI();
-    const api = (0, import_react45.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
+    const api = (0, import_react46.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
     return /* @__PURE__ */ React.createElement(ToastContext.Provider, { value: api }, children);
   }
 
@@ -7491,7 +7631,7 @@
 
   // src/components/FlagDrawer.jsx
   init_react_shim();
-  var import_react46 = __toESM(require_react(), 1);
+  var import_react49 = __toESM(require_react(), 1);
 
   // src/data/reasons.js
   init_react_shim();
@@ -7558,8 +7698,773 @@
     return { heading: REASONS_HEADING, intro: REASONS_INTRO, items: reasons[reasonKey(flagOrKey)] };
   }
 
+  // src/lib/actions-copy.js
+  init_react_shim();
+  var MONTHS3 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var monthLong = (ym) => `${MONTHS3[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+  var dayMonth = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+  function whenText(at2) {
+    const d = new Date(at2);
+    if (Number.isNaN(d.getTime())) return "";
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+    return `${p.day} ${p.month === "Sept" ? "Sep" : p.month}, ${p.hour}:${p.minute}`;
+  }
+  var ACT = {
+    /* ---------------------------------------------------------------- drawer */
+    tabs: { label: "Opportunity views", details: "Details", action: "Action" },
+    footer: {
+      stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
+      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
+    },
+    empty: {
+      title: "Nobody is working on this yet.",
+      body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
+      button: "Start action"
+    },
+    closedSummary: {
+      resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
+      on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
+      reopen: "To reopen it, choose an open stage below."
+    },
+    who: {
+      title: "Who and when",
+      stage: "Stage",
+      owner: "Owner",
+      due: "Due",
+      notSet: "Not set",
+      dueHelp: (iso) => `${fmtDate(iso)}, ${inDaysText(iso, AS_OF)}`
+    },
+    steps: { title: "Next steps", done: (d, t) => `${d} of ${t} done` },
+    contacts: {
+      title: "Who to contact",
+      note: "Sample names",
+      staff: "Staff list",
+      source: (label, clauseRef, page) => `${label} \xB7 ${clauseRef}, page ${page}`,
+      showClause: "Show the clause",
+      quoteLabel: "From the contract",
+      why: (kindLabel, why) => `${kindLabel}. ${why}`,
+      supplierRole: (role, supplier) => `${role}, ${supplier}`
+    },
+    email: {
+      title: "Draft email",
+      note: "Check before you send",
+      to: "To",
+      subject: "Subject",
+      body: "Email body",
+      toOption: (name, email) => `${name} \xB7 ${email}`,
+      copy: "Copy email",
+      sent: "Mark as sent",
+      hint: "Copy and Mark as sent add a line to the activity log. Kontor never sends email.",
+      copied: (name) => `Email copied. Paste it into your email app and send it to ${name}.`,
+      blocked: "Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.",
+      markedSent: (name) => `Marked as sent to ${name}.`
+    },
+    exit: {
+      title: "Exit terms",
+      note: "From the contract",
+      convenience: "End for convenience",
+      fee: "Exit fee",
+      ends: "Contract ends",
+      yes: (months) => `Yes, ${months} ${months === 1 ? "month's" : "months'"} notice`,
+      no: "No",
+      none: "None",
+      notFound: "Not found",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    },
+    activity: { title: "Activity", noteLabel: "Add a note", addNote: "Add note", empty: "Nothing has happened on this action yet.", noteTag: "Note" },
+    toast: {
+      added: (title) => `${title}: added to Actions.`,
+      addedDesc: (headline, changed, hasOwner) => `The headline is ${changed ? "now" : "still"} ${headline}.${hasOwner ? "" : " Set an owner to get started."}`,
+      open: "Open in Actions",
+      archived: (title) => `${title}: marked To investigate.`,
+      archivedDesc: (headline) => `The card has left the Actions board. Its notes and log are kept. The headline is now ${headline}.`,
+      closed: (title, outcome) => `${title}: closed as ${OUTCOME_LABEL[outcome]}.`,
+      valueNow: (gbp2) => `Value secured is now ${fmtGBP(gbp2)}.`,
+      headlineNow: (headline) => `The headline is now ${headline}.`,
+      moved: (title, stage) => `${title}: moved to ${STAGE_LABEL[stage]}.`,
+      reopened: (title, stage) => `${title}: reopened in ${STAGE_LABEL[stage]}.`
+    },
+    /* ---------------------------------------------------------------- close dialog */
+    dialog: {
+      title: "Close this action",
+      subtitle: (contract, type, flagged) => `${contract} \xB7 ${type} \xB7 ${fmtGBP(flagged)} flagged`,
+      outcome: "Outcome",
+      cash: "Cash recovered",
+      cashHelp: "One-off money back, like a refund or credit note",
+      cost: "Cost avoided",
+      costHelp: "Future spend that will not happen, like a lower rate",
+      moneyError: "Enter an amount. Add cash recovered, cost avoided or both.",
+      wholePounds: "Enter whole pounds, for example 150,000.",
+      what: "What happened",
+      whatError: "Add one line on what happened.",
+      hint: "Your figures. Kontor shows them as you enter them and does not check them.",
+      cancel: "Cancel",
+      confirm: "Close action"
+    },
+    /* ---------------------------------------------------------------- Actions page */
+    page: {
+      title: "Actions",
+      description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
+      resultsDescription: "What your team has closed, and what it brought back. Your figures.",
+      tabsLabel: "Actions views",
+      board: "Board",
+      results: "Results"
+    },
+    board: {
+      stats: { working: "Being worked on", open: "Open actions", due: "Due in the next 14 days", value: "Value secured to date" },
+      statsLabel: "Action totals",
+      workingFoot: "Indicative value, still in the headline",
+      openFoot: "To start, checking or with the supplier",
+      dueFoot: "Overdue ones included",
+      valueFoot: "See results",
+      filters: "Filter the board",
+      owner: "Owner",
+      everyone: "Everyone",
+      allTypes: "All types",
+      typeLabel: "Flag type",
+      last30: "Last 30 days",
+      empty: "Drag a card here, or use Move to on a card.",
+      columnLabel: (label, n) => `${label}, ${plural(n, "action")}`,
+      justAdded: "Just added",
+      unassigned: "No owner yet",
+      progress: (d, t) => `${d} of ${t}`,
+      progressLabel: (d, t) => `${d} of ${t} steps done`,
+      next: "Next:",
+      allDone: "Every step is done. Close the action when you are ready.",
+      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      moveTo: "Move to",
+      moveLabel: (title) => `Move ${title} to another stage`,
+      open: (title) => `Open the action for ${title}`,
+      dragHelp: "Drag cards between columns, or use Move to.",
+      noMatch: "No actions match these filters.",
+      clear: "Clear filters"
+    },
+    results: {
+      tiles: { value: "Value secured", cash: "Cash recovered", cost: "Cost avoided", closed: "Actions closed" },
+      since: (ym) => `Since ${monthLong(ym)}`,
+      count: (n) => plural(n, "action"),
+      split: (r, e, n) => `${r} resolved \xB7 ${e} explained \xB7 ${n} no action`,
+      chartTitle: "Value secured, by month closed",
+      chartLabel: "Value secured by the month each action closed",
+      tableTitle: "Closed actions",
+      tableCaption: "Closed actions, newest first",
+      cols: { closed: "Closed", contract: "Contract", outcome: "Outcome", cash: "Cash recovered", cost: "Cost avoided", owner: "Owner" },
+      none: "None",
+      example: "Example",
+      latest: "Latest",
+      footer: "Your figures. Kontor does not check them.",
+      empty: "No actions have been closed yet. Close one on the board to see it here.",
+      barLabel: (month, cash, cost) => `${month}: ${fmtGBP(cash + cost)} value secured, ${fmtGBP(cash)} cash recovered and ${fmtGBP(cost)} cost avoided`
+    },
+    /* ---------------------------------------------------------------- Home strip */
+    home: {
+      title: "Action progress",
+      description: "From the Actions board.",
+      open: "Open Actions",
+      notStarted: "Not started",
+      working: "Being worked on",
+      value: "Value secured",
+      notStartedFoot: (n) => `${plural(n, "flag")} with no action yet`,
+      workingFoot: (n, due) => `${plural(n, "action")}. ${due} due in the next 14 days.`,
+      valueFoot: (n, ym) => `${plural(n, "action")} resolved since ${MONTHS3[Number(ym.slice(5, 7)) - 1]}. Your figures.`,
+      valueFootNone: "Nothing resolved yet. Your figures.",
+      seeResults: "See results"
+    },
+    /* ---------------------------------------------------------------- other screens */
+    rowStage: (stage, initials) => initials ? `${STAGE_LABEL[stage]} \xB7 ${initials}` : STAGE_LABEL[stage],
+    rowStageLabel: (stage, name) => name ? `Action: ${STAGE_LABEL[stage]}, owner ${name}` : `Action: ${STAGE_LABEL[stage]}, no owner yet`,
+    reps: {
+      title: "Representatives",
+      description: "Named in clause 3 of the contract. Sample names.",
+      authority: "Authority's Representative",
+      supplier: "Supplier's Representative",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    }
+  };
+
+  // src/components/ActionPanel.jsx
+  init_react_shim();
+  var import_react47 = __toESM(require_react(), 1);
+
+  // src/data/contacts.js
+  init_react_shim();
+
+  // src/data/representatives.js
+  init_react_shim();
+  var SUPPLIER_REP_NAMES = [
+    "Robin Achterberg",
+    "Jordan Pike",
+    "Casey Thorne",
+    "Sam Kellaway",
+    "Alex Merrow",
+    "Jamie Otieno",
+    "Taylor Brennan",
+    "Morgan Ellwood",
+    "Charlie Nakamura",
+    "Drew Halloran",
+    "Rowan Fitzgerald",
+    "Avery Lindgren",
+    "Quinn Bellamy",
+    "Reese Mbeki",
+    "Emerson Vale",
+    "Hayden Rook",
+    "Logan Petrakis",
+    "Parker Quill",
+    "Riley Ashdown",
+    "Sasha Kowal",
+    "Toby Lennard",
+    "Frankie Adair",
+    "Blair Henshaw",
+    "Jesse Calloway"
+  ];
+  var REP_ROLE = "Contract Director";
+  var CLAUSE = { authority: "Clause 3.1", supplier: "Clause 3.2" };
+  var PAGE = 6;
+  var supplierIds = sample_default.suppliers.map((s) => s.id).sort();
+  var repBySupplier = Object.fromEntries(supplierIds.map((id, i) => [id, SUPPLIER_REP_NAMES[i]]));
+  var supplierById = Object.fromEntries(sample_default.suppliers.map((s) => [s.id, s]));
+  var domainOf = (legalName) => `${String(legalName).split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, "")}.example`;
+  var emailOf = (name, domain) => `${name.toLowerCase().replace(/\s+/g, ".")}@${domain}`;
+  var REPRESENTATIVES = sample_default.contracts.map((c) => {
+    const person = peopleById[ownerFor(c)];
+    const supplier = supplierById[c.supplierId] || { legalName: c.supplierName };
+    const name = repBySupplier[c.supplierId];
+    const email = emailOf(name, domainOf(supplier.legalName));
+    return {
+      contractId: c.id,
+      authority: {
+        personId: person.id,
+        clauseRef: CLAUSE.authority,
+        page: PAGE,
+        quote: `The Authority's Representative is the ${person.role}, currently ${person.name} (${person.email}).`
+      },
+      supplier: {
+        name,
+        role: REP_ROLE,
+        email,
+        clauseRef: CLAUSE.supplier,
+        page: PAGE,
+        quote: `The Supplier's Representative is ${name}, ${REP_ROLE} (${email}).`
+      }
+    };
+  });
+  var byContract = Object.fromEntries(REPRESENTATIVES.map((r) => [r.contractId, r]));
+  var representativesFor = (contractId) => byContract[contractId] || null;
+
+  // src/data/contacts.js
+  var STAFF_LIST = "Staff list";
+  var KIND_LABEL = { owner: "Contract owner", budget: "Budget holder", procurement: "Procurement lead", finance: "Finance", supplier: "Supplier's representative" };
+  var SOURCE_LABEL = { authority: "Authority's Representative", supplier: "Supplier's Representative" };
+  var CONTACT_PLAN = {
+    overCap: [
+      ["owner", "Knows if a variation was agreed."],
+      ["budget", "Signs off spend in this service."],
+      ["finance", "Can confirm what was paid and when."],
+      ["supplier", "Supplier's named contact. Use after the internal check."]
+    ],
+    nearCap: [
+      ["budget", "Owns the budget this contract will exceed."],
+      ["owner", "Knows what work is still to come."],
+      ["procurement", "Can advise on a variation or a new procurement."],
+      ["supplier", "Can forecast the spend still to come."]
+    ],
+    renewal: [
+      ["owner", "Decides whether to extend, renegotiate or re-procure."],
+      ["procurement", "Can compare the price with frameworks."],
+      ["budget", "Signs off the renewal."],
+      ["supplier", "Can offer renewal terms."]
+    ],
+    uplift: [
+      ["finance", "Holds the invoices behind the rise."],
+      ["owner", "Knows if the increase was agreed."],
+      ["supplier", "Must explain the increase and any credit."]
+    ]
+  };
+  var initialsOf = (name) => String(name).split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  function contactsFor(flag, contract) {
+    const type = flag && (flag.type || flag.flagType);
+    const plan = CONTACT_PLAN[type] || [];
+    const reps = representativesFor(contract && contract.id);
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const [kind, why] of plan) {
+      if (kind === "supplier") {
+        if (!reps) continue;
+        const r = reps.supplier;
+        out.push({
+          id: "supplier",
+          kind,
+          label: KIND_LABEL[kind],
+          internal: false,
+          supplierRep: r,
+          name: r.name,
+          role: r.role,
+          email: r.email,
+          initials: initialsOf(r.name),
+          why,
+          source: { side: "supplier", label: SOURCE_LABEL.supplier, clauseRef: r.clauseRef, page: r.page, quote: r.quote }
+        });
+        continue;
+      }
+      const personId = kind === "owner" ? reps ? reps.authority.personId : null : kind === "budget" ? budgetHolderFor(contract) : kind === "procurement" ? PROCUREMENT_LEAD : FINANCE;
+      const person = peopleById[personId];
+      if (!person || seen.has(person.id)) continue;
+      seen.add(person.id);
+      const source = kind === "owner" && reps ? { side: "authority", label: SOURCE_LABEL.authority, clauseRef: reps.authority.clauseRef, page: reps.authority.page, quote: reps.authority.quote } : STAFF_LIST;
+      out.push({ id: person.id, kind, label: KIND_LABEL[kind], internal: true, person, name: person.name, role: person.role, email: person.email, initials: person.initials, why, source });
+    }
+    return out;
+  }
+
+  // src/data/email-templates.js
+  init_react_shim();
+  var SIGN_OFF = "[Your name]";
+  var COUNCIL_NAME = "Marchbank Borough Council";
+  var INTERNAL_CLOSE = ["Thanks,", SIGN_OFF];
+  var SUPPLIER_CLOSE = ["Kind regards,", SIGN_OFF, COUNCIL_NAME];
+  var join = (lines) => lines.join("\n");
+  var cite = (ev) => ev ? `- ${ev.clauseRef}, page ${ev.page}: "${ev.quote}"` : null;
+  var indexCapText = (capPct) => fmtPct(capPct, 1);
+  function overCap(flag, c, d, who, due, internal) {
+    const ev = evidenceFor(flag);
+    const cs = d && d.cap || {};
+    const annual = cs.basis === "annual";
+    const estimate = flag.capState === "above_estimate";
+    const word = estimate ? "contract value" : "cap";
+    const excess = fmtGBP(flag.indicativeGBP);
+    const spendGBP = annual ? flag.breakdown[0].value : cs.spendAgainstCap;
+    const spend = fmtGBP(spendGBP);
+    const paidLine = annual ? `- Payments in the contract years that went over are ${spend}. That is ${excess} above the ${word}.` : `- Payments to date are ${spend}. That is ${excess} above the ${word}.`;
+    if (internal) {
+      return {
+        subject: `${c.id} ${c.title}: spend is ${excess} above the ${word}`,
+        body: join([
+          `Hi ${who},`,
+          "",
+          `Our contract review flagged the ${c.title} contract (${c.id}, ${c.supplierName}).`,
+          "",
+          ...[cite(ev), paidLine].filter(Boolean),
+          "",
+          `Can you tell me by ${due}:`,
+          `1. Was a variation approved that raised the ${word}?`,
+          "2. Was extra work added to the scope?",
+          `3. Who approved the payments above the ${word}?`,
+          "",
+          "The clause and the payment list are in Kontor.",
+          "",
+          ...INTERNAL_CLOSE
+        ])
+      };
+    }
+    const max = estimate ? "contract value" : "maximum";
+    const capText = annual ? `${fmtGBP(cs.capGBP)} in any contract year` : fmtGBP(cs.capGBP);
+    return {
+      subject: `${c.id} ${c.title}: payments above the contract ${estimate ? "value" : "maximum"}`,
+      body: join([
+        `Dear ${who},`,
+        "",
+        `We are reviewing the ${c.title} contract (${c.id}).`,
+        "",
+        `${ev ? ev.clauseRef : "The contract"} sets a ${max} of ${capText}. Our records show payments of ${spend}, which is ${excess} above that ${max}.`,
+        "",
+        `Please send us by ${due}:`,
+        `1. Any variation or change notice that you believe raised the ${max}.`,
+        "2. A statement of the invoices paid under this contract.",
+        "",
+        ...SUPPLIER_CLOSE
+      ])
+    };
+  }
+  function nearCap(flag, c, d, who, due, internal) {
+    const ev = evidenceFor(flag);
+    const cs = d && d.cap || {};
+    const word = flag.capSource === "contract_value" ? "contract value" : "cap";
+    const pace = cs.basis === "annual" ? "the current year" : "the last 12 months";
+    const pct3 = fmtPct(cs.utilisation, 1);
+    const cap = fmtGBP(cs.capGBP);
+    if (internal) {
+      const forecast = flag.indicativeGBP > 0 ? `At the pace of ${pace}, spend will pass the ${word} by about ${fmtGBP(flag.indicativeGBP)}.` : `At the pace of ${pace}, spend stays within the ${word}, but only just.`;
+      return {
+        subject: flag.indicativeGBP > 0 ? `${c.id} ${c.title}: spend will pass the ${word}` : `${c.id} ${c.title}: spend is close to the ${word}`,
+        body: join([
+          `Hi ${who},`,
+          "",
+          `The ${c.title} contract (${c.id}, ${c.supplierName}) has used ${pct3} of its ${cap} ${word}. ${forecast}`,
+          "",
+          ...[cite(ev)].filter(Boolean),
+          ...ev ? [""] : [],
+          `Can we agree by ${due} what to do:`,
+          `1. Vary the contract to raise the ${word}.`,
+          "2. Reduce or re-scope the work.",
+          "3. Start a new procurement.",
+          "",
+          ...INTERNAL_CLOSE
+        ])
+      };
+    }
+    return {
+      subject: `${c.id} ${c.title}: forecast of remaining spend`,
+      body: join([
+        `Dear ${who},`,
+        "",
+        `The ${c.title} contract (${c.id}) has used ${pct3} of its ${cap} ${word === "cap" ? "maximum" : word}. Please send us by ${due} a forecast of the spend still to come under this contract, by month.`,
+        "",
+        ...SUPPLIER_CLOSE
+      ])
+    };
+  }
+  function renewal(flag, c, d, who, due, internal) {
+    const ev = evidenceFor(flag);
+    const end = fmtDateLong(c.endDate);
+    const ended = c.endDate < AS_OF;
+    if (internal) {
+      const afterEnd = d && d.spend ? d.spend.afterEndGBP : 0;
+      const situation = flag.variant === "out_of_contract" ? `ended on ${end}, but ${fmtGBP(afterEnd)} has been paid since` : flag.variant === "notice_passed" ? `passed its notice date on ${fmtDateLong(flag.actionBy)}, so it may renew on the current terms` : `needs a notice decision by ${fmtDateLong(flag.actionBy)}`;
+      const annual = flag.breakdown && flag.breakdown[0] ? flag.breakdown[0].value : c.annualValueGBP;
+      return {
+        subject: `${c.id} ${c.title}: renewal decision needed`,
+        body: join([
+          `Hi ${who},`,
+          "",
+          `The ${c.title} contract (${c.id}, ${c.supplierName}) ${situation}.`,
+          "",
+          ...[cite(ev), `- Annual value: ${fmtGBP(annual)}.`].filter(Boolean),
+          "",
+          `Can we decide by ${due} whether to:`,
+          "1. Extend, and ask for better terms.",
+          "2. Let it end and re-procure.",
+          "3. Renegotiate now.",
+          "",
+          ...INTERNAL_CLOSE
+        ])
+      };
+    }
+    return {
+      subject: `${c.id} ${c.title}: renewal terms`,
+      body: join([
+        `Dear ${who},`,
+        "",
+        `The ${c.title} contract (${c.id}) ${ended ? "ended" : "ends"} on ${end}. Before we decide on renewal, please send us by ${due}:`,
+        "1. Your proposed rates for any extension.",
+        "2. Any improvements you can offer on price or service.",
+        "",
+        ...SUPPLIER_CLOSE
+      ])
+    };
+  }
+  function uplift(flag, c, d, who, due, internal) {
+    const ev = evidenceFor(flag);
+    const up = d && d.uplift || {};
+    const capPct = indexCapText(up.capPct != null ? up.capPct : c.indexation && c.indexation.capPct);
+    const excess = fmtGBP(flag.indicativeGBP);
+    if (internal) {
+      return {
+        subject: `${c.id} ${c.title}: price rise above the index cap`,
+        body: join([
+          `Hi ${who},`,
+          "",
+          `The ${c.title} contract (${c.id}, ${c.supplierName}) limits yearly price rises to ${capPct}. Payments in the last 12 months suggest a rise above that limit, about ${excess} more than the contract allows.`,
+          "",
+          ...[cite(ev)].filter(Boolean),
+          ...ev ? [""] : [],
+          `Can you send me the invoices behind the rise by ${due}?`,
+          "",
+          ...INTERNAL_CLOSE
+        ])
+      };
+    }
+    return {
+      subject: `${c.id} ${c.title}: price increase above the contract cap`,
+      body: join([
+        `Dear ${who},`,
+        "",
+        `${ev ? ev.clauseRef : "The price review clause"} of the ${c.title} contract (${c.id}) limits yearly price increases to ${capPct}. Our payments show an increase above that limit, about ${excess}.`,
+        "",
+        `Please explain the increase by ${due}, and confirm how you will credit any amount above the cap.`,
+        "",
+        ...SUPPLIER_CLOSE
+      ])
+    };
+  }
+  var BUILDERS = { overCap, nearCap, renewal, uplift };
+  function emailFor(flag, contract, derived, recipient, due) {
+    const build = BUILDERS[flag && flag.type];
+    if (!build || !contract || !recipient) return null;
+    const internal = recipient.internal !== false;
+    const out = build(flag, contract, derived, firstName(recipient.name), fmtDateLong(due || AS_OF), internal);
+    return { to: { name: recipient.name, email: recipient.email }, internal, ...out };
+  }
+  var emailText = (email) => email ? `Subject: ${email.subject}
+
+${email.body}` : "";
+
+  // src/components/ActionBits.jsx
+  init_react_shim();
+  function PersonAvatar({ person, size = 24, label, className = "" }) {
+    const cls = ["act-av", !person && "act-av--empty", size >= 32 && "act-av--lg", className].filter(Boolean).join(" ");
+    return /* @__PURE__ */ React.createElement("span", { className: cls, "aria-hidden": label ? void 0 : "true", role: label ? "img" : void 0, "aria-label": label }, person ? person.initials : "?");
+  }
+  var OUTCOME_PILL = { resolved: { tone: "success", icon: "circle-check" }, explained: { tone: "neutral", icon: "circle-info" }, no_action: { tone: "neutral", icon: "ban" } };
+  function OutcomePill({ outcome, size }) {
+    const p = OUTCOME_PILL[outcome];
+    if (!p) return null;
+    return /* @__PURE__ */ React.createElement(Pill, { tone: p.tone, icon: p.icon, size, className: "act-outcome" }, OUTCOME_LABEL[outcome]);
+  }
+  function parseWholePounds(text) {
+    const t = String(text == null ? "" : text).replace(/[£,\s]/g, "");
+    if (!t) return null;
+    return /^\d{1,12}$/.test(t) ? Number(t) : NaN;
+  }
+
+  // src/components/useActionCommands.js
+  init_react_shim();
+  var openInActions = (flagId) => navigate("#/actions?card=" + encodeURIComponent(flagId));
+  function useActionCommands() {
+    const { estate, state, actions } = useEstate();
+    const ui = useUI();
+    const cur = { triage: state.triage, actions: state.actions || {} };
+    const totalsAfter = (triage) => computeEstate({ decisions: state.decisions, assumptions: state.assumptions, triage }).totals;
+    const titleOf = (flag) => (estate.contractsById[flag.contractId] || {}).title || flag.contractId;
+    return {
+      start(flag) {
+        const out = startAction(cur, flag, "");
+        const after = totalsAfter(out.triage);
+        actions.startAction(flag);
+        ui.toast({
+          tone: "success",
+          title: ACT.toast.added(titleOf(flag)),
+          description: ACT.toast.addedDesc(fmtGBPCompact(after.totalGBP), after.totalGBP !== estate.totals.totalGBP, !!out.actions[flag.id].owner),
+          action: { label: ACT.toast.open, onClick: () => openInActions(flag.id) }
+        });
+      },
+      archive(flag) {
+        const had = activeAction(cur.actions, flag.id);
+        const out = setStatus(cur, flag, "to_investigate", "");
+        const after = totalsAfter(out.triage);
+        actions.setStatus(flag, "to_investigate");
+        if (had) ui.toast({ tone: "success", title: ACT.toast.archived(titleOf(flag)), description: ACT.toast.archivedDesc(fmtGBPCompact(after.totalGBP)) });
+        else {
+          const [title, ...rest] = triageToast(estate.contractsById[flag.contractId], "to_investigate", after).split(new RegExp("(?<=\\.)\\s+"));
+          ui.toast({ tone: "success", title, description: rest.join(" ") });
+        }
+      },
+      close(flag, input) {
+        const out = closeAction(cur, flag, input, "");
+        if (out === cur) return;
+        const after = totalsAfter(out.triage);
+        actions.closeAction(flag, input);
+        const description = input.outcome === "resolved" ? ACT.toast.valueNow(resultsOf(out.actions).valueSecuredGBP) : ACT.toast.headlineNow(fmtGBPCompact(after.totalGBP));
+        ui.toast({ tone: "success", title: ACT.toast.closed(titleOf(flag), input.outcome), description });
+      },
+      move(flag, stage) {
+        const a = cur.actions[flag.id];
+        if (!a || a.stage === stage) return;
+        const wasClosed = a.stage === "closed";
+        actions.moveAction(flag, stage);
+        if (wasClosed) {
+          const out = moveAction(cur, flag, stage, "");
+          ui.toast({ tone: "success", title: ACT.toast.reopened(titleOf(flag), stage), description: ACT.toast.headlineNow(fmtGBPCompact(totalsAfter(out.triage).totalGBP)) });
+        }
+      }
+    };
+  }
+
+  // src/components/ActionPanel.jsx
+  var { Button: Button13, Input: Input3, Select: Select4 } = ds_default;
+  function Section3({ n, title, note, children, id }) {
+    return /* @__PURE__ */ React.createElement("section", { className: "act-sec", "aria-labelledby": id }, /* @__PURE__ */ React.createElement("div", { className: "act-sec__head" }, /* @__PURE__ */ React.createElement("h3", { className: "act-sec__title", id }, /* @__PURE__ */ React.createElement("span", { className: "act-sec__n", "aria-hidden": "true" }, n), title), note && /* @__PURE__ */ React.createElement("span", { className: "act-sec__note" }, note)), children);
+  }
+  function exitTerms(estate, contract) {
+    const x = (field) => estate.extractionsById[`X-${contract.id}-${field}`] || null;
+    const target = (ex) => ex && ex.status !== "not_found" && ex.provenance && ex.provenance[0] ? { id: ex.id, page: ex.provenance[0].page, clauseRef: ex.provenance[0].clauseRef } : null;
+    const tfc = x("terminationForConvenience");
+    const fee = x("exitFees");
+    const notice = x("noticePeriod");
+    const end = x("endDate");
+    const tfcA = tfc && tfc.answer;
+    const feeA = fee && fee.answer;
+    return [
+      { key: "convenience", label: ACT.exit.convenience, value: !tfc || tfc.status === "not_found" ? ACT.exit.notFound : tfcA && tfcA.allowed ? ACT.exit.yes(tfcA.noticeMonths) : ACT.exit.no, src: target(tfc) },
+      { key: "fee", label: ACT.exit.fee, value: !fee || fee.status === "not_found" ? ACT.exit.notFound : feeA && feeA.present ? feeA.summary : ACT.exit.none, src: target(fee) },
+      { key: "ends", label: ACT.exit.ends, value: fmtDate(contract.endDate), src: target(notice) || target(end) }
+    ];
+  }
+  function ActionPanel({ flag, contract, derived, action, from, onStart, onRequestClose }) {
+    const { estate, actions } = useEstate();
+    const cmd = useActionCommands();
+    const uid = (0, import_react47.useId)().replace(/:/g, "");
+    const contacts = (0, import_react47.useMemo)(() => contactsFor(flag, contract), [flag, contract]);
+    const [toId, setToId] = (0, import_react47.useState)(contacts[0] ? contacts[0].id : "");
+    const [msg, setMsg] = (0, import_react47.useState)("");
+    const [noteText, setNoteText] = (0, import_react47.useState)("");
+    const mailRef = (0, import_react47.useRef)(null);
+    (0, import_react47.useEffect)(() => {
+      setToId(contacts[0] ? contacts[0].id : "");
+      setMsg("");
+      setNoteText("");
+    }, [flag.id]);
+    if (!action) {
+      return /* @__PURE__ */ React.createElement("div", { className: "act-panel act-panel--empty" }, /* @__PURE__ */ React.createElement(
+        EmptyState,
+        {
+          as: "h3",
+          icon: "list-check",
+          title: ACT.empty.title,
+          action: /* @__PURE__ */ React.createElement(Button13, { type: "button", leftIcon: "play", onClick: onStart }, ACT.empty.button)
+        },
+        ACT.empty.body
+      ));
+    }
+    const owner = action.owner ? peopleById[action.owner] : null;
+    const prog = stepProgress(action);
+    const recipient = contacts.find((c) => c.id === toId) || contacts[0];
+    const mail = recipient ? emailFor(flag, contract, derived, recipient, action.due) : null;
+    const facts = exitTerms(estate, contract);
+    const activity = activityOf(action);
+    const closed2 = action.stage === "closed";
+    const onStage = (stage) => {
+      if (stage === action.stage) return;
+      if (stage === "closed") onRequestClose("resolved");
+      else cmd.move(flag, stage);
+    };
+    const copy = async () => {
+      const text = emailText(mail);
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        }
+      } catch (e) {
+        ok = false;
+      }
+      if (ok) {
+        actions.logActionEmail(flag, "copied", recipient.name);
+        setMsg(ACT.email.copied(recipient.name));
+        return;
+      }
+      const node = mailRef.current;
+      if (node && window.getSelection) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      setMsg(ACT.email.blocked);
+    };
+    const markSent = () => {
+      actions.logActionEmail(flag, "sent", recipient.name);
+      setMsg(ACT.email.markedSent(recipient.name));
+    };
+    const addNote2 = (e) => {
+      e.preventDefault();
+      if (!noteText.trim()) return;
+      actions.addActionNote(flag, noteText);
+      setNoteText("");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "act-panel" }, closed2 && /* @__PURE__ */ React.createElement("div", { className: "act-closed", role: "status" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: action.outcome }), /* @__PURE__ */ React.createElement("p", { className: "act-closed__line" }, action.outcome === "resolved" && /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.resolved(action.cashRecoveredGBP || 0, action.costAvoidedGBP || 0), " "), action.closeNote && /* @__PURE__ */ React.createElement("span", null, action.closeNote, " "), /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.on(action.closedAt))), /* @__PURE__ */ React.createElement("p", { className: "act-closed__help" }, ACT.closedSummary.reopen)), /* @__PURE__ */ React.createElement(Section3, { n: 1, title: ACT.who.title, id: `${uid}-who` }, /* @__PURE__ */ React.createElement("div", { className: "act-who" }, /* @__PURE__ */ React.createElement(Field, { label: ACT.who.stage, className: "act-who__stage" }, (p) => /* @__PURE__ */ React.createElement(Select4, { ...p, value: action.stage, options: STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] })), onChange: (e) => onStage(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.owner, className: "act-who__owner" }, (p) => /* @__PURE__ */ React.createElement("span", { className: "act-who__ownerctl" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner }), /* @__PURE__ */ React.createElement(
+      Select4,
+      {
+        ...p,
+        value: action.owner || "",
+        onChange: (e) => actions.setActionOwner(flag, e.target.value || null),
+        options: [{ value: "", label: ACT.who.notSet }, ...PEOPLE.map((x) => ({ value: x.id, label: x.name }))]
+      }
+    ))), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.due, className: "act-who__due", help: ACT.who.dueHelp(action.due) }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "date", value: action.due, onChange: (e) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) actions.setActionDue(flag, e.target.value);
+    } })))), /* @__PURE__ */ React.createElement(Section3, { n: 2, title: ACT.steps.title, note: ACT.steps.done(prog.done, prog.total), id: `${uid}-steps` }, /* @__PURE__ */ React.createElement("ul", { className: "act-steps" }, stepsFor(action.flagType).map((s) => /* @__PURE__ */ React.createElement("li", { key: s.id, className: "act-step" + (action.steps[s.id] ? " is-done" : "") }, /* @__PURE__ */ React.createElement(Check, { checked: !!action.steps[s.id], onChange: () => actions.toggleActionStep(flag, s.id), label: s.text, description: s.hint, "data-step": s.id }))))), /* @__PURE__ */ React.createElement(Section3, { n: 3, title: ACT.contacts.title, note: ACT.contacts.note, id: `${uid}-contacts` }, /* @__PURE__ */ React.createElement("ul", { className: "act-contacts" }, contacts.map((c) => /* @__PURE__ */ React.createElement("li", { key: c.id + c.kind, className: "act-contact", "data-kind": c.kind }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: { initials: c.initials }, size: 32 }), /* @__PURE__ */ React.createElement("div", { className: "act-contact__main" }, /* @__PURE__ */ React.createElement("p", { className: "act-contact__name" }, /* @__PURE__ */ React.createElement("b", null, c.name), " ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", c.internal ? c.role : ACT.contacts.supplierRole(c.role, contract.supplierName))), /* @__PURE__ */ React.createElement("p", { className: "act-contact__why" }, ACT.contacts.why(c.label, c.why))), /* @__PURE__ */ React.createElement("div", { className: "act-contact__src" }, typeof c.source === "string" ? /* @__PURE__ */ React.createElement("span", { className: "act-contact__staff" }, ACT.contacts.staff) : /* @__PURE__ */ React.createElement("details", { className: "act-quote" }, /* @__PURE__ */ React.createElement("summary", null, ACT.contacts.source(c.source.label, c.source.clauseRef, c.source.page)), /* @__PURE__ */ React.createElement("blockquote", { className: "act-quote__text", "aria-label": ACT.contacts.quoteLabel }, c.source.quote))))))), mail && /* @__PURE__ */ React.createElement(Section3, { n: 4, title: ACT.email.title, note: ACT.email.note, id: `${uid}-email` }, /* @__PURE__ */ React.createElement("div", { className: "act-mail" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__to" }, /* @__PURE__ */ React.createElement(Field, { label: ACT.email.to }, (p) => /* @__PURE__ */ React.createElement(
+      Select4,
+      {
+        ...p,
+        value: recipient.id,
+        onChange: (e) => {
+          setToId(e.target.value);
+          setMsg("");
+        },
+        options: contacts.map((c) => ({ value: c.id, label: ACT.email.toOption(c.name, c.email) }))
+      }
+    ))), /* @__PURE__ */ React.createElement("div", { className: "act-mail__text", ref: mailRef }, /* @__PURE__ */ React.createElement("p", { className: "act-mail__subject" }, /* @__PURE__ */ React.createElement("span", { className: "act-mail__label" }, ACT.email.subject), " ", /* @__PURE__ */ React.createElement("span", { "data-mail-subject": true }, mail.subject)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__body", role: "textbox", "aria-readonly": "true", "aria-multiline": "true", "aria-label": ACT.email.body, tabIndex: 0, "data-mail-body": true }, mail.body)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__foot" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__btns" }, /* @__PURE__ */ React.createElement(Button13, { type: "button", leftIcon: "copy", onClick: copy }, ACT.email.copy), /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", leftIcon: "paper-plane", onClick: markSent }, ACT.email.sent)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__hint" }, ACT.email.hint)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__msg", role: "status", "aria-live": "polite" }, msg))), /* @__PURE__ */ React.createElement(Section3, { n: 5, title: ACT.exit.title, note: ACT.exit.note, id: `${uid}-exit` }, /* @__PURE__ */ React.createElement("dl", { className: "act-exit" }, facts.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "act-exit__fact" }, /* @__PURE__ */ React.createElement("dt", null, f.label), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "act-exit__val" }, f.value), f.src && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: f.src.id, page: f.src.page, from, context: f.label }, ACT.exit.clause(f.src.clauseRef, f.src.page))))))), /* @__PURE__ */ React.createElement(Section3, { n: 6, title: ACT.activity.title, id: `${uid}-activity` }, /* @__PURE__ */ React.createElement("form", { className: "act-note", onSubmit: addNote2 }, /* @__PURE__ */ React.createElement(Field, { label: ACT.activity.noteLabel, hideLabel: true }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "text", maxLength: 500, autoComplete: "off", placeholder: ACT.activity.noteLabel, value: noteText, onChange: (e) => setNoteText(e.target.value) })), /* @__PURE__ */ React.createElement(Button13, { type: "submit", variant: "outline" }, ACT.activity.addNote)), activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "act-activity__empty" }, ACT.activity.empty) : /* @__PURE__ */ React.createElement("ol", { className: "act-activity" }, activity.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.kind + l.i, className: "act-activity__item" + (l.kind === "note" ? " is-note" : "") }, /* @__PURE__ */ React.createElement("i", { className: l.kind === "note" ? "fa-regular fa-note-sticky" : "fa-regular fa-circle", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "act-activity__when" }, whenText(l.at)), /* @__PURE__ */ React.createElement("span", { className: "act-activity__text" }, l.kind === "note" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ACT.activity.noteTag, ": "), l.text) : l.text.startsWith("You ") ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "You"), l.text.slice(3)) : l.text))))));
+  }
+
+  // src/components/CloseActionDialog.jsx
+  init_react_shim();
+  var import_react48 = __toESM(require_react(), 1);
+  var { Button: Button14, Input: Input4 } = ds_default;
+  var T = ACT.dialog;
+  function CloseActionDialog({ open, flag, contract, action, initialOutcome = "resolved", onCancel, onConfirm }) {
+    const uid = (0, import_react48.useId)();
+    const [outcome, setOutcome] = (0, import_react48.useState)(initialOutcome);
+    const [cash, setCash] = (0, import_react48.useState)("");
+    const [cost, setCost] = (0, import_react48.useState)("");
+    const [note, setNote] = (0, import_react48.useState)("");
+    const [errors, setErrors] = (0, import_react48.useState)({});
+    (0, import_react48.useEffect)(() => {
+      if (!open) return;
+      setOutcome(OUTCOMES.includes(initialOutcome) ? initialOutcome : "resolved");
+      setCash("");
+      setCost("");
+      setNote("");
+      setErrors({});
+    }, [open, initialOutcome]);
+    if (!open || !flag || !contract) return null;
+    const flagged = action ? action.flaggedGBP : flag.indicativeGBP;
+    const submit = (e) => {
+      if (e) e.preventDefault();
+      const err2 = {};
+      let c = null;
+      let a = null;
+      if (outcome === "resolved") {
+        c = parseWholePounds(cash);
+        a = parseWholePounds(cost);
+        if (Number.isNaN(c)) err2.cash = T.wholePounds;
+        if (Number.isNaN(a)) err2.cost = T.wholePounds;
+        if (!err2.cash && !err2.cost && !((c || 0) > 0 || (a || 0) > 0)) err2.money = T.moneyError;
+      }
+      if (!note.trim()) err2.note = T.whatError;
+      setErrors(err2);
+      if (Object.keys(err2).length) {
+        const first = err2.cash || err2.money ? `${uid}-cash` : err2.cost ? `${uid}-cost` : `${uid}-note`;
+        setTimeout(() => {
+          const el = document.getElementById(first);
+          if (el) el.focus();
+        }, 0);
+        return;
+      }
+      onConfirm({ outcome, cashRecoveredGBP: outcome === "resolved" && c > 0 ? c : null, costAvoidedGBP: outcome === "resolved" && a > 0 ? a : null, closeNote: note.trim() });
+    };
+    return /* @__PURE__ */ React.createElement(
+      Dialog,
+      {
+        open: true,
+        onClose: () => onCancel && onCancel(),
+        title: T.title,
+        description: T.subtitle(contract.title, flagTypeLabel(flag), flagged),
+        className: "act-close",
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", onClick: () => onCancel && onCancel() }, T.cancel), /* @__PURE__ */ React.createElement(Button14, { type: "submit", form: `${uid}-form` }, T.confirm))
+      },
+      /* @__PURE__ */ React.createElement("form", { id: `${uid}-form`, className: "act-close__form", onSubmit: submit, noValidate: true }, /* @__PURE__ */ React.createElement("fieldset", { className: "kx-radiogroup is-inline act-close__outcomes" }, /* @__PURE__ */ React.createElement("legend", { className: "kx-radiogroup__legend" }, T.outcome), /* @__PURE__ */ React.createElement("div", { className: "kx-radiogroup__opts" }, OUTCOMES.map((o) => /* @__PURE__ */ React.createElement(
+        RadioField,
+        {
+          key: o,
+          name: `${uid}-outcome`,
+          value: o,
+          checked: outcome === o,
+          label: OUTCOME_LABEL[o],
+          onChange: (v) => {
+            setOutcome(v);
+            setErrors({});
+          },
+          ...outcome === o ? { "data-autofocus": "" } : {}
+        }
+      )))), outcome === "resolved" && /* @__PURE__ */ React.createElement("div", { className: "act-close__money" }, /* @__PURE__ */ React.createElement(Field, { label: T.cash, help: T.cashHelp, error: err(errors.cash || errors.money), id: `${uid}-cash` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cash, onChange: (e) => setCash(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: T.cost, help: T.costHelp, error: err(errors.cost), id: `${uid}-cost` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cost, onChange: (e) => setCost(e.target.value) }))), /* @__PURE__ */ React.createElement(Field, { label: T.what, error: err(errors.note), id: `${uid}-note` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", maxLength: CLOSE_NOTE_MAX, autoComplete: "off", value: note, onChange: (e) => setNote(e.target.value) })), /* @__PURE__ */ React.createElement("p", { className: "act-close__hint" }, T.hint))
+    );
+  }
+  var err = (x) => x || void 0;
+
   // src/components/FlagDrawer.jsx
-  var { Select: Select4 } = ds_default;
+  var { Select: Select5 } = ds_default;
   var TEXT6 = {
     why: "Why this is flagged",
     how: "How this is calculated",
@@ -7590,15 +8495,17 @@
   var sentence3 = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
   function FlagDrawer() {
     const route = useRoute();
-    const { estate, state, actions, storage } = useEstate();
-    const ui = useUI();
+    const { estate, state, storage } = useEstate();
+    const cmd = useActionCommands();
+    const [closing, setClosing] = (0, import_react49.useState)(null);
     const id = route.query.get("flag");
+    const tab = route.query.get("tab") === "action" ? "action" : "details";
     const flag = id ? estate.flagsById[id] || null : null;
     const contract = flag ? estate.contractsById[flag.contractId] : null;
     const derived = flag ? estate.derived[flag.contractId] : null;
     const open = !!(flag && contract && derived);
-    const wasOpen = (0, import_react46.useRef)(false);
-    (0, import_react46.useEffect)(() => {
+    const wasOpen = (0, import_react49.useRef)(false);
+    (0, import_react49.useEffect)(() => {
       if (open) {
         wasOpen.current = true;
         return void 0;
@@ -7613,7 +8520,7 @@
       }, 30);
       return () => clearTimeout(t);
     }, [open]);
-    (0, import_react46.useEffect)(() => {
+    (0, import_react49.useEffect)(() => {
       if (!open) return void 0;
       let frames = 0;
       let raf = 0;
@@ -7626,7 +8533,13 @@
       raf = requestAnimationFrame(reclaim);
       return () => cancelAnimationFrame(raf);
     }, [open, id]);
-    const close = () => setQuery({ flag: null });
+    const close = () => {
+      setClosing(null);
+      setQuery({ flag: null, tab: null });
+    };
+    (0, import_react49.useEffect)(() => {
+      setClosing(null);
+    }, [id]);
     let body = null;
     let footer = null;
     if (open) {
@@ -7637,18 +8550,42 @@
       const doc = estate.data.documents && estate.data.documents[contract.documentId];
       const from = RAIL_IDS.has(route.name) ? route.name : "opportunities";
       const reasons2 = reasonsFor(flag);
-      const hint = flag.indicativeGBP === 0 ? TEXT6.zeroValue : reviewed ? TEXT6.excluded(flag.indicativeGBP) : TEXT6.counted;
+      const action = activeAction(state.actions, flag.id);
+      const hint = flag.indicativeGBP === 0 ? TEXT6.zeroValue : action && action.stage === "closed" && reviewed ? ACT.footer.closed(action.outcome, flag.indicativeGBP) : reviewed ? TEXT6.excluded(flag.indicativeGBP) : action ? ACT.footer.stage(action.stage) : TEXT6.counted;
       const onTriage = (value) => {
-        const next = { ...state.triage };
-        if (value === "to_investigate") delete next[flag.id];
-        else next[flag.id] = value;
-        const totals = computeEstate({ decisions: state.decisions, assumptions: state.assumptions, triage: next }).totals;
-        actions.setTriage(flag.id, value === "to_investigate" ? null : value);
-        const [title, ...rest] = triageToast(contract, value, totals).split(new RegExp("(?<=\\.)\\s+"));
-        ui.toast({ tone: "success", title, description: rest.join(" ") });
+        if (value === status) return;
+        if (value === "under_review") cmd.start(flag);
+        else if (value === "to_investigate") cmd.archive(flag);
+        else if (TRIAGE_OUTCOME[value]) setClosing({ outcome: TRIAGE_OUTCOME[value] });
       };
-      body = /* @__PURE__ */ React.createElement("div", { className: "flag-drawer__content" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum__pills" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: flag.type, label: flagTypeLabel(flag), muted: reviewed }), /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence }), status !== "to_investigate" && /* @__PURE__ */ React.createElement(ReviewBadge, { status, label: reviewStatusLabel(status) })), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__label kx-eyebrow" }, TEXT6.indicative), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__value" }, /* @__PURE__ */ React.createElement("span", { className: "kx-kpi", "data-flag-value": true }, fmtGBP(flag.indicativeGBP)), /* @__PURE__ */ React.createElement("span", { className: "flag-sum__basis" }, basisLabel(flag))), flag.actionBy && /* @__PURE__ */ React.createElement("p", { className: "flag-sum__date" }, actionByLabel(flag), " ", /* @__PURE__ */ React.createElement("time", { dateTime: flag.actionBy }, actionByText(flag)), ", ", relativeText(flag.actionBy).toLowerCase(), "."), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__caveat" }, COPY.caveat.short)), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.why), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasonFor(flag, contract, derived))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.how), /* @__PURE__ */ React.createElement("p", { className: "flag-block__rule" }, ruleFor(flag, derived)), /* @__PURE__ */ React.createElement("ol", { className: "flag-calc", "aria-label": TEXT6.how }, flag.breakdown.map((b, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flag-calc__row" + (b.kind === "result" ? " is-result" : ""), ...b.kind === "result" ? { "data-flag-result": "" } : {} }, /* @__PURE__ */ React.createElement("span", { className: "flag-calc__n", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__label" }, b.label, b.note && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, b.note), b.kind === "result" && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, TEXT6.resultNote)), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__value" }, breakdownValueText(b))))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(MethodLink, { section: methodSection(flag) }, TEXT6.methodLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.confidence), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence })), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, confidenceReason(flag), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" }, TEXT6.confidenceLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.source), targets.map((t, i) => /* @__PURE__ */ React.createElement("figure", { className: "flag-evidence", key: t.extractionId }, /* @__PURE__ */ React.createElement("figcaption", { className: "flag-evidence__ref" }, /* @__PURE__ */ React.createElement("span", { className: "kx-mono" }, t.clauseRef), /* @__PURE__ */ React.createElement("span", null, TEXT6.pageOf(t.page, doc && doc.pageCount)), /* @__PURE__ */ React.createElement("span", null, sentence3(fieldLabel(t.fieldKey)))), /* @__PURE__ */ React.createElement("blockquote", { className: "flag-evidence__quote" }, t.quote), i > 0 && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: t.contractId, extractionId: t.extractionId, page: t.page, from }))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__small" }, COPY.illustrativeLabel), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement("a", { className: "flag-textlink", href: hrefFor("contracts", { seg: [contract.id] }) }, /* @__PURE__ */ React.createElement("i", { className: "fa-regular fa-folder-open", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "flag-textlink__t" }, TEXT6.openContract, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", contract.title))))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, reasons2.heading || REASONS_HEADING), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasons2.intro), /* @__PURE__ */ React.createElement("ul", { className: "flag-reasons" }, reasons2.items.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.id }, r.text)))));
-      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT6.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT6.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select4, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
+      const details = /* @__PURE__ */ React.createElement("div", { className: "flag-drawer__content" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum" }, /* @__PURE__ */ React.createElement("div", { className: "flag-sum__pills" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: flag.type, label: flagTypeLabel(flag), muted: reviewed }), /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence }), status !== "to_investigate" && /* @__PURE__ */ React.createElement(ReviewBadge, { status, label: reviewStatusLabel(status) })), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__label kx-eyebrow" }, TEXT6.indicative), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__value" }, /* @__PURE__ */ React.createElement("span", { className: "kx-kpi", "data-flag-value": true }, fmtGBP(flag.indicativeGBP)), /* @__PURE__ */ React.createElement("span", { className: "flag-sum__basis" }, basisLabel(flag))), flag.actionBy && /* @__PURE__ */ React.createElement("p", { className: "flag-sum__date" }, actionByLabel(flag), " ", /* @__PURE__ */ React.createElement("time", { dateTime: flag.actionBy }, actionByText(flag)), ", ", relativeText(flag.actionBy).toLowerCase(), "."), /* @__PURE__ */ React.createElement("p", { className: "flag-sum__caveat" }, COPY.caveat.short)), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.why), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasonFor(flag, contract, derived))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.how), /* @__PURE__ */ React.createElement("p", { className: "flag-block__rule" }, ruleFor(flag, derived)), /* @__PURE__ */ React.createElement("ol", { className: "flag-calc", "aria-label": TEXT6.how }, flag.breakdown.map((b, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flag-calc__row" + (b.kind === "result" ? " is-result" : ""), ...b.kind === "result" ? { "data-flag-result": "" } : {} }, /* @__PURE__ */ React.createElement("span", { className: "flag-calc__n", "aria-hidden": "true" }, i + 1), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__label" }, b.label, b.note && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, b.note), b.kind === "result" && /* @__PURE__ */ React.createElement("span", { className: "flag-calc__note" }, TEXT6.resultNote)), /* @__PURE__ */ React.createElement("span", { className: "flag-calc__value" }, breakdownValueText(b))))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(MethodLink, { section: methodSection(flag) }, TEXT6.methodLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.confidence), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: flag.confidence })), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, confidenceReason(flag), " ", /* @__PURE__ */ React.createElement(MethodLink, { section: "confidence" }, TEXT6.confidenceLink))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, TEXT6.source), targets.map((t, i) => /* @__PURE__ */ React.createElement("figure", { className: "flag-evidence", key: t.extractionId }, /* @__PURE__ */ React.createElement("figcaption", { className: "flag-evidence__ref" }, /* @__PURE__ */ React.createElement("span", { className: "kx-mono" }, t.clauseRef), /* @__PURE__ */ React.createElement("span", null, TEXT6.pageOf(t.page, doc && doc.pageCount)), /* @__PURE__ */ React.createElement("span", null, sentence3(fieldLabel(t.fieldKey)))), /* @__PURE__ */ React.createElement("blockquote", { className: "flag-evidence__quote" }, t.quote), i > 0 && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: t.contractId, extractionId: t.extractionId, page: t.page, from }))), /* @__PURE__ */ React.createElement("p", { className: "flag-block__small" }, COPY.illustrativeLabel), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, /* @__PURE__ */ React.createElement("a", { className: "flag-textlink", href: hrefFor("contracts", { seg: [contract.id] }) }, /* @__PURE__ */ React.createElement("i", { className: "fa-regular fa-folder-open", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "flag-textlink__t" }, TEXT6.openContract, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", contract.title))))), /* @__PURE__ */ React.createElement("div", { className: "flag-block" }, /* @__PURE__ */ React.createElement("h3", { className: "flag-block__h" }, reasons2.heading || REASONS_HEADING), /* @__PURE__ */ React.createElement("p", { className: "flag-block__p" }, reasons2.intro), /* @__PURE__ */ React.createElement("ul", { className: "flag-reasons" }, reasons2.items.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.id }, r.text)))));
+      body = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { role: "tabpanel", id: panelId("flag-tabs", "details"), "aria-labelledby": tabId("flag-tabs", "details"), hidden: tab !== "details" }, tab === "details" && details), /* @__PURE__ */ React.createElement("div", { role: "tabpanel", id: panelId("flag-tabs", "action"), "aria-labelledby": tabId("flag-tabs", "action"), hidden: tab !== "action" }, tab === "action" && /* @__PURE__ */ React.createElement(
+        ActionPanel,
+        {
+          flag,
+          contract,
+          derived,
+          action,
+          from,
+          onStart: () => cmd.start(flag),
+          onRequestClose: (outcome) => setClosing({ outcome })
+        }
+      )), /* @__PURE__ */ React.createElement(
+        CloseActionDialog,
+        {
+          open: !!closing,
+          flag,
+          contract,
+          action: state.actions && state.actions[flag.id],
+          initialOutcome: closing ? closing.outcome : "resolved",
+          onCancel: () => setClosing(null),
+          onConfirm: (input) => {
+            setClosing(null);
+            cmd.close(flag, input);
+          }
+        }
+      ));
+      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT6.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT6.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select5, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && tab === "details" && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
     }
     return /* @__PURE__ */ React.createElement(
       Drawer,
@@ -7659,6 +8596,16 @@
         className: "flag-drawer",
         title: open ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, "Opportunity: "), contract.title) : "",
         subtitle: open ? `${contract.supplierName} \xB7 ${contract.id}` : null,
+        subhead: open ? /* @__PURE__ */ React.createElement(
+          Tabs,
+          {
+            label: ACT.tabs.label,
+            idPrefix: "flag-tabs",
+            value: tab,
+            onChange: (t) => setQuery({ tab: t === "action" ? "action" : null }),
+            items: [{ id: "details", label: ACT.tabs.details }, { id: "action", label: ACT.tabs.action }]
+          }
+        ) : null,
         footer
       },
       body
@@ -7667,7 +8614,7 @@
 
   // src/components/overlays/AboutDialog.jsx
   init_react_shim();
-  var { Button: Button13 } = ds_default;
+  var { Button: Button15 } = ds_default;
   var TEXT7 = {
     moreLabel: "More on this",
     method: "How this is calculated",
@@ -7685,7 +8632,7 @@
         title: COPY.about.title,
         size: "wide",
         className: "ovl-about",
-        footer: /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
+        footer: /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
       },
       /* @__PURE__ */ React.createElement("dl", { className: "ovl-about__list" }, COPY.about.sections.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.heading, className: "ovl-about__item" }, /* @__PURE__ */ React.createElement("dt", null, s.heading), /* @__PURE__ */ React.createElement("dd", null, s.body)))),
       /* @__PURE__ */ React.createElement("p", { className: "ovl-about__more" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-about__morelabel" }, TEXT7.moreLabel), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/method", onClick: close }, TEXT7.method), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/roadmap", onClick: close }, TEXT7.roadmap))
@@ -7694,8 +8641,8 @@
 
   // src/components/overlays/FeedbackDialog.jsx
   init_react_shim();
-  var import_react47 = __toESM(require_react(), 1);
-  var { Button: Button14, Textarea } = ds_default;
+  var import_react50 = __toESM(require_react(), 1);
+  var { Button: Button16, Textarea } = ds_default;
   var TEXT8 = {
     savedTitle: "Saved on this device",
     none: "No comment",
@@ -7735,12 +8682,12 @@
   function FeedbackDialog({ open, onClose }) {
     const { state, actions } = useEstate();
     const ui = useUI();
-    const [answer, setAnswer] = (0, import_react47.useState)("");
-    const [comment, setComment] = (0, import_react47.useState)("");
-    const [error, setError] = (0, import_react47.useState)(null);
-    const group = (0, import_react47.useRef)(null);
+    const [answer, setAnswer] = (0, import_react50.useState)("");
+    const [comment, setComment] = (0, import_react50.useState)("");
+    const [error, setError] = (0, import_react50.useState)(null);
+    const group = (0, import_react50.useRef)(null);
     const saved2 = state.feedback;
-    (0, import_react47.useEffect)(() => {
+    (0, import_react50.useEffect)(() => {
       if (open) {
         setAnswer("");
         setComment("");
@@ -7779,7 +8726,7 @@
         title: COPY.feedback.title,
         size: "md",
         className: "ovl-feedback",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
       },
       /* @__PURE__ */ React.createElement("form", { className: "ovl-feedback__form", onSubmit: (e) => e.preventDefault(), noValidate: true }, /* @__PURE__ */ React.createElement(
         "fieldset",
@@ -7806,14 +8753,14 @@
             ...i === 0 ? { "data-autofocus": "" } : {}
           }
         )))
-      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
-      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT8.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT8.answerIcons[e.answer], size: "sm" }, TEXT8.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT8.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT8.none)))))
+      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
+      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT8.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT8.answerIcons[e.answer], size: "sm" }, TEXT8.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT8.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT8.none)))))
     );
   }
 
   // src/components/overlays/SettingsDrawer.jsx
   init_react_shim();
-  var { Button: Button15 } = ds_default;
+  var { Button: Button17 } = ds_default;
   var TEXT9 = {
     title: "Settings",
     subtitle: "Assumptions, appearance and the demo reset",
@@ -7871,17 +8818,17 @@
         subtitle: TEXT9.subtitle,
         size: "md",
         className: "ovl-settings",
-        footer: /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "primary", onClick: close }, TEXT9.close)
+        footer: /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "primary", onClick: close }, TEXT9.close)
       },
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-assump" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-assump" }, TEXT9.assumptions), /* @__PURE__ */ React.createElement("p", { className: "ovl-banner", role: "note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, COPY.settings.assumptionsBanner)), [["renewalRate", COPY.settings.renewalRate], ["nearCapThreshold", COPY.settings.nearCap]].map(([key, label]) => /* @__PURE__ */ React.createElement("div", { className: "ovl-group", key }, /* @__PURE__ */ React.createElement("div", { className: "ovl-group__head" }, /* @__PURE__ */ React.createElement("p", { className: "ovl-label", "aria-hidden": "true" }, label), isDefault(key) ? /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", size: "sm" }, TEXT9.isDefault) : /* @__PURE__ */ React.createElement(Pill, { tone: "info", size: "sm", icon: "pen" }, TEXT9.isChanged)), /* @__PURE__ */ React.createElement(Segmented, { label, size: "lg", value: String(estate.opts[key]), onChange: choose(key), options: options(key) }), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, helpFor(key, estate.opts[key])))), /* @__PURE__ */ React.createElement("p", { className: "ovl-now", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-now__label" }, TEXT9.headlineNow), /* @__PURE__ */ React.createElement("span", { className: "ovl-now__value" }, headlineSentence(estate.totals)))),
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-look" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-look" }, TEXT9.appearance), /* @__PURE__ */ React.createElement(SwitchField, { checked: theme === "dark", onChange: (on) => setTheme2(on ? "dark" : "light"), label: TEXT9.darkMode, description: TEXT9.darkHelp })),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT9.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT9.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT9.changed(counts) : TEXT9.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT9.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT9.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT9.changed(counts) : TEXT9.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
     );
   }
 
   // src/components/overlays/DemoGuideDrawer.jsx
   init_react_shim();
-  var { Button: Button16 } = ds_default;
+  var { Button: Button18 } = ds_default;
   var TEXT10 = {
     title: "Demo guide",
     subtitle: "Four steps, about five minutes, in dark mode",
@@ -7910,7 +8857,7 @@
         subtitle: TEXT10.subtitle,
         size: "md",
         className: "ovl-guide",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: "#/guide", onClick: close, style: { marginRight: "auto", alignSelf: "center" } }, "Open the full guide", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", onClick: close }, TEXT10.close))
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: "#/guide", onClick: close, style: { marginRight: "auto", alignSelf: "center" } }, "Open the full guide", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement(Button18, { type: "button", variant: "outline", onClick: close }, TEXT10.close))
       },
       /* @__PURE__ */ React.createElement("section", { "aria-labelledby": "ovl-dg-steps" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3 ovl-sr", id: "ovl-dg-steps" }, TEXT10.steps), /* @__PURE__ */ React.createElement("ol", { className: "ovl-steps" }, steps.map((s) => /* @__PURE__ */ React.createElement("li", { key: s.n, className: "ovl-step" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-step__n", "aria-hidden": "true" }, s.n), /* @__PURE__ */ React.createElement("div", { className: "ovl-step__body" }, /* @__PURE__ */ React.createElement("h4", { className: "ovl-h4" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, s.text), s.link.href ? /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: s.link.href, onClick: close }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "ovl-link ovl-link--go", onClick: (e) => ui.openFeedback(e.currentTarget) }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }))))))),
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-dg-extras" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-extras" }, TEXT10.extras), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, demoExtras.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t)))),
@@ -7920,7 +8867,7 @@
 
   // src/components/overlays/MenuPopover.jsx
   init_react_shim();
-  var import_react48 = __toESM(require_react(), 1);
+  var import_react51 = __toESM(require_react(), 1);
   var ITEM = '[role="menuitem"]';
   function placementFor(anchor) {
     try {
@@ -7933,8 +8880,8 @@
   function MenuPopover({ open, anchor, onClose }) {
     const ui = useUI();
     const { reset } = useResetDemo();
-    const list = (0, import_react48.useRef)(null);
-    const [ready, setReady] = (0, import_react48.useState)(false);
+    const list = (0, import_react51.useRef)(null);
+    const [ready, setReady] = (0, import_react51.useState)(false);
     const items = [
       { id: "why", label: "Why this matters", icon: "scale-balanced", href: "#/evidence" },
       { id: "how", label: "How this is calculated", icon: "calculator", href: "#/method" },
@@ -7948,7 +8895,7 @@
       { id: "reset", label: "Reset demo data", icon: "rotate-left", onSelect: () => reset() }
       // also the way to reset on phones, where the header button is hidden
     ];
-    (0, import_react48.useEffect)(() => {
+    (0, import_react51.useEffect)(() => {
       if (!open) {
         setReady(false);
         return void 0;
@@ -7956,7 +8903,7 @@
       const raf = requestAnimationFrame(() => setReady(true));
       return () => cancelAnimationFrame(raf);
     }, [open]);
-    (0, import_react48.useEffect)(() => {
+    (0, import_react51.useEffect)(() => {
       if (!open || !ready || !list.current) return;
       const first = list.current.querySelector(ITEM);
       if (first) first.focus({ preventScroll: true });

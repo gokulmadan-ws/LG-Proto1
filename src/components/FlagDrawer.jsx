@@ -4,28 +4,34 @@
 //   Closing removes the param (replace, so Back is not polluted). It is driven from estate.flagsById, never from a filtered list,
 //   so marking the flag Explained (which removes its row from the Open list) does not make the open drawer vanish.
 //
-//   Contents, top to bottom: contract and supplier, flag type pill, indicative value with its basis and the short caveat, why it is flagged,
+//   Two tabs under the title (action tracker build spec 8.1): Details (?tab absent) and Action (?flag=<id>&tab=action).
+//   Details, top to bottom: contract and supplier, flag type pill, indicative value with its basis and the short caveat, why it is flagged,
 //   the numbered "How this is calculated" breakdown (the last line is the row's amount, to the pound), confidence and why, where it comes
-//   from (clause, page, quote), "Reasons this may not be a saving". The sticky footer holds the review status select (persisted, moves the headline
-//   live) and the evidence ClauseLink as the one primary button.
+//   from (clause, page, quote), "Reasons this may not be a saving". Action: components/ActionPanel.jsx.
+//   The sticky footer holds the review status select (persisted, moves the headline live, keeps the Actions board in step: Under review
+//   starts an action, a closing status opens the close dialog first) and, on Details, the evidence ClauseLink as the one primary button.
 //
 // The kit Drawer is used, never a native <dialog>: it traps focus, closes on Escape and a scrim click, and returns focus to the row that opened it.
-import { useEffect, useRef } from 'react';
-import { useEstate, computeEstate } from '../lib/estate.js';
+import { useEffect, useRef, useState } from 'react';
+import { useEstate } from '../lib/estate.js';
 import { useRoute, setQuery, hrefFor } from '../lib/router.js';
-import { useUI } from '../lib/ui-context.jsx';
 import { evidenceFor, evidenceAll } from '../lib/evidenceFor.js';
 import {
   COPY, TRIAGE_OPTIONS, actionByLabel, actionByText, basisLabel, breakdownValueText, confidenceReason, fieldLabel, flagTypeLabel, fmtGBP, reasonFor,
-  relativeText, reviewStatusLabel, triageToast, watchNote,
+  relativeText, reviewStatusLabel, watchNote,
 } from '../lib/copy.js';
 import { REASONS_HEADING, reasonsFor } from '../data/reasons.js';
 import { RAIL_IDS } from '../shell/rail.js';
 import { ClauseLink } from './ClauseLink.jsx';
 import { MethodLink } from './MethodLink.jsx';
 import DS from '../ui/ds.js';
-import { Drawer, Field, focusables } from '../ui/index.js';
+import { Drawer, Field, Tabs, focusables, panelId, tabId } from '../ui/index.js';
 import { ConfidenceBadge, FlagBadge, ReviewBadge } from '../charts/index.js';
+import { ACT } from '../lib/actions-copy.js';
+import { TRIAGE_OUTCOME, activeAction } from '../lib/actions.js';
+import ActionPanel from './ActionPanel.jsx';
+import { CloseActionDialog } from './CloseActionDialog.jsx';
+import { useActionCommands } from './useActionCommands.js';
 import './FlagDrawer.css';
 
 const { Select } = DS;
@@ -71,9 +77,11 @@ const sentence = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 
 export default function FlagDrawer() {
   const route = useRoute();
-  const { estate, state, actions, storage } = useEstate();
-  const ui = useUI();
+  const { estate, state, storage } = useEstate();
+  const cmd = useActionCommands();
+  const [closing, setClosing] = useState(null);      // the close dialog: { outcome } while open
   const id = route.query.get('flag');
+  const tab = route.query.get('tab') === 'action' ? 'action' : 'details';
   const flag = id ? estate.flagsById[id] || null : null;
   const contract = flag ? estate.contractsById[flag.contractId] : null;
   const derived = flag ? estate.derived[flag.contractId] : null;
@@ -111,7 +119,8 @@ export default function FlagDrawer() {
     return () => cancelAnimationFrame(raf);
   }, [open, id]);
 
-  const close = () => setQuery({ flag: null });
+  const close = () => { setClosing(null); setQuery({ flag: null, tab: null }); };
+  useEffect(() => { setClosing(null); }, [id]);
 
   let body = null;
   let footer = null;
@@ -123,19 +132,22 @@ export default function FlagDrawer() {
     const doc = estate.data.documents && estate.data.documents[contract.documentId];
     const from = RAIL_IDS.has(route.name) ? route.name : 'opportunities';
     const reasons = reasonsFor(flag);
-    const hint = flag.indicativeGBP === 0 ? TEXT.zeroValue : reviewed ? TEXT.excluded(flag.indicativeGBP) : TEXT.counted;
+    const action = activeAction(state.actions, flag.id);
+    const hint = flag.indicativeGBP === 0 ? TEXT.zeroValue
+      : action && action.stage === 'closed' && reviewed ? ACT.footer.closed(action.outcome, flag.indicativeGBP)
+        : reviewed ? TEXT.excluded(flag.indicativeGBP)
+          : action ? ACT.footer.stage(action.stage) : TEXT.counted;
 
+    // One status per opportunity (build spec 7.3): Under review starts or reopens the action, To investigate takes the card off the
+    // board, and Resolved, Explained or No action ask for the outcome first (Cancel leaves the status as it was).
     const onTriage = (value) => {
-      const next = { ...state.triage };
-      if (value === 'to_investigate') delete next[flag.id]; else next[flag.id] = value;
-      // The toast names the headline AFTER the change: compute it from the same pure function the provider uses.
-      const totals = computeEstate({ decisions: state.decisions, assumptions: state.assumptions, triage: next }).totals;
-      actions.setTriage(flag.id, value === 'to_investigate' ? null : value);
-      const [title, ...rest] = triageToast(contract, value, totals).split(/(?<=\.)\s+/);
-      ui.toast({ tone: 'success', title, description: rest.join(' ') });
+      if (value === status) return;
+      if (value === 'under_review') cmd.start(flag);
+      else if (value === 'to_investigate') cmd.archive(flag);
+      else if (TRIAGE_OUTCOME[value]) setClosing({ outcome: TRIAGE_OUTCOME[value] });
     };
 
-    body = (
+    const details = (
       <div className="flag-drawer__content">
         <div className="flag-sum">
           <div className="flag-sum__pills">
@@ -211,12 +223,28 @@ export default function FlagDrawer() {
       </div>
     );
 
+    body = (
+      <>
+        <div role="tabpanel" id={panelId('flag-tabs', 'details')} aria-labelledby={tabId('flag-tabs', 'details')} hidden={tab !== 'details'}>
+          {tab === 'details' && details}
+        </div>
+        <div role="tabpanel" id={panelId('flag-tabs', 'action')} aria-labelledby={tabId('flag-tabs', 'action')} hidden={tab !== 'action'}>
+          {tab === 'action' && (
+            <ActionPanel flag={flag} contract={contract} derived={derived} action={action} from={from}
+              onStart={() => cmd.start(flag)} onRequestClose={(outcome) => setClosing({ outcome })} />
+          )}
+        </div>
+        <CloseActionDialog open={!!closing} flag={flag} contract={contract} action={state.actions && state.actions[flag.id]} initialOutcome={closing ? closing.outcome : 'resolved'}
+          onCancel={() => setClosing(null)} onConfirm={(input) => { setClosing(null); cmd.close(flag, input); }} />
+      </>
+    );
+
     footer = (
       <div className="flag-foot">
         <Field label={TEXT.review} className="flag-foot__review" help={storage && storage.blocked ? `${hint} ${TEXT.storageBlocked}` : hint}>
           {(p) => <Select {...p} value={status} options={TRIAGE_OPTIONS} onChange={(e) => onTriage(e.target.value)} />}
         </Field>
-        {primary && <ClauseLink className="flag-cta" contractId={primary.contractId} extractionId={primary.extractionId} page={primary.page} from={from} context={contract.title} />}
+        {primary && tab === 'details' && <ClauseLink className="flag-cta" contractId={primary.contractId} extractionId={primary.extractionId} page={primary.page} from={from} context={contract.title} />}
       </div>
     );
   }
@@ -229,6 +257,10 @@ export default function FlagDrawer() {
       className="flag-drawer"
       title={open ? <><span className="sr-only">Opportunity: </span>{contract.title}</> : ''}
       subtitle={open ? `${contract.supplierName} · ${contract.id}` : null}
+      subhead={open ? (
+        <Tabs label={ACT.tabs.label} idPrefix="flag-tabs" value={tab} onChange={(t) => setQuery({ tab: t === 'action' ? 'action' : null })}
+          items={[{ id: 'details', label: ACT.tabs.details }, { id: 'action', label: ACT.tabs.action }]} />
+      ) : null}
       footer={footer}
     >
       {body}

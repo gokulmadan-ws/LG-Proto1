@@ -1,7 +1,7 @@
 // UI context: toasts, the five global overlays and a promise-based confirm. Mounted once by App.jsx.
 //
 //   const ui = useUI();                          // stable functions only, safe to put in effect deps
-//   ui.toast({ tone: 'success', title: 'Link copied to your clipboard.', description: 'optional second line' })
+//   ui.toast({ tone: 'success', title: 'Link copied to your clipboard.', description: 'optional second line', action: { label: 'Open in Actions', onClick } })
 //        tone: 'info' | 'success' | 'warning' | 'error' (errors stay until dismissed and use role="alert"); returns an id
 //        ui.toast('Plain string') is shorthand for { title }
 //   ui.dismissToast(id)  ui.clearToasts()      (the kit's useToast() from src/ui is the same thing: AppFrame bridges it to this state)
@@ -59,7 +59,7 @@ export function UIProvider({ children }) {
     idRef.current += 1;
     const id = idRef.current;
     // `type` and `message` are accepted as aliases of `tone` and `description` (the kit's useToast() takes the same options).
-    const item = { id, tone: t.tone || t.type || 'info', title: t.title || '', description: (t.description != null ? t.description : t.message) || '', duration: t.duration, persist: t.persist };
+    const item = { id, tone: t.tone || t.type || 'info', title: t.title || '', description: (t.description != null ? t.description : t.message) || '', duration: t.duration, persist: t.persist, action: t.action };
     setToasts((s) => [...s, item].slice(-MAX_TOASTS));
     return id;
   }, []);

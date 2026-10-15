@@ -63,6 +63,7 @@ import data from '../data/sample.json' with { type: 'json' };
 import * as E from './engine.js';
 import { KEYS, getJSON, setJSON, clearKontorKeys, storageAvailable } from './storage.js';
 import * as A from './actions.js';
+import { markJustAdded, clearJustAdded } from './just-added.js';
 
 export { evidenceFor, evidenceAll, evidenceForField, sourceHref } from './evidenceFor.js'; // flag -> source viewer target, also importable from here
 
@@ -212,6 +213,7 @@ export function EstateProvider({ children, initial }) {
       const cur = { triage: ref.current.triage, actions: ref.current.actions };
       const out = fn(cur, flag, ...args, new Date().toISOString());
       if (!out || (out.triage === cur.triage && out.actions === cur.actions)) return false;
+      if (!cur.actions[flag.id] && out.actions[flag.id]) markJustAdded(flag.id);
       const next = { ...ref.current, triage: out.triage, actions: out.actions };
       ref.current = next;
       setState(next);
@@ -275,6 +277,7 @@ export function EstateProvider({ children, initial }) {
       },
       resetAll() {
         try { clearKontorKeys(); } catch (e) { /* storage blocked: the in-memory state below is still reset */ }
+        clearJustAdded();
         ref.current = initialState();
         setState(ref.current);
       },

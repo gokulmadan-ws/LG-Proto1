@@ -19,6 +19,7 @@ export { Pager } from './Pager.jsx';
 export { PaymentsTable } from './PaymentsTable.jsx';
 export { Check, RadioField, RadioGroup, SwitchField, Field } from './Fields.jsx';
 export { RouteTabs } from './RouteTabs.jsx';
+export { Tabs, tabId, panelId } from './Tabs.jsx';
 export { ToastProvider, ToastHost, ToastContext, useToast } from './Toast.jsx';
 export { useOverlay } from './useOverlay.js';
 export { addLayer, focusables, focusIn, lockScroll, restoreFocus } from './layers.js';

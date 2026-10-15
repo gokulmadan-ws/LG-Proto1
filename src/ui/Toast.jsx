@@ -28,6 +28,9 @@ function ToastItem({ t, onDismiss }) {
       <div className="kx-toast__text">
         {t.title && <div className="kx-toast__title">{t.title}</div>}
         {t.description && <div className="kx-toast__desc">{t.description}</div>}
+        {t.action && t.action.label && (
+          <button type="button" className="kx-toast__action" onClick={() => { if (t.action.onClick) t.action.onClick(); onDismiss(); }}>{t.action.label}</button>
+        )}
       </div>
       <button type="button" className="kx-toast__close" aria-label={'Close notification' + (t.title ? ': ' + (typeof t.title === 'string' ? t.title : '') : '')} onClick={onDismiss}>
         <i className="fa-solid fa-xmark" aria-hidden="true" />
@@ -44,7 +47,8 @@ function ToastItem({ t, onDismiss }) {
  * Controlled: pass the list and a dismiss handler. Most code wants <ToastProvider> and useToast() instead.
  *
  * @param {object} props
- * @param {{ id: string|number, tone?: 'info'|'success'|'warning'|'error', title?: React.ReactNode, description?: React.ReactNode, duration?: number, persist?: boolean }[]} props.toasts
+ * @param {{ id: string|number, tone?: 'info'|'success'|'warning'|'error', title?: React.ReactNode, description?: React.ReactNode, duration?: number, persist?: boolean,
+ *   action?: { label: string, onClick: () => void } }[]} props.toasts   action: one outline button under the text ("Open in Actions"); choosing it closes the toast
  * @param {(id: string|number) => void} props.onDismiss
  * @param {string} [props.label='Notifications']
  */
@@ -96,7 +100,7 @@ export function ToastProvider({ children }) {
   const push = useCallback((o = {}) => {
     seq.current += 1;
     const id = 'toast-' + seq.current;
-    const t = { id, tone: o.tone || o.type || 'info', title: o.title, description: o.description != null ? o.description : o.message, duration: o.duration, persist: o.persist };
+    const t = { id, tone: o.tone || o.type || 'info', title: o.title, description: o.description != null ? o.description : o.message, duration: o.duration, persist: o.persist, action: o.action };
     setItems((s) => [...s, t].slice(-MAX_VISIBLE));
     return id;
   }, []);

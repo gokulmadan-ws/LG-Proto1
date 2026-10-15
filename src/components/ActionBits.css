@@ -1,0 +1,7 @@
+/* Shared action tracker bits (ActionBits.jsx). Springboard tokens only. */
+.act-av {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-pill);
+  background: var(--bg-3); color: var(--fg-1); font: 600 10px/1 var(--font-sans); letter-spacing: 0.02em; box-sizing: border-box;
+}
+.act-av--lg { width: 32px; height: 32px; font-size: 12px; }
+.act-av--empty { background: transparent; border: 1px dashed var(--border-3, var(--fg-3)); color: var(--fg-2); }

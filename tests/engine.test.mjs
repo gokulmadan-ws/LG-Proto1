@@ -33,6 +33,7 @@ const ActionSteps = await imp('src/data/action-steps.js');
 const Contacts = await imp('src/data/contacts.js');
 const Email = await imp('src/data/email-templates.js');
 const ActionSeed = await imp('src/data/actions-seed.js');
+const ActCopy = await imp('src/lib/actions-copy.js');
 const Prov = await imp('scripts/lib/provenance.mjs');
 
 const D = JSON.parse(fs.readFileSync(samplePath, 'utf8'));
@@ -446,6 +447,28 @@ t('copy lint: no "!", no emoji, "saving" only where allowed, no banned button la
   walk([Contacts.KIND_LABEL, Contacts.SOURCE_LABEL, Contacts.STAFF_LIST], 'actions.contactLabels');
   for (const f of est.flags) for (const who of Contacts.contactsFor(f, C(f.contractId))) { const m = Email.emailFor(f, C(f.contractId), est.derived[f.contractId], who, '2026-10-20'); walk([m.subject, ...m.body.split('\n').filter(Boolean)], 'actions.email'); }
   for (const a of Object.values(ActionSeed.SEED_ACTIONS)) walk([a.log.map((l) => l.text), a.notes.map((n) => n.text), a.closeNote].filter(Boolean), 'actions.seed');
+  // the action tracker's UI copy (src/lib/actions-copy.js): every string, and every function called with sample arguments
+  const actSamples = {
+    'ACT.footer.stage': [['checking']], 'ACT.footer.closed': [['resolved', 188200], ['no_action', 58000]],
+    'ACT.closedSummary.resolved': [[150000, 0], [12400, 31200], [0, 54000]], 'ACT.closedSummary.on': [['2026-10-06']],
+    'ACT.who.dueHelp': [['2026-10-20'], ['2026-10-06'], ['2026-10-01']], 'ACT.steps.done': [[2, 5]],
+    'ACT.contacts.source': [["Authority's Representative", 'Clause 3.1', 6]], 'ACT.contacts.why': [['Contract owner', 'Knows if a variation was agreed.']], 'ACT.contacts.supplierRole': [['Contract Director', 'Fennimore Highways Ltd']],
+    'ACT.email.toOption': [['Dana Okafor', 'dana.okafor@marchbank.example']], 'ACT.email.copied': [['Dana Okafor']], 'ACT.email.markedSent': [['Dana Okafor']],
+    'ACT.exit.yes': [[3], [1]], 'ACT.exit.clause': [['Clause 30.1', 31]],
+    'ACT.toast.added': [['Highways reactive maintenance and minor works']], 'ACT.toast.addedDesc': [['£6.1m', false, false], ['£6.2m', true, true]],
+    'ACT.toast.archived': [['Street cleansing']], 'ACT.toast.archivedDesc': [['£6.1m']], 'ACT.toast.closed': [['Street cleansing', 'resolved'], ['Street cleansing', 'no_action']],
+    'ACT.toast.valueNow': [[353100]], 'ACT.toast.headlineNow': [['£6.0m']], 'ACT.toast.moved': [['Street cleansing', 'checking']], 'ACT.toast.reopened': [['Street cleansing', 'to_start']],
+    'ACT.dialog.subtitle': [['Street lighting and signage maintenance', 'Price increase above cap', 188200]],
+    'ACT.board.columnLabel': [['Checking internally', 2], ['To start', 1]], 'ACT.board.progress': [[2, 5]], 'ACT.board.progressLabel': [[2, 5]],
+    'ACT.board.closedLine': [['£150,000 cash recovered', 'cash', '£188,200', '2026-10-06']], 'ACT.board.closedPlain': [['£58,000', '2026-09-03']],
+    'ACT.board.moveLabel': [['Street cleansing']], 'ACT.board.open': [['Street cleansing']],
+    'ACT.results.since': [['2026-05']], 'ACT.results.count': [[1], [4]], 'ACT.results.split': [[4, 1, 1]], 'ACT.results.barLabel': [['May 2026', 12400, 31200]],
+    'ACT.home.notStartedFoot': [[15], [1]], 'ACT.home.workingFoot': [[4, 1], [1, 0]], 'ACT.home.valueFoot': [[3, '2026-05'], [1, '2026-10']],
+    'ACT.rowStage': [['checking', 'PR'], ['to_start', null]], 'ACT.rowStageLabel': [['checking', 'Priya Raman'], ['to_start', null]], 'ACT.reps.clause': [['Clause 3.1', 6]],
+  };
+  const walkAct = (o, p) => { for (const [k, v] of Object.entries(o)) { const pp = `${p}.${k}`; if (typeof v === 'function') { assert.ok(actSamples[pp], 'lint: no sample arguments for ' + pp); actSamples[pp].forEach((args, i) => walk(v(...args), `${pp}(${i})`)); } else if (v && typeof v === 'object' && !Array.isArray(v)) walkAct(v, pp); else walk(v, pp); } };
+  walkAct(ActCopy.ACT, 'ACT'); walk(Object.values(ActCopy.STAGE_LABEL).concat(Object.values(ActCopy.OUTCOME_LABEL)), 'ACT.labels');
+  walk([ActCopy.whenText('2026-10-06T09:12:00.000Z'), ActCopy.dueChipText('2026-10-16', 'overCap', 'soon'), ActCopy.dueChipText('2026-10-31', 'renewal', 'later'), ActCopy.dueChipText('2026-10-01', 'uplift', 'overdue'), ActCopy.monthLong('2026-05')], 'ACT.helpers');
   const allowSaving = (p) => /^(COPY\.caveat|COPY\.method|COPY\.evidenceStrip|COPY\.presenterNotes|roadmap|evidence|reasons)/.test(p);
   const emoji = /\p{Extended_Pictographic}/u;
   let n = 0;
