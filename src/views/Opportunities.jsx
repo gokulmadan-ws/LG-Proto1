@@ -26,6 +26,9 @@ import { Panel, EmptyState } from '../ui/index.js';
 import {
   ChartTable, ConfidenceBadge, FlagBadge, FlagFilterChips, OpportunityList, ReviewBadge, opportunityCounts, opportunityItems,
 } from '../charts/index.js';
+import { ACT } from '../lib/actions-copy.js';
+import { activeAction, isOpen } from '../lib/actions.js';
+import { peopleById } from '../data/people.js';
 import './Opportunities.css';
 
 const { Button, Input, Select } = DS;
@@ -106,7 +109,8 @@ function download(name, text) {
 /* ---------------------------------------------------------------- the page */
 
 export default function Opportunities() {
-  const { estate } = useEstate();
+  const { estate, state } = useEstate();
+  const actions = state.actions || {};
   const ui = useUI();
   const { query } = useRoute();
 
@@ -141,9 +145,13 @@ export default function Opportunities() {
     );
     return opportunityItems(estate, { clauseFor, extraFor }).map((it) => {
       const flag = estate.flagsById[it.id];
-      return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null };
+      // An open action on the board (build spec 8.6): its stage and the owner's initials, next to the review status.
+      const a = activeAction(actions, it.id);
+      const owner = a && a.owner ? peopleById[a.owner] : null;
+      const action = a && isOpen(a) ? { text: ACT.rowStage(a.stage, owner ? owner.initials : null), label: ACT.rowStageLabel(a.stage, owner ? owner.name : null) } : null;
+      return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null, action };
     });
-  }, [estate]);
+  }, [estate, actions]);
 
   const bySearch = useMemo(() => all.filter(matcher(search)), [all, search]);
   const statusOk = (it) => (status === 'all' ? true : status === 'open' ? isOpenStatus(it.status) : !isOpenStatus(it.status));
@@ -193,7 +201,7 @@ export default function Opportunities() {
       { key: 'basis', label: 'Basis', render: (r) => basisLabel(r.flag) },
       { key: 'act', label: 'Act by', render: (r) => actionByText(r.flag) || 'No date' },
       { key: 'confidence', label: 'Confidence', render: (r) => confidenceLabel(r.confidence) },
-      { key: 'status', label: 'Review status', render: (r) => reviewStatusLabel(r.status) },
+      { key: 'status', label: 'Review status', render: (r) => (r.action ? `${reviewStatusLabel(r.status)} (${r.action.text})` : reviewStatusLabel(r.status)) },
       { key: 'clause', label: 'Clause', render: (r) => (r.clauseHref ? <a className="kviz-textlink" href={r.clauseHref}>{r.clauseLabel}</a> : '') },
     ],
     rows: shown.map((it) => ({ ...it, type: flagTypeLabel(it.flag) })),

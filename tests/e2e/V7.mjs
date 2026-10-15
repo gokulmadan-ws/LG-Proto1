@@ -127,38 +127,41 @@ try {
     ok((await text(rp.locator('.page-header__desc'))).includes("What this prototype does, what comes next, and what needs data we don't have yet."), 'subtitle');
   });
 
-  await check('R67 the status table lists the ten features with the spec\'s "What it needs" text and one status each (Uplift check reads "Built in this prototype")', async () => {
+  // The action tracker build spec (8.6) adds "Action tracker" (built, after Opportunities list) and "Suggested next steps" (not yet, last).
+  await check('R67 the status table lists the twelve features with the spec\'s "What it needs" text and one status each (Uplift check reads "Built in this prototype")', async () => {
     const rows = await rowTexts(rp, '#shell-main .rm-status-panel tbody tr');
-    eq(rows.length, 10, 'rows');
+    eq(rows.length, 12, 'rows');
     const want = [
       ['Financial question set', BUILT, "Kontor's existing extraction, plus 9 new questions"],
       ['Renewal radar', BUILT, 'Contract dates and notice terms'],
       ['Cap vs spend', BUILT, 'Transparency Code payments over £500, joined to contracts by supplier'],
       ['Opportunities list', BUILT, 'The three above'],
+      ['Action tracker', BUILT, 'Named contacts from the contract and a staff list'],
       ['Uplift check', BUILT, STRETCH.find((r) => r[0] === 'Uplift check')[2]],
     ];
     STRETCH.filter((r) => r[0] !== 'Uplift check').forEach((r) => want.push([r[0], r[1] === 'Stage 2' ? 'Stage 2' : 'Not yet', r[2]]));
+    want.push(['Suggested next steps', 'Not yet', 'A history of closed actions to learn from']);
     want.forEach((w, i) => {
       ok(rows[i][0].startsWith(w[0]), `row ${i + 1} feature: "${rows[i][0]}" vs "${w[0]}"`);
       ok(rows[i][1].startsWith(w[1]), `row ${i + 1} status: "${rows[i][1]}" vs "${w[1]}"`);
       eq(rows[i][2], norm(w[2]), `row ${i + 1} needs`);
     });
-    ok(rows[4][0].includes('Stretch feature'), 'Uplift check is labelled as a stretch feature');
+    ok(rows[5][0].includes('Stretch feature'), 'Uplift check is labelled as a stretch feature');
   });
 
-  await check('R67 every Stage 2 and Not yet row carries the visible label "Not in this prototype"; the five built rows do not and link to their screen', async () => {
+  await check('R67 every Stage 2 and Not yet row carries the visible label "Not in this prototype"; the six built rows do not and link to their screen', async () => {
     const rows = await rowTexts(rp, '#shell-main .rm-status-panel tbody tr');
-    rows.forEach((r, i) => eq(r[1].includes(NOT_IN), i >= 5, `row ${i + 1} label`));
+    rows.forEach((r, i) => eq(r[1].includes(NOT_IN), i >= 6, `row ${i + 1} label`));
     const links = await rp.$$eval('#shell-main .rm-status-panel tbody th a', (as) => as.map((a) => [a.textContent.trim(), a.getAttribute('href')]));
-    eq(links.length, 5, 'links on built rows');
-    eq(links.map((l) => l[1]), ['#/contracts', '#/renewals', '#/spend', '#/opportunities', '#/opportunities?type=uplift'], 'link targets');
+    eq(links.length, 6, 'links on built rows');
+    eq(links.map((l) => l[1]), ['#/contracts', '#/renewals', '#/spend', '#/opportunities', '#/actions', '#/opportunities?type=uplift'], 'link targets');
   });
 
   await check('R67 the status table is an accessible table: caption, column headers with scope, row headers', async () => {
     const t = rp.locator('#shell-main .rm-status-panel table');
     ok((await t.locator('caption').count()) === 1 || !!(await t.getAttribute('aria-label')), 'caption or aria-label');
     eq((await t.locator('thead th[scope="col"]').evaluateAll((ths) => ths.map((x) => x.textContent))).map(norm), ['Feature', 'Status', 'What it needs'], 'headers');
-    eq(await t.locator('tbody th[scope="row"]').count(), 10, 'row headers');
+    eq(await t.locator('tbody th[scope="row"]').count(), 12, 'row headers');
   });
 
   await check('R67 Stage 1 and Stage 2 compared: the spec\'s five rows, and the closing line about the structured contract estate', async () => {
@@ -1021,7 +1024,7 @@ try {
     eq((await noOverflow(p)).main, 0, 'no sideways scroll');
     await go(p, '#/roadmap');
     eq(await p.locator('#shell-main table').count(), 0, 'no table on the roadmap either');
-    eq(await p.locator('#shell-main .rm-status-panel .rt-item').count(), 10, 'ten features');
+    eq(await p.locator('#shell-main .rm-status-panel .rt-item').count(), 12, 'twelve features');
     eq(await p.locator('#shell-main .rm-illustrative .rt-item').count(), 4, 'four illustrative rows');
     const txt = await text(p.locator('#shell-main .rm-illustrative'));
     ILLUSTRATIVE.forEach((r) => r.slice(1).forEach((c) => ok(txt.includes(norm(c)), 'illustrative cell ' + c)));

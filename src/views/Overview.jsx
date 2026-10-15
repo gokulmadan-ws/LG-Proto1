@@ -1,9 +1,10 @@
-// V1: Overview (#/overview, also the empty hash). The hero screen: the headline number first, then where it comes from, how much has been
-// paid above the caps, what is coming up for renewal, and the close.
+// V1: Overview (#/overview, also the empty hash). The hero screen: the headline number first, then where it comes from, how the team is
+// getting on with it (the Action progress strip), how much has been paid above the caps, what is coming up for renewal, and the close.
 //
 //   default export: <Overview />      rendered inside <main id="shell-main"> by App.jsx, no props.
 //   One h1: the headline sentence (HeadlineSentence in the PageHeader title). The figure is focusable and carries the exact value.
-//   Links out:   #/opportunities?type=<overCap|nearCap|renewal|uplift> (the four cards), #/spend (Cap vs spend panel), #/renewals,
+//   Links out:   #/opportunities?type=<overCap|nearCap|renewal|uplift> (the four cards), #/actions and #/actions/results (Action progress),
+//                #/spend (Cap vs spend panel), #/renewals,
 //                #/roadmap, #/method?s=indicative, #/opportunities?status=reviewed (only while a flag is excluded after review).
 //   Opens:       useUI().openDemoGuide() and useUI().openFeedback(); the flag drawer (?flag=) from a cap row or a renewal diamond (D9).
 //
@@ -19,6 +20,8 @@ import { PageHeader, MethodLink } from '../components/index.js';
 import DS from '../ui/ds.js';
 import { Panel } from '../ui/index.js';
 import { BulletList, CapStatePill, HeadlineBreakdown, HeadlineSentence, RadarStrip, capItems, headlineProps, radarRows } from '../charts/index.js';
+import { ACT } from '../lib/actions-copy.js';
+import { actionTotals } from '../lib/actions.js';
 import './Overview.css';
 
 const { Button } = DS;
@@ -50,6 +53,37 @@ function capFlagOf(estate, contractId) {
   return id || null;
 }
 
+/** Action progress (build spec 8.5): how much of the headline nobody has started, how much is being worked on, and what has come back. */
+function ProgressStrip({ estate, actions }) {
+  const H = ACT.home;
+  const t = actionTotals(estate, actions);
+  return (
+    <Panel title={H.title} description={H.description} id="ov-prog-h" className="ov-prog"
+      actions={<Button type="button" variant="outline" size="sm" rightIcon="arrow-right" onClick={() => navigate('#/actions')}>{H.open}</Button>}>
+      <dl className="ov-prog__grid">
+        <div className="ov-prog__block is-idle" data-block="not-started">
+          <dt>{H.notStarted}</dt>
+          <dd><span className="ov-prog__value" title={fmtGBP(t.notStartedGBP)}>{fmtGBPCompact(t.notStartedGBP)}</span><span className="ov-prog__foot">{H.notStartedFoot(t.noActionCount)}</span></dd>
+        </div>
+        <div className="ov-prog__block is-working" data-block="working">
+          <dt>{H.working}</dt>
+          <dd><span className="ov-prog__value" title={fmtGBP(t.beingWorkedGBP)}>{fmtGBPCompact(t.beingWorkedGBP)}</span><span className="ov-prog__foot">{H.workingFoot(t.openCount, t.dueSoonCount)}</span></dd>
+        </div>
+        <div className="ov-prog__block is-value" data-block="value">
+          <dt>{H.value}</dt>
+          <dd>
+            <span className="ov-prog__value">{fmtGBP(t.valueSecuredGBP)}</span>
+            <span className="ov-prog__foot">
+              {t.resolvedCount > 0 ? H.valueFoot(t.resolvedCount, t.sinceMonth) : H.valueFootNone}{' '}
+              <a className="ov-link" href="#/actions/results">{H.seeResults}</a>
+            </span>
+          </dd>
+        </div>
+      </dl>
+    </Panel>
+  );
+}
+
 function CapPanel({ estate }) {
   const items = capItems(estate);
   const count = { over: 0, near: 0, ok: 0 };
@@ -72,7 +106,7 @@ function CapPanel({ estate }) {
 }
 
 export default function Overview() {
-  const { estate } = useEstate();
+  const { estate, state } = useEstate();
   const ui = useUI();
   const hp = headlineProps(estate);
   const excluded = excludedNote(estate.totals);
@@ -116,6 +150,8 @@ export default function Overview() {
           )}
         />
       </Panel>
+
+      <ProgressStrip estate={estate} actions={state.actions || {}} />
 
       <div className="kx-grid kx-grid--halves ov-row">
         <CapPanel estate={estate} />

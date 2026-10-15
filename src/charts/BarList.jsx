@@ -114,6 +114,7 @@ export function BarList({ rows, max, ariaLabel, getHref, onOpen, format = gbp, h
            basis?: 'per_year'|'one_off'|'projected', confidence: 'high'|'medium'|'low', actionBy?: ISO date, rank?: number,
            typeLabel?: string, status?: 'to_investigate'|'under_review'|'resolved'|'explained'|'not_an_issue', statusLabel?: string (shown as a pill),
            statusPill?: node (replaces the built-in status pill), clauseLabel?: 'View clause, page 23', clauseHref?: string,
+           action?: { text: 'Checking internally · PR', label: 'Action: Checking internally, owner Priya Raman' } (an open action on the board),
            extra?: node (more links and notes after the clause link), href?: string }
    ------------------------------------------------------------------------------------------------ */
 /**
@@ -158,9 +159,10 @@ export function OpportunityList({ items, filter = null, getHref, onOpen, limit, 
             <ConfidenceBadge level={it.confidence} />
             {act && <span className="kviz-barlist__trailsub">{act}</span>}
             {statusPill}
+            {it.action && <span className="kviz-actchip" data-action-chip aria-hidden="true"><i className="fa-solid fa-list-check" />{it.action.text}</span>}
           </>
         ),
-        aria: `Rank ${rank}. ${it.title}, ${it.supplier}. ${typeLabel}. ${reason}. Indicative ${gbpFull(it.value)}, ${basis.toLowerCase()}. ${conf.words}.${act ? ' ' + act + '.' : ''}${it.statusLabel ? ' Review status: ' + it.statusLabel.toLowerCase() + '.' : ''}`,
+        aria: `Rank ${rank}. ${it.title}, ${it.supplier}. ${typeLabel}. ${reason}. Indicative ${gbpFull(it.value)}, ${basis.toLowerCase()}. ${conf.words}.${act ? ' ' + act + '.' : ''}${it.statusLabel ? ' Review status: ' + it.statusLabel.toLowerCase() + '.' : ''}${it.action ? ' ' + it.action.label + '.' : ''}`,
         content: {
           title: it.title, sub: `${it.supplier} · ${it.reason}`,
           rows: [
@@ -169,6 +171,7 @@ export function OpportunityList({ items, filter = null, getHref, onOpen, limit, 
             { value: typeLabel, label: 'Flag type' },
             { value: conf.words, label: '' },
             ...(it.statusLabel ? [{ value: it.statusLabel, label: 'Review status' }] : []),
+            ...(it.action ? [{ value: it.action.text, label: 'Action' }] : []),
           ],
           note: 'An opportunity to investigate, not a confirmed result',
         },

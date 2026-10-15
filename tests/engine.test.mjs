@@ -555,8 +555,13 @@ t('roadmap.js: spec wording is verbatim and the status table is complete', () =>
   for (const w of roadmap.stage2.why) inSpec(`${w.title} ${w.text}`.replace(/\(LGA\/Audit Commission\)/, '(LGA/Audit Commission)'));
   for (const w of roadmap.who) inSpec(`${w.title} ${w.text}`); for (const w of roadmap.mustBeTrue) inSpec(`${w.title} ${w.text}`); for (const w of roadmap.dataSources) inSpec(`${w.title} ${w.text}`.replace('Contracts: under', 'Contracts: under'));
   for (const r of roadmap.stages.rows) r.forEach(inSpec); for (const m of roadmap.mustHaves) { inSpec(m.does); inSpec(m.why); }
-  roadmap.statusRows.slice(4).forEach((r) => { inSpec(r.feature); inSpec(r.needs); });
-  assert.equal(roadmap.statusRows.length, 10); assert.deepEqual(roadmap.statusRows.map((r) => r.badgeLabel), ['Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Stage 2', 'Not yet', 'Not yet', 'Not yet', 'Not yet']);
+  // the action tracker build spec (8.6) adds two rows that are not in docs/spec.md: Action tracker (built) and Suggested next steps (not yet)
+  const ADDED = ['action-tracker', 'suggested-steps'];
+  roadmap.statusRows.filter((r) => !ADDED.includes(r.id)).slice(4).forEach((r) => { inSpec(r.feature); inSpec(r.needs); });
+  assert.deepEqual(roadmap.statusRows.filter((r) => ADDED.includes(r.id)).map((r) => [r.feature, r.status, r.needs, r.href || null, !!r.notInPrototype]),
+    [['Action tracker', 'built', 'Named contacts from the contract and a staff list', '#/actions', false], ['Suggested next steps', 'notYet', 'A history of closed actions to learn from', null, true]]);
+  assert.equal(roadmap.statusRows.findIndex((r) => r.id === 'action-tracker'), roadmap.statusRows.findIndex((r) => r.id === 'opportunities') + 1, 'Action tracker comes after Opportunities list');
+  assert.equal(roadmap.statusRows.length, 12); assert.deepEqual(roadmap.statusRows.map((r) => r.badgeLabel), ['Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Built in this prototype', 'Stage 2', 'Not yet', 'Not yet', 'Not yet', 'Not yet', 'Not yet']);
   assert.ok(roadmap.statusRows.filter((r) => r.status !== 'built').every((r) => r.notInPrototype === true)); assert.ok(roadmap.statusRows.filter((r) => r.status === 'built').every((r) => !r.notInPrototype));
   assert.equal(roadmap.statusRows.find((r) => r.id === 'uplift-check').badgeLabel, 'Built in this prototype');
   assert.equal(roadmap.stage2.formula.plain, 'Net saving = (current annual cost − group annual cost) × years remaining − exit cost − switching cost'); assert.equal(roadmap.stage2.illustrative.label, 'Illustrative numbers, made up to show the logic, not real data');

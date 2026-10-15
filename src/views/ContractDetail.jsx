@@ -5,7 +5,8 @@
 //   Query string: ?flag=<flagId> opens the flag drawer (mounted once for every route; the flag rows here call setQuery({ flag })).
 //   Unknown id: a not-found state with ONE <h1> ("Contract not found.") and a "Go to contracts" button.
 //
-// Order on the page: header, flags first, key figures, then two columns (New financial questions | Derived), spend by contract year, payments.
+// Order on the page: header, flags first, key figures, then two columns (New financial questions | Derived), Representatives (both sides, from
+// clause 3: action tracker build spec 8.6), spend by contract year, payments.
 // The sub-components live in ./contracts/. Numbers and sentences come from useEstate(), the engine output and src/lib/copy.js; strings the copy deck
 // does not hold are in ./contracts/strings.js (listed in docs/handoff/V6.md).
 import { useEstate } from '../lib/estate.js';
@@ -21,6 +22,7 @@ import { QuestionsPanel } from './contracts/Questions.jsx';
 import { DerivedPanel } from './contracts/Derived.jsx';
 import { SpendSection } from './contracts/SpendSection.jsx';
 import { PaymentsSection } from './contracts/Payments.jsx';
+import { RepresentativesPanel } from './contracts/Representatives.jsx';
 import { DETAIL } from './contracts/strings.js';
 import './ContractDetail.css';
 
@@ -113,6 +115,7 @@ export default function ContractDetail({ id }) {
         </div>
       </div>
 
+      <RepresentativesPanel contract={c} />
       <SpendSection contract={c} estate={estate} />
       <PaymentsSection key={c.id} contract={c} estate={estate} />
     </div>

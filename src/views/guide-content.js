@@ -110,6 +110,16 @@ export function screens(f) {
       links: [{ label: 'Open opportunities', href: hrefFor('opportunities') }],
     },
     {
+      id: 'actions', title: 'Actions', icon: 'fa-solid fa-list-check',
+      answers: 'Who is working on each opportunity, and what has come back?',
+      who: 'The contracts team running each opportunity to an outcome, and the managers who report what it brought back.',
+      tabs: 'Two tabs',
+      links: [
+        { label: 'Open the Actions board', href: hrefFor('actions') },
+        { label: 'Open results', href: hrefFor('actions', { seg: ['results'] }) },
+      ],
+    },
+    {
       id: 'renewals', title: 'Renewal radar', icon: 'fa-regular fa-calendar-check',
       answers: 'Which contracts need a decision, and by when?',
       who: 'Contract managers and procurement leads who must act before a notice date.',
@@ -172,7 +182,7 @@ export const TRY = {
   },
   explain: {
     title: 'Mark a flag as Explained',
-    body: 'Open the top spend over cap flag. In the panel, set Review status to Explained.',
+    body: 'Open the top spend over cap flag. In the panel, set Review status to Explained and add one line on what happened.',
     bodyDone: 'You have marked this flag as Explained. Open it and set Review status back to To investigate to undo it.',
     link: 'Open the top spend over cap flag',
     fall: (from, to, note) => `The headline falls from ${from} to ${to}.${note ? ` The overview then shows ${note}` : ''} That is the caveat in action.`,
@@ -203,9 +213,37 @@ export const TRY = {
     link: 'Open spend over cap',
     see: 'A message says the link is copied. Paste it into a new tab to open the same view.',
   },
+  // the action tracker (build spec section 10, steps 1, 4, 5 and 6)
+  start: {
+    title: 'Start an action',
+    body: (title) => `Open the ${title} flag and set Review status to Under review.`,
+    bodyDone: 'You have started this action. It is on the Actions board, and the Action tab of the flag shows it.',
+    link: 'Open the highways flag',
+    see: (head) => `A card appears in To start on the Actions board. The headline stays at ${head}, because Under review is still counted.`,
+  },
+  email: {
+    title: 'Copy the draft email',
+    body: (owner) => `Open the Action tab of the same flag. Set ${owner} as the owner, then choose Copy email. The email already holds the clause and the payment figures.`,
+    link: 'Open the Action tab',
+    see: 'A line in the activity log says you copied the email. Kontor never sends anything: you paste it into your own email.',
+  },
+  close: {
+    title: 'Close an action as Resolved',
+    body: (title, cash) => `On the Actions board, drag ${title} to Closed, or use Move to. Choose Resolved and enter ${cash} cash recovered.`,
+    bodyDone: (title) => `You have closed ${title}. Move it back to an open stage on the board to undo it.`,
+    link: 'Open the Actions board',
+    see: (from, to) => `Value secured goes from ${from} to ${to}.`,
+    seeDone: (value) => `Value secured is ${value} now.`,
+  },
+  results: {
+    title: 'Open the results',
+    body: 'Open the Results tab on the Actions page. Value secured is cash recovered plus cost avoided, from the actions closed as Resolved.',
+    link: 'Open results',
+    see: (value) => `Value secured is ${value} now, by month closed. These are your figures: Kontor does not check them.`,
+  },
   reset: {
     title: 'Reset your changes',
-    body: 'This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. The button is in the header, in the Menu and in Settings.',
+    body: 'This clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device, and puts the example actions back. The theme stays. The button is in the header, in the Menu and in Settings.',
     nothing: 'Nothing has been changed yet.',
     changed: (parts) => `Changed on this device: ${parts.join(', ')}.`,
     see: (head) => `A confirm dialog asks first. After you confirm, the headline is back to ${head}.`,
@@ -284,10 +322,13 @@ export const REAL = {
 
 /* -------------------------------------------------------------------------------------------------------- glossary */
 export const GLOSSARY = [
+  ['Action', 'A record of who is working on an opportunity: an owner, a due date, next steps, notes and, at the end, the outcome. Actions sit on the Actions board.'],
   ['Auto-renewal', 'The contract renews by itself for a set period unless you give notice in time.'],
   ['Buying group', 'Councils that buy the same thing together to get a better price. Forming one is a Stage 2 idea on the roadmap.'],
+  ['Cash recovered', 'One-off money back from a supplier, such as a refund or a credit note. Your figure, entered when you close an action as Resolved.'],
   ['Contract cap or maximum value', 'The most the contract says you can pay the supplier. Some contracts give only a contract value, which is an estimate and not a ceiling.'],
   ['Contracts Finder', 'The public service for contract notices. In this project it is the source for contracts below £5m, where full documents are not published.'],
+  ['Cost avoided', 'Future spend that will not happen, such as a lower rate agreed with the supplier. Your figure, entered when you close an action as Resolved.'],
   ['Exit fee', 'A charge the supplier can make if the contract ends early.'],
   ['Extension option', "A right to carry on beyond the first term, for example two extensions of 12 months. Some are the council's choice and others need both sides to agree."],
   ['Find a Tender', 'The central platform where councils must publish a copy of any contract over £5m, for procurements started on or after 24 February 2025.'],
@@ -298,6 +339,7 @@ export const GLOSSARY = [
   ['Termination for convenience', 'A right to end the contract early without giving a reason, usually on notice.'],
   ['Transparency Code spend file', 'A list of payments over £500 that a council publishes under the Local Government Transparency Code.'],
   ['Uplift', "A price increase. A price increase above cap means payments rose by more than the contract's cap on increases allows."],
+  ['Value secured', 'Cash recovered plus cost avoided, from the actions closed as Resolved. Kontor shows your figures as you enter them and does not check them.'],
 ];
 
 /* ------------------------------------------------------------------------------------------------------------ keys */

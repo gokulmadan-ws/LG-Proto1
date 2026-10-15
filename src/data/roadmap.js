@@ -22,6 +22,8 @@ export const roadmap = {
     { id: 'renewal-radar', feature: 'Renewal radar', status: 'built', badgeLabel: BADGES.built, needs: 'Contract dates and notice terms', href: '#/renewals' },
     { id: 'cap-vs-spend', feature: 'Cap vs spend', status: 'built', badgeLabel: BADGES.built, needs: 'Transparency Code payments over £500, joined to contracts by supplier', href: '#/spend' },
     { id: 'opportunities', feature: 'Opportunities list', status: 'built', badgeLabel: BADGES.built, needs: 'The three above', href: '#/opportunities' },
+    // added by the action tracker build spec (docs/action-tracker/action-tracker-build-spec.md 8.6), not from docs/spec.md
+    { id: 'action-tracker', feature: 'Action tracker', status: 'built', badgeLabel: BADGES.built, needs: 'Named contacts from the contract and a staff list', href: '#/actions' },
     // verbatim from the spec table from here on
     { id: 'uplift-check', feature: 'Uplift check', status: 'built', badgeLabel: BADGES.built, note: 'Stretch feature', needs: 'Contract indexation cap vs year-on-year change in payments to that supplier', href: '#/opportunities?type=uplift' },
     { id: 'cross-council', feature: 'Cross-council comparison', status: 'stage2', badgeLabel: BADGES.stage2, notInPrototype: true, needs: 'Same supplier or service across 3–4 councils side by side (value, term, rates)' },
@@ -29,6 +31,8 @@ export const roadmap = {
     { id: 'service-credits', feature: 'Unclaimed service credits', status: 'notYet', badgeLabel: BADGES.notYet, notInPrototype: true, needs: 'KPI performance data' },
     { id: 'aggregation', feature: 'Aggregation finder and framework fit', status: 'notYet', badgeLabel: BADGES.notYet, notInPrototype: true, needs: "More councils than the prototype will hold" },
     { id: 'agency-rates', feature: 'Agency rate benchmarking', status: 'notYet', badgeLabel: BADGES.notYet, notInPrototype: true, needs: "Rate data that isn't published" },
+    // added by the action tracker build spec 8.6
+    { id: 'suggested-steps', feature: 'Suggested next steps', status: 'notYet', badgeLabel: BADGES.notYet, notInPrototype: true, needs: 'A history of closed actions to learn from' },
   ],
   notYetIntro: "One stretch feature goes in if time allows. Cross-council work belongs to Stage 2, and the rest stays on the roadmap because it needs data a prototype won't have.", // verbatim
 

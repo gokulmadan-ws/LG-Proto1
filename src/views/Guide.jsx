@@ -328,6 +328,34 @@ function TrySection({ estate, f, ui, actions }) {
     action: <LinkButton href={hrefFor('opportunities', { query: { type: 'overCap' } })}>{TRY.share.link}</LinkButton>,
   });
 
+  // The action tracker, in the order of the demo script (build spec section 10)
+  const a = f.action;
+  if (a && flag) {
+    const title = f.top.contract ? f.top.contract.title : '';
+    rows.push({
+      key: 'start', icon: 'play', title: TRY.start.title, body: a.started ? TRY.start.bodyDone : TRY.start.body(title),
+      see: [TRY.start.see(gbp(a.afterStart.totalGBP))],
+      action: <LinkButton href={hrefFor('opportunities', { query: { flag: flag.id } })}>{TRY.start.link}</LinkButton>,
+    });
+    if (a.owner) {
+      rows.push({
+        key: 'email', icon: 'envelope', title: TRY.email.title, body: TRY.email.body(a.owner.name), see: [TRY.email.see],
+        action: <LinkButton href={hrefFor('opportunities', { query: { flag: flag.id, tab: 'action' } })}>{TRY.email.link}</LinkButton>,
+      });
+    }
+    if (a.close) {
+      rows.push({
+        key: 'close', icon: 'flag-checkered', title: TRY.close.title, body: a.close.done ? TRY.close.bodyDone(a.close.title) : TRY.close.body(a.close.title, fmtGBP(a.close.cash)),
+        see: [a.close.done ? TRY.close.seeDone(fmtGBP(a.valueNow)) : TRY.close.see(fmtGBP(a.valueNow), fmtGBP(a.close.valueAfter))],
+        action: <LinkButton href={hrefFor('actions')}>{TRY.close.link}</LinkButton>,
+      });
+    }
+    rows.push({
+      key: 'results', icon: 'chart-column', title: TRY.results.title, body: TRY.results.body, see: [TRY.results.see(fmtGBP(a.valueNow))],
+      action: <LinkButton href={hrefFor('actions', { seg: ['results'] })}>{TRY.results.link}</LinkButton>,
+    });
+  }
+
   const resetAll = async (e) => {
     if (!f.changes.length) { ui.toast({ tone: 'info', title: 'Nothing to reset.', description: 'You have not changed anything yet.' }); return; }
     const ok = await ui.confirm({ title: COPY.resetDialog.title, description: COPY.resetDialog.body, confirmLabel: COPY.resetDialog.confirm, cancelLabel: COPY.resetDialog.cancel, destructive: true });

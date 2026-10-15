@@ -12,11 +12,14 @@ import { computeEstate, handcheckSummary } from '../lib/estate.js';
 import { evidenceFor } from '../lib/evidenceFor.js';
 import { confidenceBand } from '../lib/copy.js';
 import { plural } from '../lib/format.js';
-import { changeParts, triageChanges } from '../lib/actions.js';
+import { activeAction, changeParts, isOpen, resultsOf, triageChanges } from '../lib/actions.js';
+import { ownerFor, peopleById } from '../data/people.js';
 
 export const PAYEE = 'Larchmont Grounds Maintenance';   // the one suggested match in the sample (Cap vs spend, Supplier matches)
 export const RATE_TARGET = 0.08;                          // the Settings choice the Guide asks you to try
 export const RATE_FALLBACK = 0.03;                        // used when you are already on RATE_TARGET
+export const CLOSE_FLAG = 'F-C-004-uplift';               // the pre-loaded action the demo script closes (Street lighting, action tracker build spec 10)
+export const CLOSE_CASH = 150000;                         // the cash recovered the demo script enters for it
 
 const without = (obj, key) => { const o = { ...obj }; delete o[key]; return o; };
 
@@ -72,6 +75,21 @@ export function guideFacts(estate, state) {
     }
   }
 
+  // ---- Try rows for the action tracker: start the top flag's action, copy its email, close Street lighting, open Results
+  const acts = state.actions || {};
+  const topAction = topFlag ? activeAction(acts, topFlag.id) : null;
+  const res = resultsOf(acts);
+  const closeFlag = estate.flagsById[CLOSE_FLAG] || null;
+  const closeAct = closeFlag ? activeAction(acts, CLOSE_FLAG) : null;
+  const closeDone = !!(closeAct && closeAct.stage === 'closed');
+  const action = topFlag ? {
+    started: !!(topAction && isOpen(topAction)),
+    afterStart: what({ triage: { ...base.triage, [topFlag.id]: 'under_review' } }).totals,
+    owner: topContract ? peopleById[ownerFor(topContract)] : null,
+    valueNow: res.valueSecuredGBP,
+    close: closeFlag ? { title: estate.contractsById[closeFlag.contractId].title, done: closeDone, cash: CLOSE_CASH, valueAfter: res.valueSecuredGBP + (closeDone ? 0 : CLOSE_CASH) } : null,
+  } : null;
+
   // ---- Try row 4: change the renewal rate
   const rateTarget = Math.abs(opts.renewalRate - RATE_TARGET) < 1e-9 ? RATE_FALLBACK : RATE_TARGET;
   const rateAfter = what({ assumptions: { ...base.assumptions, renewalRate: rateTarget } });
@@ -90,7 +108,7 @@ export function guideFacts(estate, state) {
     changes: changeCounts(state),
     handcheck: handcheckSummary(state),
     top: { flag: topFlag, contract: topContract, cap: topCap, clause: topClause, doc: topDoc },
-    explain, match, rate,
+    explain, match, rate, action,
     capStates, partialCaps, answersToReview, flagsToReview,
     counts: {
       contracts: estate.data.contracts.length,

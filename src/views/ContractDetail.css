@@ -146,3 +146,20 @@
   .cd-q { padding: 16px 16px 2px; }
   .cd-derived { padding: 4px 16px 8px; }
 }
+
+/* ---------- Representatives (both sides, clause 3; action tracker build spec 8.6) ---------------------------- */
+.cd ul.cd-reps__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.cd-rep { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px; border: 1px solid var(--border-1); border-radius: var(--radius-lg); }
+.cd-rep__label { margin: 0; font: 500 12px/16px var(--font-sans); color: var(--fg-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.cd-rep__who { display: flex; align-items: flex-start; gap: 12px; }
+.cd-rep__text { min-width: 0; }
+.cd-rep__text p { margin: 0; }
+.cd-rep__name { font: 600 15px/20px var(--font-sans); color: var(--fg-1); }
+.cd-rep__role { font: 400 13px/18px var(--font-sans); color: var(--fg-2); }
+.cd-rep__email { font: 400 13px/18px var(--font-mono); color: var(--fg-1); overflow-wrap: anywhere; }
+.cd-rep__src { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cd-rep__src figcaption { font-size: 12px; line-height: 16px; color: var(--fg-2); }
+.cd-rep__src blockquote { margin: 0; padding: 10px 12px; background: var(--bg-2); border-radius: var(--radius-md); font: 400 13px/18px var(--font-mono); color: var(--fg-1); overflow-wrap: anywhere; }
+.cd-rep__src blockquote::before { content: "\201C"; }
+.cd-rep__src blockquote::after { content: "\201D"; }
+@media (max-width: 760px) { .cd ul.cd-reps__list { grid-template-columns: minmax(0, 1fr); } }

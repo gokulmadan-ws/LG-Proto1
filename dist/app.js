@@ -4167,8 +4167,8 @@
           color: f.color,
           laneSub: basis,
           lead: /* @__PURE__ */ React.createElement(FlagBadge, { type: it.type, label: typeLabel, muted }),
-          trail: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: it.confidence }), act && /* @__PURE__ */ React.createElement("span", { className: "kviz-barlist__trailsub" }, act), statusPill),
-          aria: `Rank ${rank}. ${it.title}, ${it.supplier}. ${typeLabel}. ${reason}. Indicative ${gbpFull(it.value)}, ${basis.toLowerCase()}. ${conf.words}.${act ? " " + act + "." : ""}${it.statusLabel ? " Review status: " + it.statusLabel.toLowerCase() + "." : ""}`,
+          trail: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ConfidenceBadge, { level: it.confidence }), act && /* @__PURE__ */ React.createElement("span", { className: "kviz-barlist__trailsub" }, act), statusPill, it.action && /* @__PURE__ */ React.createElement("span", { className: "kviz-actchip", "data-action-chip": true, "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-list-check" }), it.action.text)),
+          aria: `Rank ${rank}. ${it.title}, ${it.supplier}. ${typeLabel}. ${reason}. Indicative ${gbpFull(it.value)}, ${basis.toLowerCase()}. ${conf.words}.${act ? " " + act + "." : ""}${it.statusLabel ? " Review status: " + it.statusLabel.toLowerCase() + "." : ""}${it.action ? " " + it.action.label + "." : ""}`,
           content: {
             title: it.title,
             sub: `${it.supplier} \xB7 ${it.reason}`,
@@ -4177,7 +4177,8 @@
               { value: basis, label: "Basis" },
               { value: typeLabel, label: "Flag type" },
               { value: conf.words, label: "" },
-              ...it.statusLabel ? [{ value: it.statusLabel, label: "Review status" }] : []
+              ...it.statusLabel ? [{ value: it.statusLabel, label: "Review status" }] : [],
+              ...it.action ? [{ value: it.action.text, label: "Action" }] : []
             ],
             note: "An opportunity to investigate, not a confirmed result"
           }
@@ -4257,6 +4258,197 @@
     ));
   }
 
+  // src/lib/actions-copy.js
+  init_react_shim();
+  var MONTHS3 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var MONTHS_SHORT2 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var monthLong = (ym) => `${MONTHS3[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+  var monthShort = (ym) => MONTHS_SHORT2[Number(ym.slice(5, 7)) - 1];
+  var dayMonth = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+  function whenText(at2) {
+    const d = new Date(at2);
+    if (Number.isNaN(d.getTime())) return "";
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+    return `${p.day} ${p.month === "Sept" ? "Sep" : p.month}, ${p.hour}:${p.minute}`;
+  }
+  function dueChipText(due, flagType, state) {
+    if (!due) return "";
+    if (state === "overdue") return `Overdue, due ${dayMonth(due)}`;
+    return flagType === "renewal" ? `Notice by ${dayMonth(due)}` : `Due ${dayMonth(due)}`;
+  }
+  var ACT = {
+    /* ---------------------------------------------------------------- drawer */
+    tabs: { label: "Opportunity views", details: "Details", action: "Action" },
+    footer: {
+      stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
+      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
+    },
+    empty: {
+      title: "Nobody is working on this yet.",
+      body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
+      button: "Start action"
+    },
+    closedSummary: {
+      resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
+      on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
+      reopen: "To reopen it, choose an open stage below."
+    },
+    who: {
+      title: "Who and when",
+      stage: "Stage",
+      owner: "Owner",
+      due: "Due",
+      notSet: "Not set",
+      dueHelp: (iso) => `${fmtDate(iso)}, ${inDaysText(iso, AS_OF)}`
+    },
+    steps: { title: "Next steps", done: (d, t) => `${d} of ${t} done` },
+    contacts: {
+      title: "Who to contact",
+      note: "Sample names",
+      staff: "Staff list",
+      source: (label, clauseRef, page) => `${label} \xB7 ${clauseRef}, page ${page}`,
+      showClause: "Show the clause",
+      quoteLabel: "From the contract",
+      why: (kindLabel, why) => `${kindLabel}. ${why}`,
+      supplierRole: (role, supplier) => `${role}, ${supplier}`
+    },
+    email: {
+      title: "Draft email",
+      note: "Check before you send",
+      to: "To",
+      subject: "Subject",
+      body: "Email body",
+      toOption: (name, email) => `${name} \xB7 ${email}`,
+      copy: "Copy email",
+      sent: "Mark as sent",
+      hint: "Copy and Mark as sent add a line to the activity log. Kontor never sends email.",
+      copied: (name) => `Email copied. Paste it into your email app and send it to ${name}.`,
+      blocked: "Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.",
+      markedSent: (name) => `Marked as sent to ${name}.`
+    },
+    exit: {
+      title: "Exit terms",
+      note: "From the contract",
+      convenience: "End for convenience",
+      fee: "Exit fee",
+      ends: "Contract ends",
+      yes: (months) => `Yes, ${months} ${months === 1 ? "month's" : "months'"} notice`,
+      no: "No",
+      none: "None",
+      notFound: "Not found",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    },
+    activity: { title: "Activity", noteLabel: "Add a note", addNote: "Add note", empty: "Nothing has happened on this action yet.", noteTag: "Note" },
+    toast: {
+      added: (title) => `${title}: added to Actions.`,
+      addedDesc: (headline, changed, hasOwner) => `The headline is ${changed ? "now" : "still"} ${headline}.${hasOwner ? "" : " Set an owner to get started."}`,
+      open: "Open in Actions",
+      archived: (title) => `${title}: marked To investigate.`,
+      archivedDesc: (headline) => `The card has left the Actions board. Its notes and log are kept. The headline is now ${headline}.`,
+      closed: (title, outcome) => `${title}: closed as ${OUTCOME_LABEL[outcome]}.`,
+      valueNow: (gbp2) => `Value secured is now ${fmtGBP(gbp2)}.`,
+      headlineNow: (headline) => `The headline is now ${headline}.`,
+      moved: (title, stage) => `${title}: moved to ${STAGE_LABEL[stage]}.`,
+      reopened: (title, stage) => `${title}: reopened in ${STAGE_LABEL[stage]}.`
+    },
+    /* ---------------------------------------------------------------- close dialog */
+    dialog: {
+      title: "Close this action",
+      subtitle: (contract, type, flagged) => `${contract} \xB7 ${type} \xB7 ${fmtGBP(flagged)} flagged`,
+      outcome: "Outcome",
+      cash: "Cash recovered",
+      cashHelp: "One-off money back, like a refund or credit note",
+      cost: "Cost avoided",
+      costHelp: "Future spend that will not happen, like a lower rate",
+      moneyError: "Enter an amount. Add cash recovered, cost avoided or both.",
+      wholePounds: "Enter whole pounds, for example 150,000.",
+      what: "What happened",
+      whatError: "Add one line on what happened.",
+      hint: "Your figures. Kontor shows them as you enter them and does not check them.",
+      cancel: "Cancel",
+      confirm: "Close action"
+    },
+    /* ---------------------------------------------------------------- Actions page */
+    page: {
+      title: "Actions",
+      description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
+      tabsLabel: "Actions views",
+      board: "Board",
+      results: "Results"
+    },
+    board: {
+      stats: { working: "Being worked on", open: "Open actions", due: "Due in the next 14 days", value: "Value secured to date" },
+      statsLabel: "Action totals",
+      workingFoot: "Indicative value, still in the headline",
+      openFoot: "To start, checking or with the supplier",
+      dueFoot: "Overdue ones included",
+      valueFoot: "See results",
+      filters: "Filter the board",
+      owner: "Owner",
+      everyone: "Everyone",
+      allTypes: "All types",
+      typeLabel: "Flag type",
+      last30: "Last 30 days",
+      empty: "Drag a card here, or use Move to on a card.",
+      columnLabel: (label, n) => `${label}, ${plural(n, "action")}`,
+      justAdded: "Just added",
+      unassigned: "No owner yet",
+      progress: (d, t) => `${d} of ${t}`,
+      progressLabel: (d, t) => `${d} of ${t} steps done`,
+      next: "Next:",
+      allDone: "Every step is done. Close the action when you are ready.",
+      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      moveTo: "Move to",
+      moveLabel: (title) => `Move ${title} to another stage`,
+      open: (title) => `Open the action for ${title}`,
+      dragHelp: "Drag cards between columns, or use Move to.",
+      noMatch: "No actions match these filters.",
+      clear: "Clear filters"
+    },
+    results: {
+      tiles: { value: "Value secured", cash: "Cash recovered", cost: "Cost avoided", closed: "Actions closed" },
+      since: (ym) => `Since ${monthLong(ym)}`,
+      count: (n) => plural(n, "action"),
+      split: (r, e, n) => `${r} resolved \xB7 ${e} explained \xB7 ${n} no action`,
+      chartTitle: "Value secured, by month closed",
+      chartLabel: "Value secured by the month each action closed",
+      tableTitle: "Closed actions",
+      tableCaption: "Closed actions, newest first",
+      cols: { closed: "Closed", contract: "Contract", outcome: "Outcome", cash: "Cash recovered", cost: "Cost avoided", owner: "Owner" },
+      none: "None",
+      example: "Example",
+      latest: "Latest",
+      footer: "Your figures. Kontor does not check them.",
+      empty: "No actions have been closed yet. Close one on the board to see it here.",
+      barLabel: (month, cash, cost) => `${month}: ${fmtGBP(cash + cost)} value secured, ${fmtGBP(cash)} cash recovered and ${fmtGBP(cost)} cost avoided`
+    },
+    /* ---------------------------------------------------------------- Home strip */
+    home: {
+      title: "Action progress",
+      description: "From the Actions board.",
+      open: "Open Actions",
+      notStarted: "Not started",
+      working: "Being worked on",
+      value: "Value secured",
+      notStartedFoot: (n) => `${plural(n, "flag")} with no action yet`,
+      workingFoot: (n, due) => `${plural(n, "action")}. ${due} due in the next 14 days.`,
+      valueFoot: (n, ym) => `${plural(n, "action")} resolved since ${MONTHS3[Number(ym.slice(5, 7)) - 1]}. Your figures.`,
+      valueFootNone: "Nothing resolved yet. Your figures.",
+      seeResults: "See results"
+    },
+    /* ---------------------------------------------------------------- other screens */
+    rowStage: (stage, initials) => initials ? `${STAGE_LABEL[stage]} \xB7 ${initials}` : STAGE_LABEL[stage],
+    rowStageLabel: (stage, name) => name ? `Action: ${STAGE_LABEL[stage]}, owner ${name}` : `Action: ${STAGE_LABEL[stage]}, no owner yet`,
+    reps: {
+      title: "Representatives",
+      description: "Named in clause 3 of the contract. Sample names.",
+      authority: "Authority's Representative",
+      supplier: "Supplier's Representative",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    }
+  };
+
   // src/views/Overview.jsx
   var { Button: Button4 } = ds_default;
   var TEXT = {
@@ -4282,6 +4474,21 @@
     const ids = estate.derived[contractId] && estate.derived[contractId].flagIds || [];
     const id = ids.find((x) => /-(overCap|nearCap)$/.test(x));
     return id || null;
+  }
+  function ProgressStrip({ estate, actions }) {
+    const H = ACT.home;
+    const t = actionTotals(estate, actions);
+    return /* @__PURE__ */ React.createElement(
+      Panel,
+      {
+        title: H.title,
+        description: H.description,
+        id: "ov-prog-h",
+        className: "ov-prog",
+        actions: /* @__PURE__ */ React.createElement(Button4, { type: "button", variant: "outline", size: "sm", rightIcon: "arrow-right", onClick: () => navigate("#/actions") }, H.open)
+      },
+      /* @__PURE__ */ React.createElement("dl", { className: "ov-prog__grid" }, /* @__PURE__ */ React.createElement("div", { className: "ov-prog__block is-idle", "data-block": "not-started" }, /* @__PURE__ */ React.createElement("dt", null, H.notStarted), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "ov-prog__value", title: fmtGBP(t.notStartedGBP) }, fmtGBPCompact(t.notStartedGBP)), /* @__PURE__ */ React.createElement("span", { className: "ov-prog__foot" }, H.notStartedFoot(t.noActionCount)))), /* @__PURE__ */ React.createElement("div", { className: "ov-prog__block is-working", "data-block": "working" }, /* @__PURE__ */ React.createElement("dt", null, H.working), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "ov-prog__value", title: fmtGBP(t.beingWorkedGBP) }, fmtGBPCompact(t.beingWorkedGBP)), /* @__PURE__ */ React.createElement("span", { className: "ov-prog__foot" }, H.workingFoot(t.openCount, t.dueSoonCount)))), /* @__PURE__ */ React.createElement("div", { className: "ov-prog__block is-value", "data-block": "value" }, /* @__PURE__ */ React.createElement("dt", null, H.value), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "ov-prog__value" }, fmtGBP(t.valueSecuredGBP)), /* @__PURE__ */ React.createElement("span", { className: "ov-prog__foot" }, t.resolvedCount > 0 ? H.valueFoot(t.resolvedCount, t.sinceMonth) : H.valueFootNone, " ", /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/actions/results" }, H.seeResults)))))
+    );
   }
   function CapPanel({ estate }) {
     const items = capItems(estate);
@@ -4322,7 +4529,7 @@
     );
   }
   function Overview() {
-    const { estate } = useEstate();
+    const { estate, state } = useEstate();
     const ui = useUI();
     const hp = headlineProps(estate);
     const excluded = excludedNote(estate.totals);
@@ -4348,7 +4555,7 @@
         getHref: (type) => "#/opportunities?type=" + type,
         footer: /* @__PURE__ */ React.createElement("div", { className: "ov-sum" }, /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line" }, /* @__PURE__ */ React.createElement("span", { className: "ov-sum__label" }, TEXT.sumLabel), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__eq" }, sumLine(estate.totals))), multiFlag > 0 && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__line ov-sum__counts" }, TEXT.countsNote(estate.totals.contractCount, multiFlag, cardCounts)), excluded && /* @__PURE__ */ React.createElement("p", { className: "ov-sum__note", role: "status" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "ov-sum__excluded" }, excluded), /* @__PURE__ */ React.createElement("a", { className: "ov-link", href: "#/opportunities?status=reviewed" }, TEXT.reviewedLink)))
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--halves ov-row" }, /* @__PURE__ */ React.createElement(CapPanel, { estate }), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(ProgressStrip, { estate, actions: state.actions || {} }), /* @__PURE__ */ React.createElement("div", { className: "kx-grid kx-grid--halves ov-row" }, /* @__PURE__ */ React.createElement(CapPanel, { estate }), /* @__PURE__ */ React.createElement(
       Panel,
       {
         title: TEXT.radarTitle,
@@ -4461,7 +4668,8 @@
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
   function Opportunities() {
-    const { estate } = useEstate();
+    const { estate, state } = useEstate();
+    const actions = state.actions || {};
     const ui = useUI();
     const { query } = useRoute();
     const typeParam = query.get("type");
@@ -4500,9 +4708,12 @@
       const extraFor = (f, c) => /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-textlink opp-calc", onClick: () => setQuery({ flag: f.id }) }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-calculator", "aria-hidden": "true" }), " ", LABELS.seeCalculation, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ", ", c.title));
       return opportunityItems(estate, { clauseFor: clauseFor2, extraFor }).map((it) => {
         const flag = estate.flagsById[it.id];
-        return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null };
+        const a = activeAction(actions, it.id);
+        const owner = a && a.owner ? peopleById[a.owner] : null;
+        const action = a && isOpen(a) ? { text: ACT.rowStage(a.stage, owner ? owner.initials : null), label: ACT.rowStageLabel(a.stage, owner ? owner.name : null) } : null;
+        return { ...it, flag, contractId: flag.contractId, actionBy: flag.actionBy || null, action };
       });
-    }, [estate]);
+    }, [estate, actions]);
     const bySearch = (0, import_react30.useMemo)(() => all.filter(matcher(search)), [all, search]);
     const statusOk = (it) => status === "all" ? true : status === "open" ? isOpenStatus(it.status) : !isOpenStatus(it.status);
     const counts = (0, import_react30.useMemo)(() => opportunityCounts(bySearch.filter(statusOk)), [bySearch, status]);
@@ -4549,7 +4760,7 @@
         { key: "basis", label: "Basis", render: (r) => basisLabel(r.flag) },
         { key: "act", label: "Act by", render: (r) => actionByText(r.flag) || "No date" },
         { key: "confidence", label: "Confidence", render: (r) => confidenceLabel(r.confidence) },
-        { key: "status", label: "Review status", render: (r) => reviewStatusLabel(r.status) },
+        { key: "status", label: "Review status", render: (r) => r.action ? `${reviewStatusLabel(r.status)} (${r.action.text})` : reviewStatusLabel(r.status) },
         { key: "clause", label: "Clause", render: (r) => r.clauseHref ? /* @__PURE__ */ React.createElement("a", { className: "kviz-textlink", href: r.clauseHref }, r.clauseLabel) : "" }
       ],
       rows: shown.map((it) => ({ ...it, type: flagTypeLabel(it.flag) }))
@@ -5705,6 +5916,101 @@
     );
   }
 
+  // src/views/contracts/Representatives.jsx
+  init_react_shim();
+
+  // src/data/representatives.js
+  init_react_shim();
+  var SUPPLIER_REP_NAMES = [
+    "Robin Achterberg",
+    "Jordan Pike",
+    "Casey Thorne",
+    "Sam Kellaway",
+    "Alex Merrow",
+    "Jamie Otieno",
+    "Taylor Brennan",
+    "Morgan Ellwood",
+    "Charlie Nakamura",
+    "Drew Halloran",
+    "Rowan Fitzgerald",
+    "Avery Lindgren",
+    "Quinn Bellamy",
+    "Reese Mbeki",
+    "Emerson Vale",
+    "Hayden Rook",
+    "Logan Petrakis",
+    "Parker Quill",
+    "Riley Ashdown",
+    "Sasha Kowal",
+    "Toby Lennard",
+    "Frankie Adair",
+    "Blair Henshaw",
+    "Jesse Calloway"
+  ];
+  var REP_ROLE = "Contract Director";
+  var CLAUSE = { authority: "Clause 3.1", supplier: "Clause 3.2" };
+  var PAGE = 6;
+  var supplierIds = sample_default.suppliers.map((s) => s.id).sort();
+  var repBySupplier = Object.fromEntries(supplierIds.map((id, i) => [id, SUPPLIER_REP_NAMES[i]]));
+  var supplierById = Object.fromEntries(sample_default.suppliers.map((s) => [s.id, s]));
+  var domainOf = (legalName) => `${String(legalName).split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, "")}.example`;
+  var emailOf = (name, domain) => `${name.toLowerCase().replace(/\s+/g, ".")}@${domain}`;
+  var REPRESENTATIVES = sample_default.contracts.map((c) => {
+    const person = peopleById[ownerFor(c)];
+    const supplier = supplierById[c.supplierId] || { legalName: c.supplierName };
+    const name = repBySupplier[c.supplierId];
+    const email = emailOf(name, domainOf(supplier.legalName));
+    return {
+      contractId: c.id,
+      authority: {
+        personId: person.id,
+        clauseRef: CLAUSE.authority,
+        page: PAGE,
+        quote: `The Authority's Representative is the ${person.role}, currently ${person.name} (${person.email}).`
+      },
+      supplier: {
+        name,
+        role: REP_ROLE,
+        email,
+        clauseRef: CLAUSE.supplier,
+        page: PAGE,
+        quote: `The Supplier's Representative is ${name}, ${REP_ROLE} (${email}).`
+      }
+    };
+  });
+  var byContract = Object.fromEntries(REPRESENTATIVES.map((r) => [r.contractId, r]));
+  var representativesFor = (contractId) => byContract[contractId] || null;
+
+  // src/components/ActionBits.jsx
+  init_react_shim();
+  function PersonAvatar({ person, size = 24, label, className = "" }) {
+    const cls = ["act-av", !person && "act-av--empty", size >= 32 && "act-av--lg", className].filter(Boolean).join(" ");
+    return /* @__PURE__ */ React.createElement("span", { className: cls, "aria-hidden": label ? void 0 : "true", role: label ? "img" : void 0, "aria-label": label }, person ? person.initials : "?");
+  }
+  var OUTCOME_PILL = { resolved: { tone: "success", icon: "circle-check" }, explained: { tone: "neutral", icon: "circle-info" }, no_action: { tone: "neutral", icon: "ban" } };
+  function OutcomePill({ outcome, size }) {
+    const p = OUTCOME_PILL[outcome];
+    if (!p) return null;
+    return /* @__PURE__ */ React.createElement(Pill, { tone: p.tone, icon: p.icon, size, className: "act-outcome" }, OUTCOME_LABEL[outcome]);
+  }
+  function parseWholePounds(text) {
+    const t = String(text == null ? "" : text).replace(/[£,\s]/g, "");
+    if (!t) return null;
+    return /^\d{1,12}$/.test(t) ? Number(t) : NaN;
+  }
+
+  // src/views/contracts/Representatives.jsx
+  function RepresentativesPanel({ contract }) {
+    const reps = representativesFor(contract.id);
+    if (!reps) return null;
+    const person = peopleById[reps.authority.personId];
+    const rows = [
+      { key: "authority", label: ACT.reps.authority, name: person.name, role: person.role, email: person.email, initials: person.initials, src: reps.authority },
+      { key: "supplier", label: ACT.reps.supplier, name: reps.supplier.name, role: `${reps.supplier.role}, ${contract.supplierName}`, email: reps.supplier.email, initials: reps.supplier.name.split(" ").map((w) => w[0]).join(""), src: reps.supplier }
+    ];
+    return /* @__PURE__ */ React.createElement(Panel, { as: "h2", title: ACT.reps.title, description: ACT.reps.description, id: "cd-reps-title", className: "cd-reps" }, /* @__PURE__ */ React.createElement("ul", { className: "cd-reps__list" }, rows.map((r) => /* @__PURE__ */ React.createElement("li", { key: r.key, className: "cd-rep", "data-rep": r.key }, /* @__PURE__ */ React.createElement("p", { className: "cd-rep__label" }, r.label), /* @__PURE__ */ React.createElement("div", { className: "cd-rep__who" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: { initials: r.initials }, size: 32 }), /* @__PURE__ */ React.createElement("div", { className: "cd-rep__text" }, /* @__PURE__ */ React.createElement("p", { className: "cd-rep__name" }, r.name), /* @__PURE__ */ React.createElement("p", { className: "cd-rep__role" }, r.role), /* @__PURE__ */ React.createElement("p", { className: "cd-rep__email" }, r.email))), /* @__PURE__ */ React.createElement("figure", { className: "cd-rep__src" }, /* @__PURE__ */ React.createElement("figcaption", { className: "kx-mono" }, ACT.reps.clause(r.src.clauseRef, r.src.page)), /* @__PURE__ */ React.createElement("blockquote", null, r.src.quote))))));
+  }
+
   // src/views/ContractDetail.jsx
   var { Breadcrumb, Button: Button10 } = ds_default;
   function UnknownContract({ id }) {
@@ -5780,7 +6086,7 @@
         asAt: true,
         description: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", null, COPY.pages.contractDetail.subtitle(c)), /* @__PURE__ */ React.createElement("p", { className: "cd-chips" }, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, DETAIL.statusKey, ": "), d.status === "live" ? /* @__PURE__ */ React.createElement(Pill, { tone: "success", icon: "circle-play" }, contractStatusLabel(d.status)) : /* @__PURE__ */ React.createElement(Pill, { icon: "circle-stop" }, contractStatusLabel(d.status)), /* @__PURE__ */ React.createElement(Pill, { icon: c.source === "find_a_tender" ? "landmark" : "file-pdf", "data-testid": "source-chip" }, DETAIL.sourceKey, ": ", sourceLabel(c))))
       }
-    ), /* @__PURE__ */ React.createElement(FlagsSection, { contract: c, estate }), /* @__PURE__ */ React.createElement(KeyFigures, { contract: c, estate }), /* @__PURE__ */ React.createElement("div", { className: "cd-cols" }, /* @__PURE__ */ React.createElement(QuestionsPanel, { contract: c, estate, handcheck: state.handcheck }), /* @__PURE__ */ React.createElement("div", { className: "cd-aside" }, /* @__PURE__ */ React.createElement(DerivedPanel, { contract: c, estate }))), /* @__PURE__ */ React.createElement(SpendSection, { contract: c, estate }), /* @__PURE__ */ React.createElement(PaymentsSection, { key: c.id, contract: c, estate }));
+    ), /* @__PURE__ */ React.createElement(FlagsSection, { contract: c, estate }), /* @__PURE__ */ React.createElement(KeyFigures, { contract: c, estate }), /* @__PURE__ */ React.createElement("div", { className: "cd-cols" }, /* @__PURE__ */ React.createElement(QuestionsPanel, { contract: c, estate, handcheck: state.handcheck }), /* @__PURE__ */ React.createElement("div", { className: "cd-aside" }, /* @__PURE__ */ React.createElement(DerivedPanel, { contract: c, estate }))), /* @__PURE__ */ React.createElement(RepresentativesPanel, { contract: c }), /* @__PURE__ */ React.createElement(SpendSection, { contract: c, estate }), /* @__PURE__ */ React.createElement(PaymentsSection, { key: c.id, contract: c, estate }));
   }
 
   // src/views/Source.jsx
@@ -6396,13 +6702,17 @@
       { id: "renewal-radar", feature: "Renewal radar", status: "built", badgeLabel: BADGES.built, needs: "Contract dates and notice terms", href: "#/renewals" },
       { id: "cap-vs-spend", feature: "Cap vs spend", status: "built", badgeLabel: BADGES.built, needs: "Transparency Code payments over \xA3500, joined to contracts by supplier", href: "#/spend" },
       { id: "opportunities", feature: "Opportunities list", status: "built", badgeLabel: BADGES.built, needs: "The three above", href: "#/opportunities" },
+      // added by the action tracker build spec (docs/action-tracker/action-tracker-build-spec.md 8.6), not from docs/spec.md
+      { id: "action-tracker", feature: "Action tracker", status: "built", badgeLabel: BADGES.built, needs: "Named contacts from the contract and a staff list", href: "#/actions" },
       // verbatim from the spec table from here on
       { id: "uplift-check", feature: "Uplift check", status: "built", badgeLabel: BADGES.built, note: "Stretch feature", needs: "Contract indexation cap vs year-on-year change in payments to that supplier", href: "#/opportunities?type=uplift" },
       { id: "cross-council", feature: "Cross-council comparison", status: "stage2", badgeLabel: BADGES.stage2, notInPrototype: true, needs: "Same supplier or service across 3\u20134 councils side by side (value, term, rates)" },
       { id: "invoice-matching", feature: "Invoice line-item matching", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "Council invoice data, which isn't public" },
       { id: "service-credits", feature: "Unclaimed service credits", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "KPI performance data" },
       { id: "aggregation", feature: "Aggregation finder and framework fit", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "More councils than the prototype will hold" },
-      { id: "agency-rates", feature: "Agency rate benchmarking", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "Rate data that isn't published" }
+      { id: "agency-rates", feature: "Agency rate benchmarking", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "Rate data that isn't published" },
+      // added by the action tracker build spec 8.6
+      { id: "suggested-steps", feature: "Suggested next steps", status: "notYet", badgeLabel: BADGES.notYet, notInPrototype: true, needs: "A history of closed actions to learn from" }
     ],
     notYetIntro: "One stretch feature goes in if time allows. Cross-council work belongs to Stage 2, and the rest stays on the roadmap because it needs data a prototype won't have.",
     // verbatim
@@ -6772,6 +7082,8 @@
   var PAYEE = "Larchmont Grounds Maintenance";
   var RATE_TARGET = 0.08;
   var RATE_FALLBACK = 0.03;
+  var CLOSE_FLAG = "F-C-004-uplift";
+  var CLOSE_CASH = 15e4;
   var without = (obj, key) => {
     const o = { ...obj };
     delete o[key];
@@ -6823,6 +7135,19 @@
         };
       }
     }
+    const acts = state.actions || {};
+    const topAction = topFlag ? activeAction(acts, topFlag.id) : null;
+    const res = resultsOf(acts);
+    const closeFlag = estate.flagsById[CLOSE_FLAG] || null;
+    const closeAct = closeFlag ? activeAction(acts, CLOSE_FLAG) : null;
+    const closeDone = !!(closeAct && closeAct.stage === "closed");
+    const action = topFlag ? {
+      started: !!(topAction && isOpen(topAction)),
+      afterStart: what({ triage: { ...base2.triage, [topFlag.id]: "under_review" } }).totals,
+      owner: topContract ? peopleById[ownerFor(topContract)] : null,
+      valueNow: res.valueSecuredGBP,
+      close: closeFlag ? { title: estate.contractsById[closeFlag.contractId].title, done: closeDone, cash: CLOSE_CASH, valueAfter: res.valueSecuredGBP + (closeDone ? 0 : CLOSE_CASH) } : null
+    } : null;
     const rateTarget = Math.abs(opts.renewalRate - RATE_TARGET) < 1e-9 ? RATE_FALLBACK : RATE_TARGET;
     const rateAfter = what({ assumptions: { ...base2.assumptions, renewalRate: rateTarget } });
     const rate = { now: opts.renewalRate, target: rateTarget, nowTotals: estate.totals, afterTotals: rateAfter.totals };
@@ -6844,6 +7169,7 @@
       explain,
       match,
       rate,
+      action,
       capStates,
       partialCaps,
       answersToReview,
@@ -6962,6 +7288,18 @@
         links: [{ label: "Open opportunities", href: hrefFor("opportunities") }]
       },
       {
+        id: "actions",
+        title: "Actions",
+        icon: "fa-solid fa-list-check",
+        answers: "Who is working on each opportunity, and what has come back?",
+        who: "The contracts team running each opportunity to an outcome, and the managers who report what it brought back.",
+        tabs: "Two tabs",
+        links: [
+          { label: "Open the Actions board", href: hrefFor("actions") },
+          { label: "Open results", href: hrefFor("actions", { seg: ["results"] }) }
+        ]
+      },
+      {
         id: "renewals",
         title: "Renewal radar",
         icon: "fa-regular fa-calendar-check",
@@ -7036,7 +7374,7 @@
     },
     explain: {
       title: "Mark a flag as Explained",
-      body: "Open the top spend over cap flag. In the panel, set Review status to Explained.",
+      body: "Open the top spend over cap flag. In the panel, set Review status to Explained and add one line on what happened.",
       bodyDone: "You have marked this flag as Explained. Open it and set Review status back to To investigate to undo it.",
       link: "Open the top spend over cap flag",
       fall: (from, to, note) => `The headline falls from ${from} to ${to}.${note ? ` The overview then shows ${note}` : ""} That is the caveat in action.`,
@@ -7067,9 +7405,37 @@
       link: "Open spend over cap",
       see: "A message says the link is copied. Paste it into a new tab to open the same view."
     },
+    // the action tracker (build spec section 10, steps 1, 4, 5 and 6)
+    start: {
+      title: "Start an action",
+      body: (title) => `Open the ${title} flag and set Review status to Under review.`,
+      bodyDone: "You have started this action. It is on the Actions board, and the Action tab of the flag shows it.",
+      link: "Open the highways flag",
+      see: (head) => `A card appears in To start on the Actions board. The headline stays at ${head}, because Under review is still counted.`
+    },
+    email: {
+      title: "Copy the draft email",
+      body: (owner) => `Open the Action tab of the same flag. Set ${owner} as the owner, then choose Copy email. The email already holds the clause and the payment figures.`,
+      link: "Open the Action tab",
+      see: "A line in the activity log says you copied the email. Kontor never sends anything: you paste it into your own email."
+    },
+    close: {
+      title: "Close an action as Resolved",
+      body: (title, cash) => `On the Actions board, drag ${title} to Closed, or use Move to. Choose Resolved and enter ${cash} cash recovered.`,
+      bodyDone: (title) => `You have closed ${title}. Move it back to an open stage on the board to undo it.`,
+      link: "Open the Actions board",
+      see: (from, to) => `Value secured goes from ${from} to ${to}.`,
+      seeDone: (value) => `Value secured is ${value} now.`
+    },
+    results: {
+      title: "Open the results",
+      body: "Open the Results tab on the Actions page. Value secured is cash recovered plus cost avoided, from the actions closed as Resolved.",
+      link: "Open results",
+      see: (value) => `Value secured is ${value} now, by month closed. These are your figures: Kontor does not check them.`
+    },
     reset: {
       title: "Reset your changes",
-      body: "This clears your reviews, match decisions, hand-checks, feedback and assumptions on this device. The theme stays. The button is in the header, in the Menu and in Settings.",
+      body: "This clears your reviews, actions, match decisions, hand-checks, feedback and assumptions on this device, and puts the example actions back. The theme stays. The button is in the header, in the Menu and in Settings.",
       nothing: "Nothing has been changed yet.",
       changed: (parts2) => `Changed on this device: ${parts2.join(", ")}.`,
       see: (head) => `A confirm dialog asks first. After you confirm, the headline is back to ${head}.`
@@ -7142,10 +7508,13 @@
     }
   };
   var GLOSSARY = [
+    ["Action", "A record of who is working on an opportunity: an owner, a due date, next steps, notes and, at the end, the outcome. Actions sit on the Actions board."],
     ["Auto-renewal", "The contract renews by itself for a set period unless you give notice in time."],
     ["Buying group", "Councils that buy the same thing together to get a better price. Forming one is a Stage 2 idea on the roadmap."],
+    ["Cash recovered", "One-off money back from a supplier, such as a refund or a credit note. Your figure, entered when you close an action as Resolved."],
     ["Contract cap or maximum value", "The most the contract says you can pay the supplier. Some contracts give only a contract value, which is an estimate and not a ceiling."],
     ["Contracts Finder", "The public service for contract notices. In this project it is the source for contracts below \xA35m, where full documents are not published."],
+    ["Cost avoided", "Future spend that will not happen, such as a lower rate agreed with the supplier. Your figure, entered when you close an action as Resolved."],
     ["Exit fee", "A charge the supplier can make if the contract ends early."],
     ["Extension option", "A right to carry on beyond the first term, for example two extensions of 12 months. Some are the council's choice and others need both sides to agree."],
     ["Find a Tender", "The central platform where councils must publish a copy of any contract over \xA35m, for procurements started on or after 24 February 2025."],
@@ -7155,7 +7524,8 @@
     ["Service credits", "Money the supplier gives back when it misses agreed service levels."],
     ["Termination for convenience", "A right to end the contract early without giving a reason, usually on notice."],
     ["Transparency Code spend file", "A list of payments over \xA3500 that a council publishes under the Local Government Transparency Code."],
-    ["Uplift", "A price increase. A price increase above cap means payments rose by more than the contract's cap on increases allows."]
+    ["Uplift", "A price increase. A price increase above cap means payments rose by more than the contract's cap on increases allows."],
+    ["Value secured", "Cash recovered plus cost avoided, from the actions closed as Resolved. Kontor shows your figures as you enter them and does not check them."]
   ];
   var KEYS2 = {
     moving: {
@@ -7358,6 +7728,46 @@
       see: [TRY.share.see],
       action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("opportunities", { query: { type: "overCap" } }) }, TRY.share.link)
     });
+    const a = f.action;
+    if (a && flag) {
+      const title = f.top.contract ? f.top.contract.title : "";
+      rows.push({
+        key: "start",
+        icon: "play",
+        title: TRY.start.title,
+        body: a.started ? TRY.start.bodyDone : TRY.start.body(title),
+        see: [TRY.start.see(gbp2(a.afterStart.totalGBP))],
+        action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("opportunities", { query: { flag: flag.id } }) }, TRY.start.link)
+      });
+      if (a.owner) {
+        rows.push({
+          key: "email",
+          icon: "envelope",
+          title: TRY.email.title,
+          body: TRY.email.body(a.owner.name),
+          see: [TRY.email.see],
+          action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("opportunities", { query: { flag: flag.id, tab: "action" } }) }, TRY.email.link)
+        });
+      }
+      if (a.close) {
+        rows.push({
+          key: "close",
+          icon: "flag-checkered",
+          title: TRY.close.title,
+          body: a.close.done ? TRY.close.bodyDone(a.close.title) : TRY.close.body(a.close.title, fmtGBP(a.close.cash)),
+          see: [a.close.done ? TRY.close.seeDone(fmtGBP(a.valueNow)) : TRY.close.see(fmtGBP(a.valueNow), fmtGBP(a.close.valueAfter))],
+          action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("actions") }, TRY.close.link)
+        });
+      }
+      rows.push({
+        key: "results",
+        icon: "chart-column",
+        title: TRY.results.title,
+        body: TRY.results.body,
+        see: [TRY.results.see(fmtGBP(a.valueNow))],
+        action: /* @__PURE__ */ React.createElement(LinkButton, { href: hrefFor("actions", { seg: ["results"] }) }, TRY.results.link)
+      });
+    }
     const resetAll = async (e) => {
       if (!f.changes.length) {
         ui.toast({ tone: "info", title: "Nothing to reset.", description: "You have not changed anything yet." });
@@ -7523,218 +7933,9 @@
   // src/views/Actions.jsx
   init_react_shim();
 
-  // src/lib/actions-copy.js
-  init_react_shim();
-  var MONTHS3 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var MONTHS_SHORT2 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  var monthLong = (ym) => `${MONTHS3[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
-  var monthShort = (ym) => MONTHS_SHORT2[Number(ym.slice(5, 7)) - 1];
-  var dayMonth = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
-  function whenText(at2) {
-    const d = new Date(at2);
-    if (Number.isNaN(d.getTime())) return "";
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
-    return `${p.day} ${p.month === "Sept" ? "Sep" : p.month}, ${p.hour}:${p.minute}`;
-  }
-  function dueChipText(due, flagType, state) {
-    if (!due) return "";
-    if (state === "overdue") return `Overdue, due ${dayMonth(due)}`;
-    return flagType === "renewal" ? `Notice by ${dayMonth(due)}` : `Due ${dayMonth(due)}`;
-  }
-  var ACT = {
-    /* ---------------------------------------------------------------- drawer */
-    tabs: { label: "Opportunity views", details: "Details", action: "Action" },
-    footer: {
-      stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
-      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
-    },
-    empty: {
-      title: "Nobody is working on this yet.",
-      body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
-      button: "Start action"
-    },
-    closedSummary: {
-      resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
-      on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
-      reopen: "To reopen it, choose an open stage below."
-    },
-    who: {
-      title: "Who and when",
-      stage: "Stage",
-      owner: "Owner",
-      due: "Due",
-      notSet: "Not set",
-      dueHelp: (iso) => `${fmtDate(iso)}, ${inDaysText(iso, AS_OF)}`
-    },
-    steps: { title: "Next steps", done: (d, t) => `${d} of ${t} done` },
-    contacts: {
-      title: "Who to contact",
-      note: "Sample names",
-      staff: "Staff list",
-      source: (label, clauseRef, page) => `${label} \xB7 ${clauseRef}, page ${page}`,
-      showClause: "Show the clause",
-      quoteLabel: "From the contract",
-      why: (kindLabel, why) => `${kindLabel}. ${why}`,
-      supplierRole: (role, supplier) => `${role}, ${supplier}`
-    },
-    email: {
-      title: "Draft email",
-      note: "Check before you send",
-      to: "To",
-      subject: "Subject",
-      body: "Email body",
-      toOption: (name, email) => `${name} \xB7 ${email}`,
-      copy: "Copy email",
-      sent: "Mark as sent",
-      hint: "Copy and Mark as sent add a line to the activity log. Kontor never sends email.",
-      copied: (name) => `Email copied. Paste it into your email app and send it to ${name}.`,
-      blocked: "Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.",
-      markedSent: (name) => `Marked as sent to ${name}.`
-    },
-    exit: {
-      title: "Exit terms",
-      note: "From the contract",
-      convenience: "End for convenience",
-      fee: "Exit fee",
-      ends: "Contract ends",
-      yes: (months) => `Yes, ${months} ${months === 1 ? "month's" : "months'"} notice`,
-      no: "No",
-      none: "None",
-      notFound: "Not found",
-      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
-    },
-    activity: { title: "Activity", noteLabel: "Add a note", addNote: "Add note", empty: "Nothing has happened on this action yet.", noteTag: "Note" },
-    toast: {
-      added: (title) => `${title}: added to Actions.`,
-      addedDesc: (headline, changed, hasOwner) => `The headline is ${changed ? "now" : "still"} ${headline}.${hasOwner ? "" : " Set an owner to get started."}`,
-      open: "Open in Actions",
-      archived: (title) => `${title}: marked To investigate.`,
-      archivedDesc: (headline) => `The card has left the Actions board. Its notes and log are kept. The headline is now ${headline}.`,
-      closed: (title, outcome) => `${title}: closed as ${OUTCOME_LABEL[outcome]}.`,
-      valueNow: (gbp2) => `Value secured is now ${fmtGBP(gbp2)}.`,
-      headlineNow: (headline) => `The headline is now ${headline}.`,
-      moved: (title, stage) => `${title}: moved to ${STAGE_LABEL[stage]}.`,
-      reopened: (title, stage) => `${title}: reopened in ${STAGE_LABEL[stage]}.`
-    },
-    /* ---------------------------------------------------------------- close dialog */
-    dialog: {
-      title: "Close this action",
-      subtitle: (contract, type, flagged) => `${contract} \xB7 ${type} \xB7 ${fmtGBP(flagged)} flagged`,
-      outcome: "Outcome",
-      cash: "Cash recovered",
-      cashHelp: "One-off money back, like a refund or credit note",
-      cost: "Cost avoided",
-      costHelp: "Future spend that will not happen, like a lower rate",
-      moneyError: "Enter an amount. Add cash recovered, cost avoided or both.",
-      wholePounds: "Enter whole pounds, for example 150,000.",
-      what: "What happened",
-      whatError: "Add one line on what happened.",
-      hint: "Your figures. Kontor shows them as you enter them and does not check them.",
-      cancel: "Cancel",
-      confirm: "Close action"
-    },
-    /* ---------------------------------------------------------------- Actions page */
-    page: {
-      title: "Actions",
-      description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
-      tabsLabel: "Actions views",
-      board: "Board",
-      results: "Results"
-    },
-    board: {
-      stats: { working: "Being worked on", open: "Open actions", due: "Due in the next 14 days", value: "Value secured to date" },
-      statsLabel: "Action totals",
-      workingFoot: "Indicative value, still in the headline",
-      openFoot: "To start, checking or with the supplier",
-      dueFoot: "Overdue ones included",
-      valueFoot: "See results",
-      filters: "Filter the board",
-      owner: "Owner",
-      everyone: "Everyone",
-      allTypes: "All types",
-      typeLabel: "Flag type",
-      last30: "Last 30 days",
-      empty: "Drag a card here, or use Move to on a card.",
-      columnLabel: (label, n) => `${label}, ${plural(n, "action")}`,
-      justAdded: "Just added",
-      unassigned: "No owner yet",
-      progress: (d, t) => `${d} of ${t}`,
-      progressLabel: (d, t) => `${d} of ${t} steps done`,
-      next: "Next:",
-      allDone: "Every step is done. Close the action when you are ready.",
-      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
-      closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
-      moveTo: "Move to",
-      moveLabel: (title) => `Move ${title} to another stage`,
-      open: (title) => `Open the action for ${title}`,
-      dragHelp: "Drag cards between columns, or use Move to.",
-      noMatch: "No actions match these filters.",
-      clear: "Clear filters"
-    },
-    results: {
-      tiles: { value: "Value secured", cash: "Cash recovered", cost: "Cost avoided", closed: "Actions closed" },
-      since: (ym) => `Since ${monthLong(ym)}`,
-      count: (n) => plural(n, "action"),
-      split: (r, e, n) => `${r} resolved \xB7 ${e} explained \xB7 ${n} no action`,
-      chartTitle: "Value secured, by month closed",
-      chartLabel: "Value secured by the month each action closed",
-      tableTitle: "Closed actions",
-      tableCaption: "Closed actions, newest first",
-      cols: { closed: "Closed", contract: "Contract", outcome: "Outcome", cash: "Cash recovered", cost: "Cost avoided", owner: "Owner" },
-      none: "None",
-      example: "Example",
-      latest: "Latest",
-      footer: "Your figures. Kontor does not check them.",
-      empty: "No actions have been closed yet. Close one on the board to see it here.",
-      barLabel: (month, cash, cost) => `${month}: ${fmtGBP(cash + cost)} value secured, ${fmtGBP(cash)} cash recovered and ${fmtGBP(cost)} cost avoided`
-    },
-    /* ---------------------------------------------------------------- Home strip */
-    home: {
-      title: "Action progress",
-      description: "From the Actions board.",
-      open: "Open Actions",
-      notStarted: "Not started",
-      working: "Being worked on",
-      value: "Value secured",
-      notStartedFoot: (n) => `${plural(n, "flag")} with no action yet`,
-      workingFoot: (n, due) => `${plural(n, "action")}. ${due} due in the next 14 days.`,
-      valueFoot: (n, ym) => `${plural(n, "action")} resolved since ${MONTHS3[Number(ym.slice(5, 7)) - 1]}. Your figures.`,
-      valueFootNone: "Nothing resolved yet. Your figures.",
-      seeResults: "See results"
-    },
-    /* ---------------------------------------------------------------- other screens */
-    rowStage: (stage, initials) => initials ? `${STAGE_LABEL[stage]} \xB7 ${initials}` : STAGE_LABEL[stage],
-    rowStageLabel: (stage, name) => name ? `Action: ${STAGE_LABEL[stage]}, owner ${name}` : `Action: ${STAGE_LABEL[stage]}, no owner yet`,
-    reps: {
-      title: "Representatives",
-      description: "Named in clause 3 of the contract. Sample names.",
-      authority: "Authority's Representative",
-      supplier: "Supplier's Representative",
-      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
-    }
-  };
-
   // src/views/actions/Board.jsx
   init_react_shim();
   var import_react46 = __toESM(require_react(), 1);
-
-  // src/components/ActionBits.jsx
-  init_react_shim();
-  function PersonAvatar({ person, size = 24, label, className = "" }) {
-    const cls = ["act-av", !person && "act-av--empty", size >= 32 && "act-av--lg", className].filter(Boolean).join(" ");
-    return /* @__PURE__ */ React.createElement("span", { className: cls, "aria-hidden": label ? void 0 : "true", role: label ? "img" : void 0, "aria-label": label }, person ? person.initials : "?");
-  }
-  var OUTCOME_PILL = { resolved: { tone: "success", icon: "circle-check" }, explained: { tone: "neutral", icon: "circle-info" }, no_action: { tone: "neutral", icon: "ban" } };
-  function OutcomePill({ outcome, size }) {
-    const p = OUTCOME_PILL[outcome];
-    if (!p) return null;
-    return /* @__PURE__ */ React.createElement(Pill, { tone: p.tone, icon: p.icon, size, className: "act-outcome" }, OUTCOME_LABEL[outcome]);
-  }
-  function parseWholePounds(text) {
-    const t = String(text == null ? "" : text).replace(/[£,\s]/g, "");
-    if (!t) return null;
-    return /^\d{1,12}$/.test(t) ? Number(t) : NaN;
-  }
 
   // src/components/CloseActionDialog.jsx
   init_react_shim();
@@ -8516,70 +8717,6 @@
 
   // src/data/contacts.js
   init_react_shim();
-
-  // src/data/representatives.js
-  init_react_shim();
-  var SUPPLIER_REP_NAMES = [
-    "Robin Achterberg",
-    "Jordan Pike",
-    "Casey Thorne",
-    "Sam Kellaway",
-    "Alex Merrow",
-    "Jamie Otieno",
-    "Taylor Brennan",
-    "Morgan Ellwood",
-    "Charlie Nakamura",
-    "Drew Halloran",
-    "Rowan Fitzgerald",
-    "Avery Lindgren",
-    "Quinn Bellamy",
-    "Reese Mbeki",
-    "Emerson Vale",
-    "Hayden Rook",
-    "Logan Petrakis",
-    "Parker Quill",
-    "Riley Ashdown",
-    "Sasha Kowal",
-    "Toby Lennard",
-    "Frankie Adair",
-    "Blair Henshaw",
-    "Jesse Calloway"
-  ];
-  var REP_ROLE = "Contract Director";
-  var CLAUSE = { authority: "Clause 3.1", supplier: "Clause 3.2" };
-  var PAGE = 6;
-  var supplierIds = sample_default.suppliers.map((s) => s.id).sort();
-  var repBySupplier = Object.fromEntries(supplierIds.map((id, i) => [id, SUPPLIER_REP_NAMES[i]]));
-  var supplierById = Object.fromEntries(sample_default.suppliers.map((s) => [s.id, s]));
-  var domainOf = (legalName) => `${String(legalName).split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, "")}.example`;
-  var emailOf = (name, domain) => `${name.toLowerCase().replace(/\s+/g, ".")}@${domain}`;
-  var REPRESENTATIVES = sample_default.contracts.map((c) => {
-    const person = peopleById[ownerFor(c)];
-    const supplier = supplierById[c.supplierId] || { legalName: c.supplierName };
-    const name = repBySupplier[c.supplierId];
-    const email = emailOf(name, domainOf(supplier.legalName));
-    return {
-      contractId: c.id,
-      authority: {
-        personId: person.id,
-        clauseRef: CLAUSE.authority,
-        page: PAGE,
-        quote: `The Authority's Representative is the ${person.role}, currently ${person.name} (${person.email}).`
-      },
-      supplier: {
-        name,
-        role: REP_ROLE,
-        email,
-        clauseRef: CLAUSE.supplier,
-        page: PAGE,
-        quote: `The Supplier's Representative is ${name}, ${REP_ROLE} (${email}).`
-      }
-    };
-  });
-  var byContract = Object.fromEntries(REPRESENTATIVES.map((r) => [r.contractId, r]));
-  var representativesFor = (contractId) => byContract[contractId] || null;
-
-  // src/data/contacts.js
   var STAFF_LIST = "Staff list";
   var KIND_LABEL = { owner: "Contract owner", budget: "Budget holder", procurement: "Procurement lead", finance: "Finance", supplier: "Supplier's representative" };
   var SOURCE_LABEL = { authority: "Authority's Representative", supplier: "Supplier's Representative" };
