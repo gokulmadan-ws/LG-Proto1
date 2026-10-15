@@ -336,6 +336,22 @@ a.kviz-rs__band:focus-visible { outline: 2px solid var(--viz-focus); outline-off
   .kviz-bl--compact .kviz-bl__row .kviz-bl__pctfig { grid-column: 2; grid-row: 1; }
 }
 
+/* month bars (action tracker Results: value secured by month closed) */
+.kviz-mb__plot { position: relative; margin: 8px 0 28px 48px; }
+.kviz-mb__grid { position: absolute; inset: 0; pointer-events: none; }
+.kviz-mb__gl { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--viz-grid); }
+.kviz-mb__gl:first-child { border-top-color: var(--viz-axis); }
+.kviz-mb__tick { position: absolute; right: calc(100% + 8px); top: -8px; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kviz-mb ul.kviz-mb__cols { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; display: flex; gap: 12px; }
+.kviz-mb__col { position: relative; flex: 1 1 0; min-width: 0; height: 100%; }
+.kviz-mb__col:hover .kviz-mb__stack { filter: brightness(1.08); }
+.kviz-mb__stack { position: absolute; left: 8%; right: 8%; bottom: 0; }
+.kviz-mb__seg { position: absolute; left: 0; right: 0; }
+.kviz-mb__seg.is-top { border-radius: 4px 4px 0 0; }
+.kviz-mb__val { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); white-space: nowrap; font: 600 12px/16px var(--font-sans); color: var(--viz-ink); font-variant-numeric: tabular-nums; }
+.kviz-mb__lab { position: absolute; left: 0; right: 0; top: calc(100% + 8px); text-align: center; font: 400 12px/16px var(--font-sans); color: var(--viz-ink-2); }
+@media (max-width: 559px) { .kviz-mb ul.kviz-mb__cols { gap: 4px; } .kviz-mb__val { font-size: 11px; } .kviz-mb__plot { margin-left: 40px; } }
+
 /* year bars */
 .kviz-yb__plot { position: relative; margin: 8px 0 56px; width: min(100%, calc(var(--n) * 132px + 168px)); padding-right: 156px; box-sizing: border-box; }
 .kviz-yb__cap { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px solid var(--viz-ink); z-index: 2; pointer-events: none; }

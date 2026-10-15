@@ -525,13 +525,13 @@
     return out;
   }
   function dice(a, b) {
-    const A = bigrams(a), B = bigrams(b);
+    const A = bigrams(a), B2 = bigrams(b);
     let inter = 0, na = 0, nb = 0;
     for (const [g, c] of A) {
       na += c;
-      if (B.has(g)) inter += Math.min(c, B.get(g));
+      if (B2.has(g)) inter += Math.min(c, B2.get(g));
     }
-    for (const c of B.values()) nb += c;
+    for (const c of B2.values()) nb += c;
     return na + nb === 0 ? 0 : 2 * inter / (na + nb);
   }
   function matchSupplier(rawName, suppliers, aliasTable = {}) {
@@ -1182,6 +1182,8 @@
   var CLOSING_STATUSES = new Set(Object.keys(TRIAGE_OUTCOME));
   var STATUS_LABEL = { to_investigate: "To investigate", under_review: "Under review", resolved: "Resolved", explained: "Explained", not_an_issue: "No action" };
   var DUE_DAYS = 14;
+  var SOON_DAYS = 14;
+  var RECENT_DAYS = 30;
   var CLOSE_NOTE_MAX = 140;
   var MAX_LINES = 200;
   var isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -1334,6 +1336,7 @@
     const text = kind === "sent" ? `You marked the email to ${recipientName} as sent.` : `You copied the email to ${recipientName}.`;
     return put(state, log(cur, at2, text));
   }
+  var isOpen = (a) => !!a && !a.archived && OPEN_STAGES.includes(a.stage);
   var isClosed = (a) => !!a && !a.archived && a.stage === "closed";
   var activeAction = (actions, flagId) => {
     const a = actions && actions[flagId];
@@ -1345,6 +1348,34 @@
   };
   function activityOf(a) {
     return [...a.log.map((l, i) => ({ ...l, kind: "log", i })), ...a.notes.map((n, i) => ({ ...n, kind: "note", i: 1e3 + i }))].sort((x, y) => x.at < y.at ? 1 : x.at > y.at ? -1 : y.i - x.i);
+  }
+  function dueState(due) {
+    if (!isDate(due)) return "later";
+    if (due < AS_OF) return "overdue";
+    return due <= addDays(AS_OF, SOON_DAYS) ? "soon" : "later";
+  }
+  var flagValue = (estate, a) => {
+    const f = estate.flagsById[a.flagId];
+    return f ? f.indicativeGBP : a.flaggedGBP;
+  };
+  var working = (estate, a) => isOpen(a) && estate.flagsById[a.flagId] && estate.flagsById[a.flagId].status === "under_review";
+  function actionTotals(estate, actions) {
+    const list = Object.values(actions || {});
+    const open = list.filter((a) => working(estate, a));
+    const beingWorkedGBP = open.reduce((s, a) => s + flagValue(estate, a), 0);
+    const soon = addDays(AS_OF, SOON_DAYS);
+    const res = resultsOf(actions);
+    return {
+      headlineGBP: estate.totals.totalGBP,
+      beingWorkedGBP,
+      notStartedGBP: estate.totals.totalGBP - beingWorkedGBP,
+      noActionCount: estate.ranked.filter((f) => f.indicativeGBP > 0 && f.status === "to_investigate").length,
+      openCount: open.length,
+      dueSoonCount: open.filter((a) => a.due <= soon).length,
+      valueSecuredGBP: res.valueSecuredGBP,
+      resolvedCount: res.resolvedCount,
+      sinceMonth: res.sinceMonth
+    };
   }
   function resultsOf(actions) {
     const closed2 = Object.values(actions || {}).filter(isClosed).sort((a, b) => a.closedAt < b.closedAt ? 1 : a.closedAt > b.closedAt ? -1 : a.flagId.localeCompare(b.flagId));
@@ -1365,6 +1396,35 @@
       sinceMonth: first ? first.slice(0, 7) : null,
       latestId: closed2.length ? closed2[0].flagId : null
     };
+  }
+  function byMonth(actions) {
+    const res = resultsOf(actions).closed.filter((a) => a.outcome === "resolved");
+    const asOfMonth = AS_OF.slice(0, 7);
+    const first = res.length ? res[res.length - 1].closedAt.slice(0, 7) : asOfMonth;
+    let m = first < "2026-04" ? first : "2026-04";
+    const out = [];
+    while (m <= asOfMonth) {
+      const mine = res.filter((a) => a.closedAt.slice(0, 7) === m);
+      const cashGBP = mine.reduce((s, a) => s + (a.cashRecoveredGBP || 0), 0);
+      const costGBP = mine.reduce((s, a) => s + (a.costAvoidedGBP || 0), 0);
+      out.push({ month: m, cashGBP, costGBP, totalGBP: cashGBP + costGBP, count: mine.length });
+      const [y, mo] = m.split("-").map(Number);
+      m = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
+    }
+    return out;
+  }
+  function boardColumns(estate, actions, { owner = null, type = null } = {}) {
+    const recent = addDays(AS_OF, -RECENT_DAYS);
+    const cards = Object.values(actions || {}).filter((a) => !a.archived && estate.flagsById[a.flagId]).filter((a) => (!owner || a.owner === owner) && (!type || a.flagType === type)).filter((a) => a.stage !== "closed" || a.closedAt >= recent && a.closedAt <= AS_OF).map((a) => ({ action: a, flag: estate.flagsById[a.flagId], value: a.stage === "closed" ? a.flaggedGBP : flagValue(estate, a) }));
+    const sortKey = (c) => c.action.stage === "closed" ? c.action.closedAt : c.action.due;
+    return STAGES.map((stage) => {
+      const mine = cards.filter((c) => c.action.stage === stage).sort((x, y) => (stage === "closed" ? sortKey(x) < sortKey(y) ? 1 : sortKey(x) > sortKey(y) ? -1 : 0 : sortKey(x) < sortKey(y) ? -1 : sortKey(x) > sortKey(y) ? 1 : 0) || x.action.flagId.localeCompare(y.action.flagId));
+      return { stage, label: STAGE_LABEL[stage], cards: mine, count: mine.length, totalGBP: mine.reduce((s, c) => s + c.value, 0) };
+    });
+  }
+  function ownersOnBoard(estate, actions) {
+    const ids = new Set(Object.values(actions || {}).filter((a) => !a.archived && a.owner && estate.flagsById[a.flagId]).map((a) => a.owner));
+    return Object.keys(peopleById).filter((id) => ids.has(id)).map((id) => peopleById[id]);
   }
   var sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function triageChanges(triage) {
@@ -1406,6 +1466,7 @@
     } catch (e) {
     }
   }
+  var isJustAdded = (flagId) => read().includes(flagId);
   function markJustAdded(flagId) {
     const list = read();
     if (!list.includes(flagId)) write([...list, flagId]);
@@ -2512,6 +2573,126 @@
   // src/ui/Menu.jsx
   init_react_shim();
   var import_react11 = __toESM(require_react(), 1);
+  var elOf2 = (anchor) => anchor && anchor.current !== void 0 ? anchor.current : anchor;
+  function Menu({ open, anchor, onClose, items, label, placement = "bottom-start", onSelect, className = "" }) {
+    const ref = (0, import_react11.useRef)(null);
+    const [ready, setReady] = (0, import_react11.useState)(false);
+    (0, import_react11.useEffect)(() => {
+      if (!open) {
+        setReady(false);
+        return void 0;
+      }
+      const t = requestAnimationFrame(() => setReady(true));
+      return () => cancelAnimationFrame(t);
+    }, [open]);
+    (0, import_react11.useEffect)(() => {
+      if (!open || !ready || !ref.current) return;
+      const first = ref.current.querySelector('[role="menuitem"]:not([aria-disabled="true"])');
+      if (first) first.focus({ preventScroll: true });
+    }, [open, ready]);
+    const move = (to) => {
+      const list = Array.from(ref.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])'));
+      if (!list.length) return;
+      const i = list.indexOf(document.activeElement);
+      const n = to === "first" ? 0 : to === "last" ? list.length - 1 : (i + to + list.length) % list.length;
+      list[n].focus({ preventScroll: true });
+    };
+    const onKeyDown2 = (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        move(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        move(-1);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        move("first");
+      } else if (e.key === "End") {
+        e.preventDefault();
+        move("last");
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        focusIn(elOf2(anchor));
+        onClose && onClose("tab");
+      } else if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const list = Array.from(ref.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])'));
+        const i = list.indexOf(document.activeElement);
+        const k = e.key.toLowerCase();
+        const order = list.slice(i + 1).concat(list.slice(0, i + 1));
+        const hit = order.find((el) => (el.getAttribute("data-label") || "").toLowerCase().startsWith(k));
+        if (hit) {
+          e.preventDefault();
+          hit.focus({ preventScroll: true });
+        }
+      }
+    };
+    const choose = (item, e) => {
+      if (item.disabled) {
+        e.preventDefault();
+        return;
+      }
+      focusIn(elOf2(anchor));
+      onClose && onClose("select");
+      if (item.onSelect) item.onSelect(item);
+      if (onSelect) onSelect(item);
+    };
+    return /* @__PURE__ */ React.createElement(
+      Popover,
+      {
+        open,
+        anchor,
+        onClose,
+        placement,
+        className: ("kx-menu " + className).trim(),
+        role: "menu",
+        label,
+        innerRef: ref,
+        onKeyDown: onKeyDown2
+      },
+      items.map((it, i) => {
+        if (it.separator) return /* @__PURE__ */ React.createElement("div", { key: "s" + i, className: "kx-menu__sep", role: "separator" });
+        if (it.heading) return /* @__PURE__ */ React.createElement("div", { key: "h" + i, className: "kx-menu__label", role: "presentation" }, it.heading);
+        const common = {
+          role: "menuitem",
+          tabIndex: -1,
+          "data-label": it.label,
+          "aria-disabled": it.disabled ? "true" : void 0,
+          className: "kx-menu__item" + (it.danger ? " kx-menu__item--danger" : ""),
+          onClick: (e) => choose(it, e)
+        };
+        const inner = /* @__PURE__ */ React.createElement(React.Fragment, null, it.icon && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + it.icon, "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "kx-menu__text" }, it.label), it.external && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-up-right-from-square kx-menu__ext", "aria-hidden": "true" }), it.hint && /* @__PURE__ */ React.createElement("span", { className: "kx-kbd" }, it.hint));
+        return it.href ? /* @__PURE__ */ React.createElement("a", { key: it.id || i, href: it.href, ...it.external ? { target: "_blank", rel: "noopener noreferrer" } : {}, ...common }, inner) : /* @__PURE__ */ React.createElement("button", { key: it.id || i, type: "button", ...common }, inner);
+      })
+    );
+  }
+  function MenuButton({ label, items, children, icon: icon2 = "ellipsis", variant = "outline", size = "sm", placement = "bottom-end", onSelect, ...rest }) {
+    const [open, setOpen] = (0, import_react11.useState)(false);
+    const ref = (0, import_react11.useRef)(null);
+    const iconOnly = !children;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { ref, className: "kx-menubtn" }, /* @__PURE__ */ React.createElement(
+      Button3,
+      {
+        type: "button",
+        variant,
+        size,
+        leftIcon: icon2,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        "aria-label": iconOnly ? label : void 0,
+        className: "kx-hit",
+        style: iconOnly ? { width: size === "sm" ? 32 : 36, padding: 0 } : void 0,
+        onClick: () => setOpen((o) => !o),
+        onKeyDown: (e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        },
+        ...rest
+      },
+      children
+    )), /* @__PURE__ */ React.createElement(Menu, { open, anchor: ref, onClose: () => setOpen(false), items, label, placement, onSelect }));
+  }
 
   // src/ui/Tooltip.jsx
   init_react_shim();
@@ -2583,6 +2764,9 @@
   function Chip({ pressed = false, onClick, icon: icon2, count, children, className = "", ...rest }) {
     return /* @__PURE__ */ React.createElement("button", { type: "button", className: ("kx-chip " + className).trim(), "aria-pressed": pressed, onClick, ...rest }, icon2 && /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-" + icon2, "aria-hidden": "true" }), children, count != null && /* @__PURE__ */ React.createElement("span", { className: "kx-chip__count" }, count));
   }
+  function Tag({ onRemove, removeLabel, children, className = "" }) {
+    return /* @__PURE__ */ React.createElement("span", { className: ("kx-tag " + className).trim() }, children, onRemove && /* @__PURE__ */ React.createElement("button", { type: "button", className: "kx-tag__x kx-hit", "aria-label": removeLabel || "Remove", onClick: onRemove }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-xmark", "aria-hidden": "true" })));
+  }
 
   // src/ui/Panel.jsx
   init_react_shim();
@@ -2610,7 +2794,7 @@
     }, deps);
     return can;
   }
-  function DataTable({ columns, rows, rowKey = "id", caption, dense, sort, onSort, onRowClick, selectedKey, rowAriaLabel, maxHeight, footer, empty, className = "" }) {
+  function DataTable({ columns, rows, rowKey = "id", caption, dense, sort, onSort, onRowClick, selectedKey, rowAriaLabel, maxHeight, footer, empty, rowClassName, className = "" }) {
     const wrap = (0, import_react14.useRef)(null);
     const scrolls = useScrollable(wrap, [rows.length, columns.length, maxHeight, dense]);
     const keyOf = typeof rowKey === "function" ? rowKey : (r) => r[rowKey];
@@ -2646,7 +2830,7 @@
           "tr",
           {
             key: k,
-            className: onRowClick ? "is-clickable" : void 0,
+            className: [onRowClick ? "is-clickable" : "", rowClassName ? rowClassName(r) : ""].filter(Boolean).join(" ") || void 0,
             tabIndex: onRowClick ? 0 : void 0,
             "aria-selected": selectedKey != null && selectedKey === k ? true : void 0,
             "aria-label": onRowClick && rowAriaLabel ? rowAriaLabel(r) : void 0,
@@ -2910,15 +3094,15 @@
     return new Date(Date.UTC(y, m, Math.min(day, last)));
   }
   function monthsBetween(a, b) {
-    const A = toDate(a), B = toDate(b);
-    let whole = (B.getUTCFullYear() - A.getUTCFullYear()) * 12 + (B.getUTCMonth() - A.getUTCMonth());
+    const A = toDate(a), B2 = toDate(b);
+    let whole = (B2.getUTCFullYear() - A.getUTCFullYear()) * 12 + (B2.getUTCMonth() - A.getUTCMonth());
     let anchor = addMonths2(A, whole);
-    if (B < anchor) {
+    if (B2 < anchor) {
       whole -= 1;
       anchor = addMonths2(A, whole);
     }
     const next = addMonths2(A, whole + 1);
-    return whole + (B - anchor) / (next - anchor);
+    return whole + (B2 - anchor) / (next - anchor);
   }
   var daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / DAY);
   function relativeFrom(asOf, v) {
@@ -2948,6 +3132,10 @@
   }
   var pct = (r, dp = 0) => (r < 0 ? MINUS : "") + Math.abs(r * 100).toFixed(dp) + "%";
   var plural2 = (n, one, many = one + "s") => `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;
+  function gbpK(n) {
+    const k = Math.round(Math.abs(n) / 100) / 10;
+    return (n < 0 ? MINUS : "") + "\xA3" + (Number.isInteger(k) ? k : k.toFixed(1)) + "k";
+  }
 
   // src/charts/scales.js
   init_react_shim();
@@ -3182,19 +3370,19 @@
   function cumulativeSeries(estate, contractId) {
     const contract = estate.contractsById[contractId];
     const spendFrom = estate.council && estate.council.spendDataFrom;
-    const byMonth = /* @__PURE__ */ new Map();
+    const byMonth2 = /* @__PURE__ */ new Map();
     (estate.paymentsByContract[contractId] || []).forEach((a) => {
       const k = a.payment.date.slice(0, 7);
-      byMonth.set(k, (byMonth.get(k) || 0) + a.payment.amountGBP);
+      byMonth2.set(k, (byMonth2.get(k) || 0) + a.payment.amountGBP);
     });
     const first = spendFrom && spendFrom > contract.startDate ? spendFrom : contract.startDate;
     const out = [{ date: first, pay: 0, cum: 0 }];
     let cum = 0;
-    [...byMonth.keys()].sort().forEach((k) => {
+    [...byMonth2.keys()].sort().forEach((k) => {
       const [y, m] = k.split("-").map(Number);
       const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-      cum += byMonth.get(k);
-      out.push({ date: end, pay: Math.round(byMonth.get(k)), cum: Math.round(cum) });
+      cum += byMonth2.get(k);
+      out.push({ date: end, pay: Math.round(byMonth2.get(k)), cum: Math.round(cum) });
     });
     return out;
   }
@@ -3707,6 +3895,40 @@
       };
       const aria = `Year ${y.year}${y.partial ? ", year to date" : ""}, ${fmtDate2(y.from)} to ${fmtDate2(y.to)}: ${gbpFull(y.spend)}, ${pct(ratio, 1)} of the annual cap. ${st.label}.${over > 0 ? " " + gbpFull(over) + " over." : ""}`;
       return /* @__PURE__ */ React.createElement("li", { key: y.year, className: "kviz-yb__col" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-yb__hit", "aria-label": aria, ...tip.bind(content), id: uid + y.year }, /* @__PURE__ */ React.createElement("span", { className: "kviz-yb__val", style: { bottom: `calc(${H(y.spend)}% + 4px)` } }, format(y.spend)), /* @__PURE__ */ React.createElement("span", { className: "kviz-yb__bar" + (y.partial ? " is-partial" : ""), style: { height: H(Math.min(y.spend, cap)) + "%", background: y.partial ? "transparent" : st.color, "--c": st.color } }), over > 0 && /* @__PURE__ */ React.createElement("span", { className: "kviz-yb__over", style: { bottom: H(cap) + "%", height: H(over) + "%" } }, /* @__PURE__ */ React.createElement(Hatch, { color: "var(--viz-danger)", period: 6 }))), /* @__PURE__ */ React.createElement("span", { className: "kviz-yb__lab" }, "Year ", y.year, y.partial && /* @__PURE__ */ React.createElement("small", null, "Year to date")));
+    }))), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
+  }
+
+  // src/charts/MonthBars.jsx
+  init_react_shim();
+  function niceScale(max, steps = 3) {
+    if (!(max > 0)) return { top: 1, step: 1, ticks: [0] };
+    const raw = max / steps;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
+    const top = Math.ceil(max / step) * step;
+    const ticks = [];
+    for (let v = 0; v <= top + 1e-9; v += step) ticks.push(v);
+    return { top, step, ticks };
+  }
+  function MonthBars({ months, series, format = gbpK, tick = gbpTick, label, height = 180 }) {
+    const tip = useChartTip();
+    const totals = months.map((m) => series.reduce((s, x) => s + (m.values[x.key] || 0), 0));
+    const { top, ticks } = niceScale(Math.max(0, ...totals));
+    const pct3 = (v) => v / top * 100;
+    return /* @__PURE__ */ React.createElement("div", { className: "kviz-mb", role: "group", "aria-label": label }, /* @__PURE__ */ React.createElement("div", { className: "kviz-mb__plot", style: { height } }, /* @__PURE__ */ React.createElement("div", { className: "kviz-mb__grid", "aria-hidden": "true" }, ticks.map((t) => /* @__PURE__ */ React.createElement("span", { key: t, className: "kviz-mb__gl", style: { bottom: pct3(t) + "%" } }, /* @__PURE__ */ React.createElement("span", { className: "kviz-mb__tick" }, tick(t))))), /* @__PURE__ */ React.createElement("ul", { className: "kviz-mb__cols" }, months.map((m, i) => {
+      const content = {
+        title: m.name,
+        rows: [...series].reverse().map((s) => ({ value: format(m.values[s.key] || 0), label: s.label, color: s.color }))
+      };
+      let acc = 0;
+      const topKey = [...series].reverse().find((s) => (m.values[s.key] || 0) > 0);
+      return /* @__PURE__ */ React.createElement("li", { key: m.key, className: "kviz-mb__col", "data-month": m.key, ...tip.bindPointer(content) }, /* @__PURE__ */ React.createElement("span", { className: "kviz-sr" }, m.aria), /* @__PURE__ */ React.createElement("span", { className: "kviz-mb__stack", "aria-hidden": "true", style: { height: pct3(totals[i]) + "%" } }, series.map((s) => {
+        const v = m.values[s.key] || 0;
+        if (!v) return null;
+        const seg = /* @__PURE__ */ React.createElement("span", { key: s.key, className: "kviz-mb__seg" + (topKey && topKey.key === s.key ? " is-top" : ""), style: { height: v / totals[i] * 100 + "%", background: s.color, bottom: acc / totals[i] * 100 + "%" } });
+        acc += v;
+        return seg;
+      }), totals[i] > 0 && /* @__PURE__ */ React.createElement("span", { className: "kviz-mb__val", "data-total": totals[i] }, format(totals[i]))), /* @__PURE__ */ React.createElement("span", { className: "kviz-mb__lab", "aria-hidden": "true" }, m.label));
     }))), /* @__PURE__ */ React.createElement(ChartTip, { api: tip }));
   }
 
@@ -7298,11 +7520,600 @@
     return /* @__PURE__ */ React.createElement("div", { className: "page gd-page" }, /* @__PURE__ */ React.createElement(PageHeader, { eyebrow: TEXT5.eyebrow, title: "Guide", asAt: true, description: /* @__PURE__ */ React.createElement("p", null, TEXT5.pageIntro) }), /* @__PURE__ */ React.createElement("div", { className: "gd-layout" }, /* @__PURE__ */ React.createElement(Toc, { active, wanted }), /* @__PURE__ */ React.createElement("div", { className: "gd-content" }, /* @__PURE__ */ React.createElement(StartSection, { estate, f, ui }), /* @__PURE__ */ React.createElement(TourSection, { estate, f }), /* @__PURE__ */ React.createElement(ScreensSection, { f }), /* @__PURE__ */ React.createElement(TrySection, { estate, f, ui, actions }), /* @__PURE__ */ React.createElement(NumbersSection, { estate, f }), /* @__PURE__ */ React.createElement(RealSection, { estate }), /* @__PURE__ */ React.createElement(GlossarySection, null), /* @__PURE__ */ React.createElement(KeysSection, { f }), /* @__PURE__ */ React.createElement(FaqSection, { estate, f, ui }))));
   }
 
+  // src/views/Actions.jsx
+  init_react_shim();
+
+  // src/lib/actions-copy.js
+  init_react_shim();
+  var MONTHS3 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var MONTHS_SHORT2 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var monthLong = (ym) => `${MONTHS3[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+  var monthShort = (ym) => MONTHS_SHORT2[Number(ym.slice(5, 7)) - 1];
+  var dayMonth = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+  function whenText(at2) {
+    const d = new Date(at2);
+    if (Number.isNaN(d.getTime())) return "";
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+    return `${p.day} ${p.month === "Sept" ? "Sep" : p.month}, ${p.hour}:${p.minute}`;
+  }
+  function dueChipText(due, flagType, state) {
+    if (!due) return "";
+    if (state === "overdue") return `Overdue, due ${dayMonth(due)}`;
+    return flagType === "renewal" ? `Notice by ${dayMonth(due)}` : `Due ${dayMonth(due)}`;
+  }
+  var ACT = {
+    /* ---------------------------------------------------------------- drawer */
+    tabs: { label: "Opportunity views", details: "Details", action: "Action" },
+    footer: {
+      stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
+      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
+    },
+    empty: {
+      title: "Nobody is working on this yet.",
+      body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
+      button: "Start action"
+    },
+    closedSummary: {
+      resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
+      on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
+      reopen: "To reopen it, choose an open stage below."
+    },
+    who: {
+      title: "Who and when",
+      stage: "Stage",
+      owner: "Owner",
+      due: "Due",
+      notSet: "Not set",
+      dueHelp: (iso) => `${fmtDate(iso)}, ${inDaysText(iso, AS_OF)}`
+    },
+    steps: { title: "Next steps", done: (d, t) => `${d} of ${t} done` },
+    contacts: {
+      title: "Who to contact",
+      note: "Sample names",
+      staff: "Staff list",
+      source: (label, clauseRef, page) => `${label} \xB7 ${clauseRef}, page ${page}`,
+      showClause: "Show the clause",
+      quoteLabel: "From the contract",
+      why: (kindLabel, why) => `${kindLabel}. ${why}`,
+      supplierRole: (role, supplier) => `${role}, ${supplier}`
+    },
+    email: {
+      title: "Draft email",
+      note: "Check before you send",
+      to: "To",
+      subject: "Subject",
+      body: "Email body",
+      toOption: (name, email) => `${name} \xB7 ${email}`,
+      copy: "Copy email",
+      sent: "Mark as sent",
+      hint: "Copy and Mark as sent add a line to the activity log. Kontor never sends email.",
+      copied: (name) => `Email copied. Paste it into your email app and send it to ${name}.`,
+      blocked: "Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.",
+      markedSent: (name) => `Marked as sent to ${name}.`
+    },
+    exit: {
+      title: "Exit terms",
+      note: "From the contract",
+      convenience: "End for convenience",
+      fee: "Exit fee",
+      ends: "Contract ends",
+      yes: (months) => `Yes, ${months} ${months === 1 ? "month's" : "months'"} notice`,
+      no: "No",
+      none: "None",
+      notFound: "Not found",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    },
+    activity: { title: "Activity", noteLabel: "Add a note", addNote: "Add note", empty: "Nothing has happened on this action yet.", noteTag: "Note" },
+    toast: {
+      added: (title) => `${title}: added to Actions.`,
+      addedDesc: (headline, changed, hasOwner) => `The headline is ${changed ? "now" : "still"} ${headline}.${hasOwner ? "" : " Set an owner to get started."}`,
+      open: "Open in Actions",
+      archived: (title) => `${title}: marked To investigate.`,
+      archivedDesc: (headline) => `The card has left the Actions board. Its notes and log are kept. The headline is now ${headline}.`,
+      closed: (title, outcome) => `${title}: closed as ${OUTCOME_LABEL[outcome]}.`,
+      valueNow: (gbp2) => `Value secured is now ${fmtGBP(gbp2)}.`,
+      headlineNow: (headline) => `The headline is now ${headline}.`,
+      moved: (title, stage) => `${title}: moved to ${STAGE_LABEL[stage]}.`,
+      reopened: (title, stage) => `${title}: reopened in ${STAGE_LABEL[stage]}.`
+    },
+    /* ---------------------------------------------------------------- close dialog */
+    dialog: {
+      title: "Close this action",
+      subtitle: (contract, type, flagged) => `${contract} \xB7 ${type} \xB7 ${fmtGBP(flagged)} flagged`,
+      outcome: "Outcome",
+      cash: "Cash recovered",
+      cashHelp: "One-off money back, like a refund or credit note",
+      cost: "Cost avoided",
+      costHelp: "Future spend that will not happen, like a lower rate",
+      moneyError: "Enter an amount. Add cash recovered, cost avoided or both.",
+      wholePounds: "Enter whole pounds, for example 150,000.",
+      what: "What happened",
+      whatError: "Add one line on what happened.",
+      hint: "Your figures. Kontor shows them as you enter them and does not check them.",
+      cancel: "Cancel",
+      confirm: "Close action"
+    },
+    /* ---------------------------------------------------------------- Actions page */
+    page: {
+      title: "Actions",
+      description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
+      tabsLabel: "Actions views",
+      board: "Board",
+      results: "Results"
+    },
+    board: {
+      stats: { working: "Being worked on", open: "Open actions", due: "Due in the next 14 days", value: "Value secured to date" },
+      statsLabel: "Action totals",
+      workingFoot: "Indicative value, still in the headline",
+      openFoot: "To start, checking or with the supplier",
+      dueFoot: "Overdue ones included",
+      valueFoot: "See results",
+      filters: "Filter the board",
+      owner: "Owner",
+      everyone: "Everyone",
+      allTypes: "All types",
+      typeLabel: "Flag type",
+      last30: "Last 30 days",
+      empty: "Drag a card here, or use Move to on a card.",
+      columnLabel: (label, n) => `${label}, ${plural(n, "action")}`,
+      justAdded: "Just added",
+      unassigned: "No owner yet",
+      progress: (d, t) => `${d} of ${t}`,
+      progressLabel: (d, t) => `${d} of ${t} steps done`,
+      next: "Next:",
+      allDone: "Every step is done. Close the action when you are ready.",
+      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
+      moveTo: "Move to",
+      moveLabel: (title) => `Move ${title} to another stage`,
+      open: (title) => `Open the action for ${title}`,
+      dragHelp: "Drag cards between columns, or use Move to.",
+      noMatch: "No actions match these filters.",
+      clear: "Clear filters"
+    },
+    results: {
+      tiles: { value: "Value secured", cash: "Cash recovered", cost: "Cost avoided", closed: "Actions closed" },
+      since: (ym) => `Since ${monthLong(ym)}`,
+      count: (n) => plural(n, "action"),
+      split: (r, e, n) => `${r} resolved \xB7 ${e} explained \xB7 ${n} no action`,
+      chartTitle: "Value secured, by month closed",
+      chartLabel: "Value secured by the month each action closed",
+      tableTitle: "Closed actions",
+      tableCaption: "Closed actions, newest first",
+      cols: { closed: "Closed", contract: "Contract", outcome: "Outcome", cash: "Cash recovered", cost: "Cost avoided", owner: "Owner" },
+      none: "None",
+      example: "Example",
+      latest: "Latest",
+      footer: "Your figures. Kontor does not check them.",
+      empty: "No actions have been closed yet. Close one on the board to see it here.",
+      barLabel: (month, cash, cost) => `${month}: ${fmtGBP(cash + cost)} value secured, ${fmtGBP(cash)} cash recovered and ${fmtGBP(cost)} cost avoided`
+    },
+    /* ---------------------------------------------------------------- Home strip */
+    home: {
+      title: "Action progress",
+      description: "From the Actions board.",
+      open: "Open Actions",
+      notStarted: "Not started",
+      working: "Being worked on",
+      value: "Value secured",
+      notStartedFoot: (n) => `${plural(n, "flag")} with no action yet`,
+      workingFoot: (n, due) => `${plural(n, "action")}. ${due} due in the next 14 days.`,
+      valueFoot: (n, ym) => `${plural(n, "action")} resolved since ${MONTHS3[Number(ym.slice(5, 7)) - 1]}. Your figures.`,
+      valueFootNone: "Nothing resolved yet. Your figures.",
+      seeResults: "See results"
+    },
+    /* ---------------------------------------------------------------- other screens */
+    rowStage: (stage, initials) => initials ? `${STAGE_LABEL[stage]} \xB7 ${initials}` : STAGE_LABEL[stage],
+    rowStageLabel: (stage, name) => name ? `Action: ${STAGE_LABEL[stage]}, owner ${name}` : `Action: ${STAGE_LABEL[stage]}, no owner yet`,
+    reps: {
+      title: "Representatives",
+      description: "Named in clause 3 of the contract. Sample names.",
+      authority: "Authority's Representative",
+      supplier: "Supplier's Representative",
+      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
+    }
+  };
+
+  // src/views/actions/Board.jsx
+  init_react_shim();
+  var import_react46 = __toESM(require_react(), 1);
+
+  // src/components/ActionBits.jsx
+  init_react_shim();
+  function PersonAvatar({ person, size = 24, label, className = "" }) {
+    const cls = ["act-av", !person && "act-av--empty", size >= 32 && "act-av--lg", className].filter(Boolean).join(" ");
+    return /* @__PURE__ */ React.createElement("span", { className: cls, "aria-hidden": label ? void 0 : "true", role: label ? "img" : void 0, "aria-label": label }, person ? person.initials : "?");
+  }
+  var OUTCOME_PILL = { resolved: { tone: "success", icon: "circle-check" }, explained: { tone: "neutral", icon: "circle-info" }, no_action: { tone: "neutral", icon: "ban" } };
+  function OutcomePill({ outcome, size }) {
+    const p = OUTCOME_PILL[outcome];
+    if (!p) return null;
+    return /* @__PURE__ */ React.createElement(Pill, { tone: p.tone, icon: p.icon, size, className: "act-outcome" }, OUTCOME_LABEL[outcome]);
+  }
+  function parseWholePounds(text) {
+    const t = String(text == null ? "" : text).replace(/[£,\s]/g, "");
+    if (!t) return null;
+    return /^\d{1,12}$/.test(t) ? Number(t) : NaN;
+  }
+
+  // src/components/CloseActionDialog.jsx
+  init_react_shim();
+  var import_react45 = __toESM(require_react(), 1);
+  var { Button: Button13, Input: Input3 } = ds_default;
+  var T = ACT.dialog;
+  function CloseActionDialog({ open, flag, contract, action, initialOutcome = "resolved", onCancel, onConfirm }) {
+    const uid = (0, import_react45.useId)();
+    const [outcome, setOutcome] = (0, import_react45.useState)(initialOutcome);
+    const [cash, setCash] = (0, import_react45.useState)("");
+    const [cost, setCost] = (0, import_react45.useState)("");
+    const [note, setNote] = (0, import_react45.useState)("");
+    const [errors, setErrors] = (0, import_react45.useState)({});
+    (0, import_react45.useEffect)(() => {
+      if (!open) return;
+      setOutcome(OUTCOMES.includes(initialOutcome) ? initialOutcome : "resolved");
+      setCash("");
+      setCost("");
+      setNote("");
+      setErrors({});
+    }, [open, initialOutcome]);
+    if (!open || !flag || !contract) return null;
+    const flagged = action ? action.flaggedGBP : flag.indicativeGBP;
+    const submit = (e) => {
+      if (e) e.preventDefault();
+      const err2 = {};
+      let c = null;
+      let a = null;
+      if (outcome === "resolved") {
+        c = parseWholePounds(cash);
+        a = parseWholePounds(cost);
+        if (Number.isNaN(c)) err2.cash = T.wholePounds;
+        if (Number.isNaN(a)) err2.cost = T.wholePounds;
+        if (!err2.cash && !err2.cost && !((c || 0) > 0 || (a || 0) > 0)) err2.money = T.moneyError;
+      }
+      if (!note.trim()) err2.note = T.whatError;
+      setErrors(err2);
+      if (Object.keys(err2).length) {
+        const first = err2.cash || err2.money ? `${uid}-cash` : err2.cost ? `${uid}-cost` : `${uid}-note`;
+        setTimeout(() => {
+          const el = document.getElementById(first);
+          if (el) el.focus();
+        }, 0);
+        return;
+      }
+      onConfirm({ outcome, cashRecoveredGBP: outcome === "resolved" && c > 0 ? c : null, costAvoidedGBP: outcome === "resolved" && a > 0 ? a : null, closeNote: note.trim() });
+    };
+    return /* @__PURE__ */ React.createElement(
+      Dialog,
+      {
+        open: true,
+        onClose: () => onCancel && onCancel(),
+        title: T.title,
+        description: T.subtitle(contract.title, flagTypeLabel(flag), flagged),
+        className: "act-close",
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", onClick: () => onCancel && onCancel() }, T.cancel), /* @__PURE__ */ React.createElement(Button13, { type: "submit", form: `${uid}-form` }, T.confirm))
+      },
+      /* @__PURE__ */ React.createElement("form", { id: `${uid}-form`, className: "act-close__form", onSubmit: submit, noValidate: true }, /* @__PURE__ */ React.createElement("fieldset", { className: "kx-radiogroup is-inline act-close__outcomes" }, /* @__PURE__ */ React.createElement("legend", { className: "kx-radiogroup__legend" }, T.outcome), /* @__PURE__ */ React.createElement("div", { className: "kx-radiogroup__opts" }, OUTCOMES.map((o) => /* @__PURE__ */ React.createElement(
+        RadioField,
+        {
+          key: o,
+          name: `${uid}-outcome`,
+          value: o,
+          checked: outcome === o,
+          label: OUTCOME_LABEL[o],
+          onChange: (v) => {
+            setOutcome(v);
+            setErrors({});
+          },
+          ...outcome === o ? { "data-autofocus": "" } : {}
+        }
+      )))), outcome === "resolved" && /* @__PURE__ */ React.createElement("div", { className: "act-close__money" }, /* @__PURE__ */ React.createElement(Field, { label: T.cash, help: T.cashHelp, error: err(errors.cash || errors.money), id: `${uid}-cash` }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cash, onChange: (e) => setCash(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: T.cost, help: T.costHelp, error: err(errors.cost), id: `${uid}-cost` }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cost, onChange: (e) => setCost(e.target.value) }))), /* @__PURE__ */ React.createElement(Field, { label: T.what, error: err(errors.note), id: `${uid}-note` }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "text", maxLength: CLOSE_NOTE_MAX, autoComplete: "off", value: note, onChange: (e) => setNote(e.target.value) })), /* @__PURE__ */ React.createElement("p", { className: "act-close__hint" }, T.hint))
+    );
+  }
+  var err = (x) => x || void 0;
+
+  // src/components/useActionCommands.js
+  init_react_shim();
+  var openInActions = (flagId) => navigate("#/actions?card=" + encodeURIComponent(flagId));
+  function useActionCommands() {
+    const { estate, state, actions } = useEstate();
+    const ui = useUI();
+    const cur = { triage: state.triage, actions: state.actions || {} };
+    const totalsAfter = (triage) => computeEstate({ decisions: state.decisions, assumptions: state.assumptions, triage }).totals;
+    const titleOf = (flag) => (estate.contractsById[flag.contractId] || {}).title || flag.contractId;
+    return {
+      start(flag) {
+        const out = startAction(cur, flag, "");
+        const after = totalsAfter(out.triage);
+        actions.startAction(flag);
+        ui.toast({
+          tone: "success",
+          title: ACT.toast.added(titleOf(flag)),
+          description: ACT.toast.addedDesc(fmtGBPCompact(after.totalGBP), after.totalGBP !== estate.totals.totalGBP, !!out.actions[flag.id].owner),
+          action: { label: ACT.toast.open, onClick: () => openInActions(flag.id) }
+        });
+      },
+      archive(flag) {
+        const had = activeAction(cur.actions, flag.id);
+        const out = setStatus(cur, flag, "to_investigate", "");
+        const after = totalsAfter(out.triage);
+        actions.setStatus(flag, "to_investigate");
+        if (had) ui.toast({ tone: "success", title: ACT.toast.archived(titleOf(flag)), description: ACT.toast.archivedDesc(fmtGBPCompact(after.totalGBP)) });
+        else {
+          const [title, ...rest] = triageToast(estate.contractsById[flag.contractId], "to_investigate", after).split(new RegExp("(?<=\\.)\\s+"));
+          ui.toast({ tone: "success", title, description: rest.join(" ") });
+        }
+      },
+      close(flag, input) {
+        const out = closeAction(cur, flag, input, "");
+        if (out === cur) return;
+        const after = totalsAfter(out.triage);
+        actions.closeAction(flag, input);
+        const description = input.outcome === "resolved" ? ACT.toast.valueNow(resultsOf(out.actions).valueSecuredGBP) : ACT.toast.headlineNow(fmtGBPCompact(after.totalGBP));
+        ui.toast({ tone: "success", title: ACT.toast.closed(titleOf(flag), input.outcome), description });
+      },
+      move(flag, stage) {
+        const a = cur.actions[flag.id];
+        if (!a || a.stage === stage) return;
+        const wasClosed = a.stage === "closed";
+        actions.moveAction(flag, stage);
+        if (wasClosed) {
+          const out = moveAction(cur, flag, stage, "");
+          ui.toast({ tone: "success", title: ACT.toast.reopened(titleOf(flag), stage), description: ACT.toast.headlineNow(fmtGBPCompact(totalsAfter(out.triage).totalGBP)) });
+        }
+      }
+    };
+  }
+
+  // src/views/actions/Board.jsx
+  var { Button: Button14, Select: Select4 } = ds_default;
+  var B = ACT.board;
+  function closedValueText(a) {
+    const parts2 = [a.cashRecoveredGBP > 0 ? `${fmtGBP(a.cashRecoveredGBP)} cash recovered` : null, a.costAvoidedGBP > 0 ? `${fmtGBP(a.costAvoidedGBP)} cost avoided` : null].filter(Boolean);
+    return parts2.join(" and ");
+  }
+  function Card({ card, contract, highlight, onOpen, onMove, dragging, setDragging }) {
+    const a = card.action;
+    const f = card.flag;
+    const owner = a.owner ? peopleById[a.owner] : null;
+    const closed2 = a.stage === "closed";
+    const prog = stepProgress(a);
+    const due = dueState(a.due);
+    const fresh = !closed2 && isJustAdded(a.flagId);
+    const items = STAGES.filter((s) => s !== a.stage).map((s) => ({ id: s, label: STAGE_LABEL[s], onSelect: () => onMove(f, s) }));
+    const value = closedValueText(a);
+    return /* @__PURE__ */ React.createElement(
+      "li",
+      {
+        className: "acts-card" + (highlight ? " is-highlight" : "") + (fresh ? " is-fresh" : "") + (dragging === a.flagId ? " is-dragging" : ""),
+        "data-card": a.flagId,
+        draggable: "true",
+        onDragStart: (e) => {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", a.flagId);
+          setDragging(a.flagId);
+        },
+        onDragEnd: () => setDragging(null)
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "acts-card__top" }, /* @__PURE__ */ React.createElement("span", { className: "acts-card__pills" }, /* @__PURE__ */ React.createElement(FlagBadge, { type: f.type, label: flagTypeLabel(f) }), fresh && /* @__PURE__ */ React.createElement("span", { className: "acts-card__fresh" }, B.justAdded)), !closed2 && /* @__PURE__ */ React.createElement("span", { className: "acts-due is-" + due }, dueChipText(a.due, a.flagType, due))),
+      /* @__PURE__ */ React.createElement("h3", { className: "acts-card__title" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "acts-card__open", onClick: () => onOpen(a.flagId), "data-open-card": a.flagId }, contract.title, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ". ", B.open(contract.title)))),
+      /* @__PURE__ */ React.createElement("p", { className: "acts-card__supplier" }, contract.supplierName),
+      !closed2 && /* @__PURE__ */ React.createElement("p", { className: "acts-card__value" }, fmtGBP(card.value)),
+      !closed2 && /* @__PURE__ */ React.createElement("div", { className: "acts-card__prog" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner, label: owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned }), /* @__PURE__ */ React.createElement("span", { className: "acts-prog", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("span", { style: { width: (prog.total ? prog.done / prog.total * 100 : 0) + "%" } })), /* @__PURE__ */ React.createElement("span", { className: "acts-card__count", "aria-label": B.progressLabel(prog.done, prog.total) }, B.progress(prog.done, prog.total))),
+      !closed2 && /* @__PURE__ */ React.createElement("p", { className: "acts-card__next" }, prog.next ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, B.next), " ", prog.next.text) : B.allDone),
+      closed2 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "acts-card__prog" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: a.outcome }), /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner, label: owner ? `${ACT.who.owner}: ${owner.name}` : B.unassigned })), /* @__PURE__ */ React.createElement("p", { className: "acts-card__next" }, value ? B.closedLine(value, "value", fmtGBP(a.flaggedGBP), a.closedAt) : B.closedPlain(fmtGBP(a.flaggedGBP), a.closedAt))),
+      /* @__PURE__ */ React.createElement("div", { className: "acts-card__foot" }, /* @__PURE__ */ React.createElement(MenuButton, { label: B.moveLabel(contract.title), items, icon: "arrow-right-arrow-left", variant: "ghost", size: "sm", placement: "bottom-start" }, B.moveTo, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ": ", contract.title)))
+    );
+  }
+  function Board({ route }) {
+    const { estate, state } = useEstate();
+    const cmd = useActionCommands();
+    const actions = state.actions || {};
+    const owners = ownersOnBoard(estate, actions);
+    const ownerParam = route.query.get("owner");
+    const owner = owners.some((p) => p.id === ownerParam) ? ownerParam : null;
+    const typeParam = route.query.get("type");
+    const type = FLAG_TYPES.includes(typeParam) ? typeParam : null;
+    const cardParam = route.query.get("card");
+    const [dragging, setDragging] = (0, import_react46.useState)(null);
+    const [over, setOver] = (0, import_react46.useState)(null);
+    const [closing, setClosing] = (0, import_react46.useState)(null);
+    const [highlight, setHighlight] = (0, import_react46.useState)(null);
+    const [refocus, setRefocus] = (0, import_react46.useState)(null);
+    const totals = actionTotals(estate, actions);
+    const cols = boardColumns(estate, actions, { owner, type });
+    const byOwner = boardColumns(estate, actions, { owner });
+    const counts = (0, import_react46.useMemo)(() => {
+      const c = { all: 0, overCap: 0, nearCap: 0, renewal: 0, uplift: 0 };
+      byOwner.forEach((col) => col.cards.forEach((x) => {
+        c.all += 1;
+        c[x.action.flagType] += 1;
+      }));
+      return c;
+    }, [byOwner]);
+    (0, import_react46.useEffect)(() => {
+      if (!cardParam) return void 0;
+      setHighlight(cardParam);
+      const t1 = setTimeout(() => {
+        const el = document.querySelector(`[data-card="${CSS.escape(cardParam)}"]`);
+        if (el) {
+          el.scrollIntoView({ block: "center", behavior: "auto" });
+          const b = el.querySelector(".acts-card__open");
+          if (b) b.focus({ preventScroll: true });
+        }
+      }, 80);
+      const t2 = setTimeout(() => {
+        setHighlight(null);
+        setQuery({ card: null });
+      }, 4e3);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }, [cardParam]);
+    (0, import_react46.useEffect)(() => {
+      if (!refocus) return void 0;
+      const t = setTimeout(() => {
+        const b = document.querySelector(`[data-card="${CSS.escape(refocus)}"] .kx-menubtn button`);
+        if (b) b.focus({ preventScroll: false });
+        setRefocus(null);
+      }, 30);
+      return () => clearTimeout(t);
+    }, [refocus]);
+    const open = (flagId) => setQuery({ flag: flagId, tab: "action" });
+    const move = (flag, stage) => {
+      if (stage === "closed") {
+        setClosing(flag.id);
+        return;
+      }
+      cmd.move(flag, stage);
+      setRefocus(flag.id);
+    };
+    const drop = (stage) => (e) => {
+      e.preventDefault();
+      setOver(null);
+      const id = e.dataTransfer.getData("text/plain") || dragging;
+      setDragging(null);
+      const f = id && estate.flagsById[id];
+      if (!f || !actions[id] || actions[id].stage === stage) return;
+      move(f, stage);
+    };
+    const closingFlag = closing ? estate.flagsById[closing] : null;
+    const filtered = !!(owner || type);
+    return /* @__PURE__ */ React.createElement("div", { className: "acts-board-tab" }, /* @__PURE__ */ React.createElement("section", { className: "acts-stats kx-grid kx-grid--4", "aria-label": B.statsLabel }, /* @__PURE__ */ React.createElement(StatTile, { label: B.stats.working, value: fmtGBPCompact(totals.beingWorkedGBP), foot: B.workingFoot, "data-stat": "working", title: fmtGBP(totals.beingWorkedGBP) }), /* @__PURE__ */ React.createElement(StatTile, { label: B.stats.open, value: totals.openCount, foot: B.openFoot, "data-stat": "open" }), /* @__PURE__ */ React.createElement(StatTile, { label: B.stats.due, value: totals.dueSoonCount, foot: B.dueFoot, "data-stat": "due", className: totals.dueSoonCount > 0 ? "is-warn" : "" }), /* @__PURE__ */ React.createElement(StatTile, { label: B.stats.value, value: fmtGBP(totals.valueSecuredGBP), foot: /* @__PURE__ */ React.createElement("span", { className: "acts-stat__link" }, B.valueFoot, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), href: "#/actions/results", "data-stat": "value" })), /* @__PURE__ */ React.createElement("div", { className: "acts-filters", role: "group", "aria-label": B.filters }, /* @__PURE__ */ React.createElement("label", { className: "acts-filter" }, /* @__PURE__ */ React.createElement("span", { className: "acts-filter__label" }, B.owner), /* @__PURE__ */ React.createElement(
+      Select4,
+      {
+        value: owner || "",
+        onChange: (e) => setQuery({ owner: e.target.value || null }),
+        options: [{ value: "", label: B.everyone }, ...owners.map((p) => ({ value: p.id, label: p.name }))]
+      }
+    )), /* @__PURE__ */ React.createElement(FlagFilterChips, { counts, value: type, onChange: (t) => setQuery({ type: t === type ? null : t }), label: B.typeLabel, allLabel: B.allTypes }), filtered && /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "ghost", size: "sm", leftIcon: "xmark", onClick: () => setQuery({ owner: null, type: null }) }, B.clear)), /* @__PURE__ */ React.createElement("p", { className: "acts-help" }, B.dragHelp), /* @__PURE__ */ React.createElement("div", { className: "acts-board" }, cols.map((col) => /* @__PURE__ */ React.createElement(
+      "section",
+      {
+        key: col.stage,
+        className: "acts-col" + (over === col.stage ? " is-over" : ""),
+        "data-stage": col.stage,
+        "aria-labelledby": `acts-col-${col.stage}`,
+        onDragOver: (e) => {
+          if (dragging) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (over !== col.stage) setOver(col.stage);
+          }
+        },
+        onDragLeave: (e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setOver((o) => o === col.stage ? null : o);
+        },
+        onDrop: drop(col.stage)
+      },
+      /* @__PURE__ */ React.createElement("header", { className: "acts-col__head" }, /* @__PURE__ */ React.createElement("h2", { className: "acts-col__title", id: `acts-col-${col.stage}`, "aria-label": B.columnLabel(col.label, col.count) }, col.label, " ", /* @__PURE__ */ React.createElement("span", { className: "acts-col__count", "aria-hidden": "true" }, col.count)), /* @__PURE__ */ React.createElement("span", { className: "acts-col__total", "data-total": col.stage === "closed" ? "" : col.totalGBP, title: col.stage === "closed" ? void 0 : fmtGBP(col.totalGBP) }, col.stage === "closed" ? B.last30 : gbp(col.totalGBP))),
+      col.cards.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "acts-col__empty" }, filtered ? B.noMatch : B.empty) : /* @__PURE__ */ React.createElement("ul", { className: "acts-col__cards" }, col.cards.map((c) => /* @__PURE__ */ React.createElement(
+        Card,
+        {
+          key: c.action.flagId,
+          card: c,
+          contract: estate.contractsById[c.action.contractId],
+          highlight: highlight === c.action.flagId,
+          onOpen: open,
+          onMove: move,
+          dragging,
+          setDragging
+        }
+      )))
+    ))), /* @__PURE__ */ React.createElement(
+      CloseActionDialog,
+      {
+        open: !!closingFlag,
+        flag: closingFlag,
+        contract: closingFlag ? estate.contractsById[closingFlag.contractId] : null,
+        action: closing ? actions[closing] : null,
+        initialOutcome: "resolved",
+        onCancel: () => setClosing(null),
+        onConfirm: (input) => {
+          const f = closingFlag;
+          setClosing(null);
+          cmd.close(f, input);
+          setRefocus(f.id);
+        }
+      }
+    ));
+  }
+
+  // src/views/actions/Results.jsx
+  init_react_shim();
+  var R = ACT.results;
+  var SERIES = [
+    { key: "cash", label: R.tiles.cash, color: "var(--viz-success)" },
+    { key: "cost", label: R.tiles.cost, color: "var(--viz-accent)" }
+  ];
+  var swatch = (color) => /* @__PURE__ */ React.createElement("span", { className: "acts-swatch", style: { background: color }, "aria-hidden": "true" });
+  function Results() {
+    const { estate, state } = useEstate();
+    const res = resultsOf(state.actions || {});
+    const months = byMonth(state.actions || {}).map((m) => ({
+      key: m.month,
+      label: monthShort(m.month),
+      name: monthLong(m.month),
+      values: { cash: m.cashGBP, cost: m.costGBP },
+      aria: R.barLabel(monthLong(m.month), m.cashGBP, m.costGBP)
+    }));
+    const titleOf = (a) => (estate.contractsById[a.contractId] || {}).title || a.contractId;
+    const money2 = (v) => v > 0 ? fmtGBP(v) : R.none;
+    const columns = [
+      { key: "closed", label: R.cols.closed, nowrap: true, render: (a) => fmtDate(a.closedAt) },
+      {
+        key: "contract",
+        label: R.cols.contract,
+        rowHeader: true,
+        minWidth: 240,
+        render: (a) => /* @__PURE__ */ React.createElement("span", { className: "acts-res__contract" }, /* @__PURE__ */ React.createElement("span", { className: "acts-res__title" }, a.example || !estate.flagsById[a.flagId] ? /* @__PURE__ */ React.createElement("b", null, titleOf(a)) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "kviz-textlink acts-res__open", onClick: () => setQuery({ flag: a.flagId, tab: "action" }) }, /* @__PURE__ */ React.createElement("b", null, titleOf(a))), a.example && /* @__PURE__ */ React.createElement(Tag, { className: "acts-res__example" }, R.example), a.flagId === res.latestId && /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ". ", R.latest)), /* @__PURE__ */ React.createElement("span", { className: "acts-res__what" }, flagTypeLabel(a.flagType), a.closeNote ? ` \xB7 ${a.closeNote}` : ""))
+      },
+      { key: "outcome", label: R.cols.outcome, render: (a) => /* @__PURE__ */ React.createElement(OutcomePill, { outcome: a.outcome, size: "sm" }) },
+      { key: "cash", label: R.cols.cash, num: true, nowrap: true, render: (a) => a.outcome === "resolved" ? money2(a.cashRecoveredGBP) : R.none },
+      { key: "cost", label: R.cols.cost, num: true, nowrap: true, render: (a) => a.outcome === "resolved" ? money2(a.costAvoidedGBP) : R.none },
+      { key: "owner", label: R.cols.owner, nowrap: true, render: (a) => a.owner && peopleById[a.owner] ? peopleById[a.owner].name : ACT.who.notSet }
+    ];
+    return /* @__PURE__ */ React.createElement("div", { className: "acts-results" }, /* @__PURE__ */ React.createElement("section", { className: "acts-tiles", "aria-label": R.tiles.value }, /* @__PURE__ */ React.createElement(StatTile, { className: "acts-tile acts-tile--value", label: R.tiles.value, value: fmtGBP(res.valueSecuredGBP), foot: res.sinceMonth ? R.since(res.sinceMonth) : R.empty, "data-tile": "value" }), /* @__PURE__ */ React.createElement(StatTile, { className: "acts-tile", label: /* @__PURE__ */ React.createElement(React.Fragment, null, swatch(SERIES[0].color), R.tiles.cash), value: fmtGBP(res.cashGBP), foot: R.count(res.cashCount), "data-tile": "cash" }), /* @__PURE__ */ React.createElement(StatTile, { className: "acts-tile", label: /* @__PURE__ */ React.createElement(React.Fragment, null, swatch(SERIES[1].color), R.tiles.cost), value: fmtGBP(res.costGBP), foot: R.count(res.costCount), "data-tile": "cost" }), /* @__PURE__ */ React.createElement(StatTile, { className: "acts-tile", label: R.tiles.closed, value: res.closed.length, foot: R.split(res.resolvedCount, res.explainedCount, res.noActionCount), "data-tile": "closed" })), /* @__PURE__ */ React.createElement(Panel, { title: R.chartTitle, id: "acts-chart-h", className: "acts-chart", actions: /* @__PURE__ */ React.createElement(Legend, { items: SERIES.map((s) => ({ key: s.key, label: s.label, color: s.color, shape: "bar" })), label: R.chartTitle, className: "acts-legend" }) }, /* @__PURE__ */ React.createElement(MonthBars, { months, series: SERIES, label: R.chartLabel })), /* @__PURE__ */ React.createElement(Panel, { title: R.tableTitle, id: "acts-table-h", className: "acts-table", padded: false, footer: /* @__PURE__ */ React.createElement("p", { className: "acts-foot" }, R.footer) }, /* @__PURE__ */ React.createElement(
+      DataTable,
+      {
+        columns,
+        rows: res.closed,
+        rowKey: "flagId",
+        caption: R.tableCaption,
+        empty: R.empty,
+        rowClassName: (a) => a.flagId === res.latestId ? "is-latest" : ""
+      }
+    )));
+  }
+
+  // src/views/Actions.jsx
+  function Actions({ route }) {
+    const { estate } = useEstate();
+    const tab = route.seg[0] === "results" ? "results" : "board";
+    usePageTitle(tab === "results" ? `${ACT.page.title}: ${ACT.page.results}` : ACT.page.title);
+    return /* @__PURE__ */ React.createElement("div", { className: "page acts" }, /* @__PURE__ */ React.createElement(
+      PageHeader,
+      {
+        eyebrow: estate.council.name,
+        title: ACT.page.title,
+        description: /* @__PURE__ */ React.createElement("p", null, ACT.page.description),
+        tabs: /* @__PURE__ */ React.createElement(
+          RouteTabs,
+          {
+            label: ACT.page.tabsLabel,
+            current: tab,
+            items: [{ id: "board", label: ACT.page.board, href: hrefFor("actions") }, { id: "results", label: ACT.page.results, href: hrefFor("actions", { seg: ["results"] }) }]
+          }
+        )
+      }
+    ), tab === "results" ? /* @__PURE__ */ React.createElement(Results, null) : /* @__PURE__ */ React.createElement(Board, { route }));
+  }
+
   // src/shell/rail.js
   init_react_shim();
   var RAIL = [
     { id: "overview", label: "Overview", icon: "fa-solid fa-house" },
     { id: "opportunities", label: "Opportunities", icon: "fa-solid fa-magnifying-glass-dollar", short: "Flags" },
+    { id: "actions", label: "Actions", icon: "fa-solid fa-list-check", short: "Actions" },
     { id: "renewals", label: "Renewal radar", icon: "fa-regular fa-calendar-check", short: "Renewals" },
     { id: "spend", label: "Cap vs spend", icon: "fa-solid fa-chart-line", short: "Spend" },
     { id: "contracts", label: "Contracts", icon: "fa-regular fa-folder-open" },
@@ -7325,6 +8136,7 @@
   var ROUTES = {
     overview: { title: "Overview", rail: "overview", component: Overview, maxSeg: 0 },
     opportunities: { title: "Opportunities", rail: "opportunities", component: Opportunities, maxSeg: 0 },
+    actions: { title: "Actions", rail: "actions", component: Actions, maxSeg: 1, valid: (r) => r.seg.length === 0 || r.seg[0] === "results" },
     renewals: { title: "Renewal radar", rail: "renewals", component: Renewals, maxSeg: 0 },
     spend: { title: "Cap vs spend", rail: "spend", component: SpendRoute, maxSeg: 1, valid: (r) => r.seg.length === 0 || SPEND_TABS.has(r.seg[0]) },
     contracts: { title: "Contracts", rail: "contracts", component: ContractsRoute, maxSeg: 1 },
@@ -7455,12 +8267,12 @@
 
   // src/lib/useResetDemo.js
   init_react_shim();
-  var import_react45 = __toESM(require_react(), 1);
+  var import_react47 = __toESM(require_react(), 1);
   function useResetDemo() {
     const ui = useUI();
     const { state, actions } = useEstate();
     const changeCount2 = changeCount(state);
-    const reset = (0, import_react45.useCallback)(async () => {
+    const reset = (0, import_react47.useCallback)(async () => {
       const start = computeEstate({});
       const headline = fmtGBPCompact(start.totals.totalGBP);
       const contracts = start.totals.contractCount;
@@ -7512,7 +8324,7 @@
 
   // src/components/ToastHost.jsx
   init_react_shim();
-  var import_react46 = __toESM(require_react(), 1);
+  var import_react48 = __toESM(require_react(), 1);
   function ToastHost2() {
     const { toasts } = useUIState();
     const { dismissToast } = useUI();
@@ -7520,7 +8332,7 @@
   }
   function ToastBridge({ children }) {
     const ui = useUI();
-    const api = (0, import_react46.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
+    const api = (0, import_react48.useMemo)(() => Object.assign((o) => ui.toast(o), { dismiss: ui.dismissToast, clear: ui.clearToasts }), [ui]);
     return /* @__PURE__ */ React.createElement(ToastContext.Provider, { value: api }, children);
   }
 
@@ -7631,7 +8443,7 @@
 
   // src/components/FlagDrawer.jsx
   init_react_shim();
-  var import_react49 = __toESM(require_react(), 1);
+  var import_react50 = __toESM(require_react(), 1);
 
   // src/data/reasons.js
   init_react_shim();
@@ -7698,194 +8510,9 @@
     return { heading: REASONS_HEADING, intro: REASONS_INTRO, items: reasons[reasonKey(flagOrKey)] };
   }
 
-  // src/lib/actions-copy.js
-  init_react_shim();
-  var MONTHS3 = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var monthLong = (ym) => `${MONTHS3[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
-  var dayMonth = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
-  function whenText(at2) {
-    const d = new Date(at2);
-    if (Number.isNaN(d.getTime())) return "";
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
-    return `${p.day} ${p.month === "Sept" ? "Sep" : p.month}, ${p.hour}:${p.minute}`;
-  }
-  var ACT = {
-    /* ---------------------------------------------------------------- drawer */
-    tabs: { label: "Opportunity views", details: "Details", action: "Action" },
-    footer: {
-      stage: (stage) => `Counted in the headline. Stage: ${STAGE_LABEL[stage]}.`,
-      closed: (outcome, gbp2) => `Not counted. ${fmtGBP(gbp2)} is excluded from the headline. Closed as ${OUTCOME_LABEL[outcome]}.`
-    },
-    empty: {
-      title: "Nobody is working on this yet.",
-      body: "Start an action to give it an owner, a due date and next steps. It puts a card on the Actions board and keeps the headline as it is.",
-      button: "Start action"
-    },
-    closedSummary: {
-      resolved: (cash, cost) => [cash > 0 ? `${fmtGBP(cash)} cash recovered` : null, cost > 0 ? `${fmtGBP(cost)} cost avoided` : null].filter(Boolean).join(" and ") + " (your figures).",
-      on: (closedAt) => `Closed on ${fmtDateLong(closedAt)}.`,
-      reopen: "To reopen it, choose an open stage below."
-    },
-    who: {
-      title: "Who and when",
-      stage: "Stage",
-      owner: "Owner",
-      due: "Due",
-      notSet: "Not set",
-      dueHelp: (iso) => `${fmtDate(iso)}, ${inDaysText(iso, AS_OF)}`
-    },
-    steps: { title: "Next steps", done: (d, t) => `${d} of ${t} done` },
-    contacts: {
-      title: "Who to contact",
-      note: "Sample names",
-      staff: "Staff list",
-      source: (label, clauseRef, page) => `${label} \xB7 ${clauseRef}, page ${page}`,
-      showClause: "Show the clause",
-      quoteLabel: "From the contract",
-      why: (kindLabel, why) => `${kindLabel}. ${why}`,
-      supplierRole: (role, supplier) => `${role}, ${supplier}`
-    },
-    email: {
-      title: "Draft email",
-      note: "Check before you send",
-      to: "To",
-      subject: "Subject",
-      body: "Email body",
-      toOption: (name, email) => `${name} \xB7 ${email}`,
-      copy: "Copy email",
-      sent: "Mark as sent",
-      hint: "Copy and Mark as sent add a line to the activity log. Kontor never sends email.",
-      copied: (name) => `Email copied. Paste it into your email app and send it to ${name}.`,
-      blocked: "Your browser blocked copying. The email text is selected, so press Ctrl+C or Cmd+C.",
-      markedSent: (name) => `Marked as sent to ${name}.`
-    },
-    exit: {
-      title: "Exit terms",
-      note: "From the contract",
-      convenience: "End for convenience",
-      fee: "Exit fee",
-      ends: "Contract ends",
-      yes: (months) => `Yes, ${months} ${months === 1 ? "month's" : "months'"} notice`,
-      no: "No",
-      none: "None",
-      notFound: "Not found",
-      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
-    },
-    activity: { title: "Activity", noteLabel: "Add a note", addNote: "Add note", empty: "Nothing has happened on this action yet.", noteTag: "Note" },
-    toast: {
-      added: (title) => `${title}: added to Actions.`,
-      addedDesc: (headline, changed, hasOwner) => `The headline is ${changed ? "now" : "still"} ${headline}.${hasOwner ? "" : " Set an owner to get started."}`,
-      open: "Open in Actions",
-      archived: (title) => `${title}: marked To investigate.`,
-      archivedDesc: (headline) => `The card has left the Actions board. Its notes and log are kept. The headline is now ${headline}.`,
-      closed: (title, outcome) => `${title}: closed as ${OUTCOME_LABEL[outcome]}.`,
-      valueNow: (gbp2) => `Value secured is now ${fmtGBP(gbp2)}.`,
-      headlineNow: (headline) => `The headline is now ${headline}.`,
-      moved: (title, stage) => `${title}: moved to ${STAGE_LABEL[stage]}.`,
-      reopened: (title, stage) => `${title}: reopened in ${STAGE_LABEL[stage]}.`
-    },
-    /* ---------------------------------------------------------------- close dialog */
-    dialog: {
-      title: "Close this action",
-      subtitle: (contract, type, flagged) => `${contract} \xB7 ${type} \xB7 ${fmtGBP(flagged)} flagged`,
-      outcome: "Outcome",
-      cash: "Cash recovered",
-      cashHelp: "One-off money back, like a refund or credit note",
-      cost: "Cost avoided",
-      costHelp: "Future spend that will not happen, like a lower rate",
-      moneyError: "Enter an amount. Add cash recovered, cost avoided or both.",
-      wholePounds: "Enter whole pounds, for example 150,000.",
-      what: "What happened",
-      whatError: "Add one line on what happened.",
-      hint: "Your figures. Kontor shows them as you enter them and does not check them.",
-      cancel: "Cancel",
-      confirm: "Close action"
-    },
-    /* ---------------------------------------------------------------- Actions page */
-    page: {
-      title: "Actions",
-      description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
-      resultsDescription: "What your team has closed, and what it brought back. Your figures.",
-      tabsLabel: "Actions views",
-      board: "Board",
-      results: "Results"
-    },
-    board: {
-      stats: { working: "Being worked on", open: "Open actions", due: "Due in the next 14 days", value: "Value secured to date" },
-      statsLabel: "Action totals",
-      workingFoot: "Indicative value, still in the headline",
-      openFoot: "To start, checking or with the supplier",
-      dueFoot: "Overdue ones included",
-      valueFoot: "See results",
-      filters: "Filter the board",
-      owner: "Owner",
-      everyone: "Everyone",
-      allTypes: "All types",
-      typeLabel: "Flag type",
-      last30: "Last 30 days",
-      empty: "Drag a card here, or use Move to on a card.",
-      columnLabel: (label, n) => `${label}, ${plural(n, "action")}`,
-      justAdded: "Just added",
-      unassigned: "No owner yet",
-      progress: (d, t) => `${d} of ${t}`,
-      progressLabel: (d, t) => `${d} of ${t} steps done`,
-      next: "Next:",
-      allDone: "Every step is done. Close the action when you are ready.",
-      closedLine: (value, kind, flagged, closedAt) => `${value} (your figure) against ${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
-      closedPlain: (flagged, closedAt) => `${flagged} flagged. Closed ${dayMonth(closedAt)}.`,
-      moveTo: "Move to",
-      moveLabel: (title) => `Move ${title} to another stage`,
-      open: (title) => `Open the action for ${title}`,
-      dragHelp: "Drag cards between columns, or use Move to.",
-      noMatch: "No actions match these filters.",
-      clear: "Clear filters"
-    },
-    results: {
-      tiles: { value: "Value secured", cash: "Cash recovered", cost: "Cost avoided", closed: "Actions closed" },
-      since: (ym) => `Since ${monthLong(ym)}`,
-      count: (n) => plural(n, "action"),
-      split: (r, e, n) => `${r} resolved \xB7 ${e} explained \xB7 ${n} no action`,
-      chartTitle: "Value secured, by month closed",
-      chartLabel: "Value secured by the month each action closed",
-      tableTitle: "Closed actions",
-      tableCaption: "Closed actions, newest first",
-      cols: { closed: "Closed", contract: "Contract", outcome: "Outcome", cash: "Cash recovered", cost: "Cost avoided", owner: "Owner" },
-      none: "None",
-      example: "Example",
-      latest: "Latest",
-      footer: "Your figures. Kontor does not check them.",
-      empty: "No actions have been closed yet. Close one on the board to see it here.",
-      barLabel: (month, cash, cost) => `${month}: ${fmtGBP(cash + cost)} value secured, ${fmtGBP(cash)} cash recovered and ${fmtGBP(cost)} cost avoided`
-    },
-    /* ---------------------------------------------------------------- Home strip */
-    home: {
-      title: "Action progress",
-      description: "From the Actions board.",
-      open: "Open Actions",
-      notStarted: "Not started",
-      working: "Being worked on",
-      value: "Value secured",
-      notStartedFoot: (n) => `${plural(n, "flag")} with no action yet`,
-      workingFoot: (n, due) => `${plural(n, "action")}. ${due} due in the next 14 days.`,
-      valueFoot: (n, ym) => `${plural(n, "action")} resolved since ${MONTHS3[Number(ym.slice(5, 7)) - 1]}. Your figures.`,
-      valueFootNone: "Nothing resolved yet. Your figures.",
-      seeResults: "See results"
-    },
-    /* ---------------------------------------------------------------- other screens */
-    rowStage: (stage, initials) => initials ? `${STAGE_LABEL[stage]} \xB7 ${initials}` : STAGE_LABEL[stage],
-    rowStageLabel: (stage, name) => name ? `Action: ${STAGE_LABEL[stage]}, owner ${name}` : `Action: ${STAGE_LABEL[stage]}, no owner yet`,
-    reps: {
-      title: "Representatives",
-      description: "Named in clause 3 of the contract. Sample names.",
-      authority: "Authority's Representative",
-      supplier: "Supplier's Representative",
-      clause: (clauseRef, page) => `${clauseRef}, page ${page}`
-    }
-  };
-
   // src/components/ActionPanel.jsx
   init_react_shim();
-  var import_react47 = __toESM(require_react(), 1);
+  var import_react49 = __toESM(require_react(), 1);
 
   // src/data/contacts.js
   init_react_shim();
@@ -8199,79 +8826,8 @@
 
 ${email.body}` : "";
 
-  // src/components/ActionBits.jsx
-  init_react_shim();
-  function PersonAvatar({ person, size = 24, label, className = "" }) {
-    const cls = ["act-av", !person && "act-av--empty", size >= 32 && "act-av--lg", className].filter(Boolean).join(" ");
-    return /* @__PURE__ */ React.createElement("span", { className: cls, "aria-hidden": label ? void 0 : "true", role: label ? "img" : void 0, "aria-label": label }, person ? person.initials : "?");
-  }
-  var OUTCOME_PILL = { resolved: { tone: "success", icon: "circle-check" }, explained: { tone: "neutral", icon: "circle-info" }, no_action: { tone: "neutral", icon: "ban" } };
-  function OutcomePill({ outcome, size }) {
-    const p = OUTCOME_PILL[outcome];
-    if (!p) return null;
-    return /* @__PURE__ */ React.createElement(Pill, { tone: p.tone, icon: p.icon, size, className: "act-outcome" }, OUTCOME_LABEL[outcome]);
-  }
-  function parseWholePounds(text) {
-    const t = String(text == null ? "" : text).replace(/[£,\s]/g, "");
-    if (!t) return null;
-    return /^\d{1,12}$/.test(t) ? Number(t) : NaN;
-  }
-
-  // src/components/useActionCommands.js
-  init_react_shim();
-  var openInActions = (flagId) => navigate("#/actions?card=" + encodeURIComponent(flagId));
-  function useActionCommands() {
-    const { estate, state, actions } = useEstate();
-    const ui = useUI();
-    const cur = { triage: state.triage, actions: state.actions || {} };
-    const totalsAfter = (triage) => computeEstate({ decisions: state.decisions, assumptions: state.assumptions, triage }).totals;
-    const titleOf = (flag) => (estate.contractsById[flag.contractId] || {}).title || flag.contractId;
-    return {
-      start(flag) {
-        const out = startAction(cur, flag, "");
-        const after = totalsAfter(out.triage);
-        actions.startAction(flag);
-        ui.toast({
-          tone: "success",
-          title: ACT.toast.added(titleOf(flag)),
-          description: ACT.toast.addedDesc(fmtGBPCompact(after.totalGBP), after.totalGBP !== estate.totals.totalGBP, !!out.actions[flag.id].owner),
-          action: { label: ACT.toast.open, onClick: () => openInActions(flag.id) }
-        });
-      },
-      archive(flag) {
-        const had = activeAction(cur.actions, flag.id);
-        const out = setStatus(cur, flag, "to_investigate", "");
-        const after = totalsAfter(out.triage);
-        actions.setStatus(flag, "to_investigate");
-        if (had) ui.toast({ tone: "success", title: ACT.toast.archived(titleOf(flag)), description: ACT.toast.archivedDesc(fmtGBPCompact(after.totalGBP)) });
-        else {
-          const [title, ...rest] = triageToast(estate.contractsById[flag.contractId], "to_investigate", after).split(new RegExp("(?<=\\.)\\s+"));
-          ui.toast({ tone: "success", title, description: rest.join(" ") });
-        }
-      },
-      close(flag, input) {
-        const out = closeAction(cur, flag, input, "");
-        if (out === cur) return;
-        const after = totalsAfter(out.triage);
-        actions.closeAction(flag, input);
-        const description = input.outcome === "resolved" ? ACT.toast.valueNow(resultsOf(out.actions).valueSecuredGBP) : ACT.toast.headlineNow(fmtGBPCompact(after.totalGBP));
-        ui.toast({ tone: "success", title: ACT.toast.closed(titleOf(flag), input.outcome), description });
-      },
-      move(flag, stage) {
-        const a = cur.actions[flag.id];
-        if (!a || a.stage === stage) return;
-        const wasClosed = a.stage === "closed";
-        actions.moveAction(flag, stage);
-        if (wasClosed) {
-          const out = moveAction(cur, flag, stage, "");
-          ui.toast({ tone: "success", title: ACT.toast.reopened(titleOf(flag), stage), description: ACT.toast.headlineNow(fmtGBPCompact(totalsAfter(out.triage).totalGBP)) });
-        }
-      }
-    };
-  }
-
   // src/components/ActionPanel.jsx
-  var { Button: Button13, Input: Input3, Select: Select4 } = ds_default;
+  var { Button: Button15, Input: Input4, Select: Select5 } = ds_default;
   function Section3({ n, title, note, children, id }) {
     return /* @__PURE__ */ React.createElement("section", { className: "act-sec", "aria-labelledby": id }, /* @__PURE__ */ React.createElement("div", { className: "act-sec__head" }, /* @__PURE__ */ React.createElement("h3", { className: "act-sec__title", id }, /* @__PURE__ */ React.createElement("span", { className: "act-sec__n", "aria-hidden": "true" }, n), title), note && /* @__PURE__ */ React.createElement("span", { className: "act-sec__note" }, note)), children);
   }
@@ -8293,13 +8849,13 @@ ${email.body}` : "";
   function ActionPanel({ flag, contract, derived, action, from, onStart, onRequestClose }) {
     const { estate, actions } = useEstate();
     const cmd = useActionCommands();
-    const uid = (0, import_react47.useId)().replace(/:/g, "");
-    const contacts = (0, import_react47.useMemo)(() => contactsFor(flag, contract), [flag, contract]);
-    const [toId, setToId] = (0, import_react47.useState)(contacts[0] ? contacts[0].id : "");
-    const [msg, setMsg] = (0, import_react47.useState)("");
-    const [noteText, setNoteText] = (0, import_react47.useState)("");
-    const mailRef = (0, import_react47.useRef)(null);
-    (0, import_react47.useEffect)(() => {
+    const uid = (0, import_react49.useId)().replace(/:/g, "");
+    const contacts = (0, import_react49.useMemo)(() => contactsFor(flag, contract), [flag, contract]);
+    const [toId, setToId] = (0, import_react49.useState)(contacts[0] ? contacts[0].id : "");
+    const [msg, setMsg] = (0, import_react49.useState)("");
+    const [noteText, setNoteText] = (0, import_react49.useState)("");
+    const mailRef = (0, import_react49.useRef)(null);
+    (0, import_react49.useEffect)(() => {
       setToId(contacts[0] ? contacts[0].id : "");
       setMsg("");
       setNoteText("");
@@ -8311,7 +8867,7 @@ ${email.body}` : "";
           as: "h3",
           icon: "list-check",
           title: ACT.empty.title,
-          action: /* @__PURE__ */ React.createElement(Button13, { type: "button", leftIcon: "play", onClick: onStart }, ACT.empty.button)
+          action: /* @__PURE__ */ React.createElement(Button15, { type: "button", leftIcon: "play", onClick: onStart }, ACT.empty.button)
         },
         ACT.empty.body
       ));
@@ -8364,18 +8920,18 @@ ${email.body}` : "";
       actions.addActionNote(flag, noteText);
       setNoteText("");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "act-panel" }, closed2 && /* @__PURE__ */ React.createElement("div", { className: "act-closed", role: "status" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: action.outcome }), /* @__PURE__ */ React.createElement("p", { className: "act-closed__line" }, action.outcome === "resolved" && /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.resolved(action.cashRecoveredGBP || 0, action.costAvoidedGBP || 0), " "), action.closeNote && /* @__PURE__ */ React.createElement("span", null, action.closeNote, " "), /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.on(action.closedAt))), /* @__PURE__ */ React.createElement("p", { className: "act-closed__help" }, ACT.closedSummary.reopen)), /* @__PURE__ */ React.createElement(Section3, { n: 1, title: ACT.who.title, id: `${uid}-who` }, /* @__PURE__ */ React.createElement("div", { className: "act-who" }, /* @__PURE__ */ React.createElement(Field, { label: ACT.who.stage, className: "act-who__stage" }, (p) => /* @__PURE__ */ React.createElement(Select4, { ...p, value: action.stage, options: STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] })), onChange: (e) => onStage(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.owner, className: "act-who__owner" }, (p) => /* @__PURE__ */ React.createElement("span", { className: "act-who__ownerctl" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner }), /* @__PURE__ */ React.createElement(
-      Select4,
+    return /* @__PURE__ */ React.createElement("div", { className: "act-panel" }, closed2 && /* @__PURE__ */ React.createElement("div", { className: "act-closed", role: "status" }, /* @__PURE__ */ React.createElement(OutcomePill, { outcome: action.outcome }), /* @__PURE__ */ React.createElement("p", { className: "act-closed__line" }, action.outcome === "resolved" && /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.resolved(action.cashRecoveredGBP || 0, action.costAvoidedGBP || 0), " "), action.closeNote && /* @__PURE__ */ React.createElement("span", null, action.closeNote, " "), /* @__PURE__ */ React.createElement("span", null, ACT.closedSummary.on(action.closedAt))), /* @__PURE__ */ React.createElement("p", { className: "act-closed__help" }, ACT.closedSummary.reopen)), /* @__PURE__ */ React.createElement(Section3, { n: 1, title: ACT.who.title, id: `${uid}-who` }, /* @__PURE__ */ React.createElement("div", { className: "act-who" }, /* @__PURE__ */ React.createElement(Field, { label: ACT.who.stage, className: "act-who__stage" }, (p) => /* @__PURE__ */ React.createElement(Select5, { ...p, value: action.stage, options: STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] })), onChange: (e) => onStage(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.owner, className: "act-who__owner" }, (p) => /* @__PURE__ */ React.createElement("span", { className: "act-who__ownerctl" }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: owner }), /* @__PURE__ */ React.createElement(
+      Select5,
       {
         ...p,
         value: action.owner || "",
         onChange: (e) => actions.setActionOwner(flag, e.target.value || null),
         options: [{ value: "", label: ACT.who.notSet }, ...PEOPLE.map((x) => ({ value: x.id, label: x.name }))]
       }
-    ))), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.due, className: "act-who__due", help: ACT.who.dueHelp(action.due) }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "date", value: action.due, onChange: (e) => {
+    ))), /* @__PURE__ */ React.createElement(Field, { label: ACT.who.due, className: "act-who__due", help: ACT.who.dueHelp(action.due) }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "date", value: action.due, onChange: (e) => {
       if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) actions.setActionDue(flag, e.target.value);
     } })))), /* @__PURE__ */ React.createElement(Section3, { n: 2, title: ACT.steps.title, note: ACT.steps.done(prog.done, prog.total), id: `${uid}-steps` }, /* @__PURE__ */ React.createElement("ul", { className: "act-steps" }, stepsFor(action.flagType).map((s) => /* @__PURE__ */ React.createElement("li", { key: s.id, className: "act-step" + (action.steps[s.id] ? " is-done" : "") }, /* @__PURE__ */ React.createElement(Check, { checked: !!action.steps[s.id], onChange: () => actions.toggleActionStep(flag, s.id), label: s.text, description: s.hint, "data-step": s.id }))))), /* @__PURE__ */ React.createElement(Section3, { n: 3, title: ACT.contacts.title, note: ACT.contacts.note, id: `${uid}-contacts` }, /* @__PURE__ */ React.createElement("ul", { className: "act-contacts" }, contacts.map((c) => /* @__PURE__ */ React.createElement("li", { key: c.id + c.kind, className: "act-contact", "data-kind": c.kind }, /* @__PURE__ */ React.createElement(PersonAvatar, { person: { initials: c.initials }, size: 32 }), /* @__PURE__ */ React.createElement("div", { className: "act-contact__main" }, /* @__PURE__ */ React.createElement("p", { className: "act-contact__name" }, /* @__PURE__ */ React.createElement("b", null, c.name), " ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", c.internal ? c.role : ACT.contacts.supplierRole(c.role, contract.supplierName))), /* @__PURE__ */ React.createElement("p", { className: "act-contact__why" }, ACT.contacts.why(c.label, c.why))), /* @__PURE__ */ React.createElement("div", { className: "act-contact__src" }, typeof c.source === "string" ? /* @__PURE__ */ React.createElement("span", { className: "act-contact__staff" }, ACT.contacts.staff) : /* @__PURE__ */ React.createElement("details", { className: "act-quote" }, /* @__PURE__ */ React.createElement("summary", null, ACT.contacts.source(c.source.label, c.source.clauseRef, c.source.page)), /* @__PURE__ */ React.createElement("blockquote", { className: "act-quote__text", "aria-label": ACT.contacts.quoteLabel }, c.source.quote))))))), mail && /* @__PURE__ */ React.createElement(Section3, { n: 4, title: ACT.email.title, note: ACT.email.note, id: `${uid}-email` }, /* @__PURE__ */ React.createElement("div", { className: "act-mail" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__to" }, /* @__PURE__ */ React.createElement(Field, { label: ACT.email.to }, (p) => /* @__PURE__ */ React.createElement(
-      Select4,
+      Select5,
       {
         ...p,
         value: recipient.id,
@@ -8385,86 +8941,11 @@ ${email.body}` : "";
         },
         options: contacts.map((c) => ({ value: c.id, label: ACT.email.toOption(c.name, c.email) }))
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "act-mail__text", ref: mailRef }, /* @__PURE__ */ React.createElement("p", { className: "act-mail__subject" }, /* @__PURE__ */ React.createElement("span", { className: "act-mail__label" }, ACT.email.subject), " ", /* @__PURE__ */ React.createElement("span", { "data-mail-subject": true }, mail.subject)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__body", role: "textbox", "aria-readonly": "true", "aria-multiline": "true", "aria-label": ACT.email.body, tabIndex: 0, "data-mail-body": true }, mail.body)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__foot" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__btns" }, /* @__PURE__ */ React.createElement(Button13, { type: "button", leftIcon: "copy", onClick: copy }, ACT.email.copy), /* @__PURE__ */ React.createElement(Button13, { type: "button", variant: "outline", leftIcon: "paper-plane", onClick: markSent }, ACT.email.sent)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__hint" }, ACT.email.hint)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__msg", role: "status", "aria-live": "polite" }, msg))), /* @__PURE__ */ React.createElement(Section3, { n: 5, title: ACT.exit.title, note: ACT.exit.note, id: `${uid}-exit` }, /* @__PURE__ */ React.createElement("dl", { className: "act-exit" }, facts.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "act-exit__fact" }, /* @__PURE__ */ React.createElement("dt", null, f.label), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "act-exit__val" }, f.value), f.src && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: f.src.id, page: f.src.page, from, context: f.label }, ACT.exit.clause(f.src.clauseRef, f.src.page))))))), /* @__PURE__ */ React.createElement(Section3, { n: 6, title: ACT.activity.title, id: `${uid}-activity` }, /* @__PURE__ */ React.createElement("form", { className: "act-note", onSubmit: addNote2 }, /* @__PURE__ */ React.createElement(Field, { label: ACT.activity.noteLabel, hideLabel: true }, (p) => /* @__PURE__ */ React.createElement(Input3, { ...p, type: "text", maxLength: 500, autoComplete: "off", placeholder: ACT.activity.noteLabel, value: noteText, onChange: (e) => setNoteText(e.target.value) })), /* @__PURE__ */ React.createElement(Button13, { type: "submit", variant: "outline" }, ACT.activity.addNote)), activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "act-activity__empty" }, ACT.activity.empty) : /* @__PURE__ */ React.createElement("ol", { className: "act-activity" }, activity.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.kind + l.i, className: "act-activity__item" + (l.kind === "note" ? " is-note" : "") }, /* @__PURE__ */ React.createElement("i", { className: l.kind === "note" ? "fa-regular fa-note-sticky" : "fa-regular fa-circle", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "act-activity__when" }, whenText(l.at)), /* @__PURE__ */ React.createElement("span", { className: "act-activity__text" }, l.kind === "note" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ACT.activity.noteTag, ": "), l.text) : l.text.startsWith("You ") ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "You"), l.text.slice(3)) : l.text))))));
+    ))), /* @__PURE__ */ React.createElement("div", { className: "act-mail__text", ref: mailRef }, /* @__PURE__ */ React.createElement("p", { className: "act-mail__subject" }, /* @__PURE__ */ React.createElement("span", { className: "act-mail__label" }, ACT.email.subject), " ", /* @__PURE__ */ React.createElement("span", { "data-mail-subject": true }, mail.subject)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__body", role: "textbox", "aria-readonly": "true", "aria-multiline": "true", "aria-label": ACT.email.body, tabIndex: 0, "data-mail-body": true }, mail.body)), /* @__PURE__ */ React.createElement("div", { className: "act-mail__foot" }, /* @__PURE__ */ React.createElement("div", { className: "act-mail__btns" }, /* @__PURE__ */ React.createElement(Button15, { type: "button", leftIcon: "copy", onClick: copy }, ACT.email.copy), /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "outline", leftIcon: "paper-plane", onClick: markSent }, ACT.email.sent)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__hint" }, ACT.email.hint)), /* @__PURE__ */ React.createElement("p", { className: "act-mail__msg", role: "status", "aria-live": "polite" }, msg))), /* @__PURE__ */ React.createElement(Section3, { n: 5, title: ACT.exit.title, note: ACT.exit.note, id: `${uid}-exit` }, /* @__PURE__ */ React.createElement("dl", { className: "act-exit" }, facts.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "act-exit__fact" }, /* @__PURE__ */ React.createElement("dt", null, f.label), /* @__PURE__ */ React.createElement("dd", null, /* @__PURE__ */ React.createElement("span", { className: "act-exit__val" }, f.value), f.src && /* @__PURE__ */ React.createElement(ClauseLink, { contractId: contract.id, extractionId: f.src.id, page: f.src.page, from, context: f.label }, ACT.exit.clause(f.src.clauseRef, f.src.page))))))), /* @__PURE__ */ React.createElement(Section3, { n: 6, title: ACT.activity.title, id: `${uid}-activity` }, /* @__PURE__ */ React.createElement("form", { className: "act-note", onSubmit: addNote2 }, /* @__PURE__ */ React.createElement(Field, { label: ACT.activity.noteLabel, hideLabel: true }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", maxLength: 500, autoComplete: "off", placeholder: ACT.activity.noteLabel, value: noteText, onChange: (e) => setNoteText(e.target.value) })), /* @__PURE__ */ React.createElement(Button15, { type: "submit", variant: "outline" }, ACT.activity.addNote)), activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "act-activity__empty" }, ACT.activity.empty) : /* @__PURE__ */ React.createElement("ol", { className: "act-activity" }, activity.map((l) => /* @__PURE__ */ React.createElement("li", { key: l.kind + l.i, className: "act-activity__item" + (l.kind === "note" ? " is-note" : "") }, /* @__PURE__ */ React.createElement("i", { className: l.kind === "note" ? "fa-regular fa-note-sticky" : "fa-regular fa-circle", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "act-activity__when" }, whenText(l.at)), /* @__PURE__ */ React.createElement("span", { className: "act-activity__text" }, l.kind === "note" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "sr-only" }, ACT.activity.noteTag, ": "), l.text) : l.text.startsWith("You ") ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, "You"), l.text.slice(3)) : l.text))))));
   }
-
-  // src/components/CloseActionDialog.jsx
-  init_react_shim();
-  var import_react48 = __toESM(require_react(), 1);
-  var { Button: Button14, Input: Input4 } = ds_default;
-  var T = ACT.dialog;
-  function CloseActionDialog({ open, flag, contract, action, initialOutcome = "resolved", onCancel, onConfirm }) {
-    const uid = (0, import_react48.useId)();
-    const [outcome, setOutcome] = (0, import_react48.useState)(initialOutcome);
-    const [cash, setCash] = (0, import_react48.useState)("");
-    const [cost, setCost] = (0, import_react48.useState)("");
-    const [note, setNote] = (0, import_react48.useState)("");
-    const [errors, setErrors] = (0, import_react48.useState)({});
-    (0, import_react48.useEffect)(() => {
-      if (!open) return;
-      setOutcome(OUTCOMES.includes(initialOutcome) ? initialOutcome : "resolved");
-      setCash("");
-      setCost("");
-      setNote("");
-      setErrors({});
-    }, [open, initialOutcome]);
-    if (!open || !flag || !contract) return null;
-    const flagged = action ? action.flaggedGBP : flag.indicativeGBP;
-    const submit = (e) => {
-      if (e) e.preventDefault();
-      const err2 = {};
-      let c = null;
-      let a = null;
-      if (outcome === "resolved") {
-        c = parseWholePounds(cash);
-        a = parseWholePounds(cost);
-        if (Number.isNaN(c)) err2.cash = T.wholePounds;
-        if (Number.isNaN(a)) err2.cost = T.wholePounds;
-        if (!err2.cash && !err2.cost && !((c || 0) > 0 || (a || 0) > 0)) err2.money = T.moneyError;
-      }
-      if (!note.trim()) err2.note = T.whatError;
-      setErrors(err2);
-      if (Object.keys(err2).length) {
-        const first = err2.cash || err2.money ? `${uid}-cash` : err2.cost ? `${uid}-cost` : `${uid}-note`;
-        setTimeout(() => {
-          const el = document.getElementById(first);
-          if (el) el.focus();
-        }, 0);
-        return;
-      }
-      onConfirm({ outcome, cashRecoveredGBP: outcome === "resolved" && c > 0 ? c : null, costAvoidedGBP: outcome === "resolved" && a > 0 ? a : null, closeNote: note.trim() });
-    };
-    return /* @__PURE__ */ React.createElement(
-      Dialog,
-      {
-        open: true,
-        onClose: () => onCancel && onCancel(),
-        title: T.title,
-        description: T.subtitle(contract.title, flagTypeLabel(flag), flagged),
-        className: "act-close",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button14, { type: "button", variant: "outline", onClick: () => onCancel && onCancel() }, T.cancel), /* @__PURE__ */ React.createElement(Button14, { type: "submit", form: `${uid}-form` }, T.confirm))
-      },
-      /* @__PURE__ */ React.createElement("form", { id: `${uid}-form`, className: "act-close__form", onSubmit: submit, noValidate: true }, /* @__PURE__ */ React.createElement("fieldset", { className: "kx-radiogroup is-inline act-close__outcomes" }, /* @__PURE__ */ React.createElement("legend", { className: "kx-radiogroup__legend" }, T.outcome), /* @__PURE__ */ React.createElement("div", { className: "kx-radiogroup__opts" }, OUTCOMES.map((o) => /* @__PURE__ */ React.createElement(
-        RadioField,
-        {
-          key: o,
-          name: `${uid}-outcome`,
-          value: o,
-          checked: outcome === o,
-          label: OUTCOME_LABEL[o],
-          onChange: (v) => {
-            setOutcome(v);
-            setErrors({});
-          },
-          ...outcome === o ? { "data-autofocus": "" } : {}
-        }
-      )))), outcome === "resolved" && /* @__PURE__ */ React.createElement("div", { className: "act-close__money" }, /* @__PURE__ */ React.createElement(Field, { label: T.cash, help: T.cashHelp, error: err(errors.cash || errors.money), id: `${uid}-cash` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cash, onChange: (e) => setCash(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: T.cost, help: T.costHelp, error: err(errors.cost), id: `${uid}-cost` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", inputMode: "numeric", autoComplete: "off", leftIcon: "sterling-sign", value: cost, onChange: (e) => setCost(e.target.value) }))), /* @__PURE__ */ React.createElement(Field, { label: T.what, error: err(errors.note), id: `${uid}-note` }, (p) => /* @__PURE__ */ React.createElement(Input4, { ...p, type: "text", maxLength: CLOSE_NOTE_MAX, autoComplete: "off", value: note, onChange: (e) => setNote(e.target.value) })), /* @__PURE__ */ React.createElement("p", { className: "act-close__hint" }, T.hint))
-    );
-  }
-  var err = (x) => x || void 0;
 
   // src/components/FlagDrawer.jsx
-  var { Select: Select5 } = ds_default;
+  var { Select: Select6 } = ds_default;
   var TEXT6 = {
     why: "Why this is flagged",
     how: "How this is calculated",
@@ -8497,15 +8978,15 @@ ${email.body}` : "";
     const route = useRoute();
     const { estate, state, storage } = useEstate();
     const cmd = useActionCommands();
-    const [closing, setClosing] = (0, import_react49.useState)(null);
+    const [closing, setClosing] = (0, import_react50.useState)(null);
     const id = route.query.get("flag");
     const tab = route.query.get("tab") === "action" ? "action" : "details";
     const flag = id ? estate.flagsById[id] || null : null;
     const contract = flag ? estate.contractsById[flag.contractId] : null;
     const derived = flag ? estate.derived[flag.contractId] : null;
     const open = !!(flag && contract && derived);
-    const wasOpen = (0, import_react49.useRef)(false);
-    (0, import_react49.useEffect)(() => {
+    const wasOpen = (0, import_react50.useRef)(false);
+    (0, import_react50.useEffect)(() => {
       if (open) {
         wasOpen.current = true;
         return void 0;
@@ -8520,7 +9001,7 @@ ${email.body}` : "";
       }, 30);
       return () => clearTimeout(t);
     }, [open]);
-    (0, import_react49.useEffect)(() => {
+    (0, import_react50.useEffect)(() => {
       if (!open) return void 0;
       let frames = 0;
       let raf = 0;
@@ -8537,7 +9018,7 @@ ${email.body}` : "";
       setClosing(null);
       setQuery({ flag: null, tab: null });
     };
-    (0, import_react49.useEffect)(() => {
+    (0, import_react50.useEffect)(() => {
       setClosing(null);
     }, [id]);
     let body = null;
@@ -8585,7 +9066,7 @@ ${email.body}` : "";
           }
         }
       ));
-      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT6.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT6.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select5, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && tab === "details" && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
+      footer = /* @__PURE__ */ React.createElement("div", { className: "flag-foot" }, /* @__PURE__ */ React.createElement(Field, { label: TEXT6.review, className: "flag-foot__review", help: storage && storage.blocked ? `${hint} ${TEXT6.storageBlocked}` : hint }, (p) => /* @__PURE__ */ React.createElement(Select6, { ...p, value: status, options: TRIAGE_OPTIONS, onChange: (e) => onTriage(e.target.value) })), primary && tab === "details" && /* @__PURE__ */ React.createElement(ClauseLink, { className: "flag-cta", contractId: primary.contractId, extractionId: primary.extractionId, page: primary.page, from, context: contract.title }));
     }
     return /* @__PURE__ */ React.createElement(
       Drawer,
@@ -8614,7 +9095,7 @@ ${email.body}` : "";
 
   // src/components/overlays/AboutDialog.jsx
   init_react_shim();
-  var { Button: Button15 } = ds_default;
+  var { Button: Button16 } = ds_default;
   var TEXT7 = {
     moreLabel: "More on this",
     method: "How this is calculated",
@@ -8632,7 +9113,7 @@ ${email.body}` : "";
         title: COPY.about.title,
         size: "wide",
         className: "ovl-about",
-        footer: /* @__PURE__ */ React.createElement(Button15, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
+        footer: /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "primary", onClick: close }, COPY.about.close)
       },
       /* @__PURE__ */ React.createElement("dl", { className: "ovl-about__list" }, COPY.about.sections.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.heading, className: "ovl-about__item" }, /* @__PURE__ */ React.createElement("dt", null, s.heading), /* @__PURE__ */ React.createElement("dd", null, s.body)))),
       /* @__PURE__ */ React.createElement("p", { className: "ovl-about__more" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-about__morelabel" }, TEXT7.moreLabel), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/method", onClick: close }, TEXT7.method), /* @__PURE__ */ React.createElement("a", { className: "ovl-link", href: "#/roadmap", onClick: close }, TEXT7.roadmap))
@@ -8641,8 +9122,8 @@ ${email.body}` : "";
 
   // src/components/overlays/FeedbackDialog.jsx
   init_react_shim();
-  var import_react50 = __toESM(require_react(), 1);
-  var { Button: Button16, Textarea } = ds_default;
+  var import_react51 = __toESM(require_react(), 1);
+  var { Button: Button17, Textarea } = ds_default;
   var TEXT8 = {
     savedTitle: "Saved on this device",
     none: "No comment",
@@ -8682,12 +9163,12 @@ ${email.body}` : "";
   function FeedbackDialog({ open, onClose }) {
     const { state, actions } = useEstate();
     const ui = useUI();
-    const [answer, setAnswer] = (0, import_react50.useState)("");
-    const [comment, setComment] = (0, import_react50.useState)("");
-    const [error, setError] = (0, import_react50.useState)(null);
-    const group = (0, import_react50.useRef)(null);
+    const [answer, setAnswer] = (0, import_react51.useState)("");
+    const [comment, setComment] = (0, import_react51.useState)("");
+    const [error, setError] = (0, import_react51.useState)(null);
+    const group = (0, import_react51.useRef)(null);
     const saved2 = state.feedback;
-    (0, import_react50.useEffect)(() => {
+    (0, import_react51.useEffect)(() => {
       if (open) {
         setAnswer("");
         setComment("");
@@ -8726,7 +9207,7 @@ ${email.body}` : "";
         title: COPY.feedback.title,
         size: "md",
         className: "ovl-feedback",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "outline", onClick: close }, COPY.feedback.cancel), /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "primary", onClick: save }, COPY.feedback.save))
       },
       /* @__PURE__ */ React.createElement("form", { className: "ovl-feedback__form", onSubmit: (e) => e.preventDefault(), noValidate: true }, /* @__PURE__ */ React.createElement(
         "fieldset",
@@ -8753,14 +9234,14 @@ ${email.body}` : "";
             ...i === 0 ? { "data-autofocus": "" } : {}
           }
         )))
-      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
-      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT8.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button16, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT8.answerIcons[e.answer], size: "sm" }, TEXT8.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT8.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT8.none)))))
+      ), /* @__PURE__ */ React.createElement(Field, { label: COPY.feedback.comment, optional: true, help: COPY.feedback.helper }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, maxLength: 2e3, value: comment, onChange: (e) => setComment(e.target.value) })), errorText && /* @__PURE__ */ React.createElement("div", { className: "ovl-alert", id: "ovl-fb-error", role: "alert" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-exclamation", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("div", { className: "ovl-alert__body" }, /* @__PURE__ */ React.createElement("p", null, errorText), error === "storage_blocked" && /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)))),
+      saved2.length > 0 && /* @__PURE__ */ React.createElement("section", { className: "ovl-saved", "aria-labelledby": "ovl-saved-h" }, /* @__PURE__ */ React.createElement("div", { className: "ovl-saved__head" }, /* @__PURE__ */ React.createElement("h3", { id: "ovl-saved-h", className: "ovl-h3" }, TEXT8.savedTitle), showCopy && error !== "storage_blocked" && /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "outline", size: "sm", leftIcon: "copy", onClick: copy }, COPY.feedback.copy)), /* @__PURE__ */ React.createElement("ul", { className: "ovl-saved__list" }, saved2.slice().reverse().map((e, i) => /* @__PURE__ */ React.createElement("li", { key: (e.at || "") + i, className: "ovl-saved__item" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__meta" }, /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", icon: TEXT8.answerIcons[e.answer], size: "sm" }, TEXT8.answers[e.answer]), /* @__PURE__ */ React.createElement("time", { dateTime: e.at || void 0 }, TEXT8.at(e.at))), /* @__PURE__ */ React.createElement("span", { className: "ovl-saved__comment" + (e.comment ? "" : " ovl-saved__comment--none") }, e.comment || TEXT8.none)))))
     );
   }
 
   // src/components/overlays/SettingsDrawer.jsx
   init_react_shim();
-  var { Button: Button17 } = ds_default;
+  var { Button: Button18 } = ds_default;
   var TEXT9 = {
     title: "Settings",
     subtitle: "Assumptions, appearance and the demo reset",
@@ -8818,17 +9299,17 @@ ${email.body}` : "";
         subtitle: TEXT9.subtitle,
         size: "md",
         className: "ovl-settings",
-        footer: /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "primary", onClick: close }, TEXT9.close)
+        footer: /* @__PURE__ */ React.createElement(Button18, { type: "button", variant: "primary", onClick: close }, TEXT9.close)
       },
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-assump" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-assump" }, TEXT9.assumptions), /* @__PURE__ */ React.createElement("p", { className: "ovl-banner", role: "note" }, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-circle-info", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", null, COPY.settings.assumptionsBanner)), [["renewalRate", COPY.settings.renewalRate], ["nearCapThreshold", COPY.settings.nearCap]].map(([key, label]) => /* @__PURE__ */ React.createElement("div", { className: "ovl-group", key }, /* @__PURE__ */ React.createElement("div", { className: "ovl-group__head" }, /* @__PURE__ */ React.createElement("p", { className: "ovl-label", "aria-hidden": "true" }, label), isDefault(key) ? /* @__PURE__ */ React.createElement(Pill, { tone: "neutral", size: "sm" }, TEXT9.isDefault) : /* @__PURE__ */ React.createElement(Pill, { tone: "info", size: "sm", icon: "pen" }, TEXT9.isChanged)), /* @__PURE__ */ React.createElement(Segmented, { label, size: "lg", value: String(estate.opts[key]), onChange: choose(key), options: options(key) }), /* @__PURE__ */ React.createElement("p", { className: "ovl-help" }, helpFor(key, estate.opts[key])))), /* @__PURE__ */ React.createElement("p", { className: "ovl-now", role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-now__label" }, TEXT9.headlineNow), /* @__PURE__ */ React.createElement("span", { className: "ovl-now__value" }, headlineSentence(estate.totals)))),
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-look" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-look" }, TEXT9.appearance), /* @__PURE__ */ React.createElement(SwitchField, { checked: theme === "dark", onChange: (on) => setTheme2(on ? "dark" : "light"), label: TEXT9.darkMode, description: TEXT9.darkHelp })),
-      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT9.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT9.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT9.changed(counts) : TEXT9.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button17, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
+      /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-set-reset" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-set-reset" }, TEXT9.reset), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, TEXT9.resetHelp), /* @__PURE__ */ React.createElement("p", { className: "ovl-help ovl-changed" }, counts.length ? TEXT9.changed(counts) : TEXT9.nothing), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Button18, { type: "button", variant: "outline", leftIcon: "rotate-left", onClick: resetAll }, COPY.settings.reset)))
     );
   }
 
   // src/components/overlays/DemoGuideDrawer.jsx
   init_react_shim();
-  var { Button: Button18 } = ds_default;
+  var { Button: Button19 } = ds_default;
   var TEXT10 = {
     title: "Demo guide",
     subtitle: "Four steps, about five minutes, in dark mode",
@@ -8857,7 +9338,7 @@ ${email.body}` : "";
         subtitle: TEXT10.subtitle,
         size: "md",
         className: "ovl-guide",
-        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: "#/guide", onClick: close, style: { marginRight: "auto", alignSelf: "center" } }, "Open the full guide", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement(Button18, { type: "button", variant: "outline", onClick: close }, TEXT10.close))
+        footer: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: "#/guide", onClick: close, style: { marginRight: "auto", alignSelf: "center" } }, "Open the full guide", /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })), /* @__PURE__ */ React.createElement(Button19, { type: "button", variant: "outline", onClick: close }, TEXT10.close))
       },
       /* @__PURE__ */ React.createElement("section", { "aria-labelledby": "ovl-dg-steps" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3 ovl-sr", id: "ovl-dg-steps" }, TEXT10.steps), /* @__PURE__ */ React.createElement("ol", { className: "ovl-steps" }, steps.map((s) => /* @__PURE__ */ React.createElement("li", { key: s.n, className: "ovl-step" }, /* @__PURE__ */ React.createElement("span", { className: "ovl-step__n", "aria-hidden": "true" }, s.n), /* @__PURE__ */ React.createElement("div", { className: "ovl-step__body" }, /* @__PURE__ */ React.createElement("h4", { className: "ovl-h4" }, s.title), /* @__PURE__ */ React.createElement("p", { className: "ovl-text" }, s.text), s.link.href ? /* @__PURE__ */ React.createElement("a", { className: "ovl-link ovl-link--go", href: s.link.href, onClick: close }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" })) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "ovl-link ovl-link--go", onClick: (e) => ui.openFeedback(e.currentTarget) }, s.link.label, /* @__PURE__ */ React.createElement("i", { className: "fa-solid fa-arrow-right", "aria-hidden": "true" }))))))),
       /* @__PURE__ */ React.createElement("section", { className: "ovl-section", "aria-labelledby": "ovl-dg-extras" }, /* @__PURE__ */ React.createElement("h3", { className: "ovl-h3", id: "ovl-dg-extras" }, TEXT10.extras), /* @__PURE__ */ React.createElement("ul", { className: "ovl-bullets" }, demoExtras.map((t) => /* @__PURE__ */ React.createElement("li", { key: t }, t)))),
@@ -8867,7 +9348,7 @@ ${email.body}` : "";
 
   // src/components/overlays/MenuPopover.jsx
   init_react_shim();
-  var import_react51 = __toESM(require_react(), 1);
+  var import_react52 = __toESM(require_react(), 1);
   var ITEM = '[role="menuitem"]';
   function placementFor(anchor) {
     try {
@@ -8880,8 +9361,8 @@ ${email.body}` : "";
   function MenuPopover({ open, anchor, onClose }) {
     const ui = useUI();
     const { reset } = useResetDemo();
-    const list = (0, import_react51.useRef)(null);
-    const [ready, setReady] = (0, import_react51.useState)(false);
+    const list = (0, import_react52.useRef)(null);
+    const [ready, setReady] = (0, import_react52.useState)(false);
     const items = [
       { id: "why", label: "Why this matters", icon: "scale-balanced", href: "#/evidence" },
       { id: "how", label: "How this is calculated", icon: "calculator", href: "#/method" },
@@ -8895,7 +9376,7 @@ ${email.body}` : "";
       { id: "reset", label: "Reset demo data", icon: "rotate-left", onSelect: () => reset() }
       // also the way to reset on phones, where the header button is hidden
     ];
-    (0, import_react51.useEffect)(() => {
+    (0, import_react52.useEffect)(() => {
       if (!open) {
         setReady(false);
         return void 0;
@@ -8903,7 +9384,7 @@ ${email.body}` : "";
       const raf = requestAnimationFrame(() => setReady(true));
       return () => cancelAnimationFrame(raf);
     }, [open]);
-    (0, import_react51.useEffect)(() => {
+    (0, import_react52.useEffect)(() => {
       if (!open || !ready || !list.current) return;
       const first = list.current.querySelector(ITEM);
       if (first) first.focus({ preventScroll: true });

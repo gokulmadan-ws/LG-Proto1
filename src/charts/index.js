@@ -14,6 +14,7 @@ export { RadarLanes, RADAR_LEGEND } from './RadarLanes.jsx';
 export { RadarStrip } from './RadarStrip.jsx';
 export { BulletList, CapStatePill, capSummary, capTable, BULLET_LEGEND } from './BulletList.jsx';
 export { YearBars } from './YearBars.jsx';
+export { MonthBars } from './MonthBars.jsx';
 export { CumulativeLine, cumulativeTable, LINE_LEGEND } from './CumulativeLine.jsx';
 export { Dumbbell, DUMBBELL_LEGEND } from './Dumbbell.jsx';
 export { BarList, OpportunityList, FlagFilterChips, CoverageBlock, FlagChip, FlagBadge, ConfidenceDots, ConfidenceBadge, ReviewBadge } from './BarList.jsx';

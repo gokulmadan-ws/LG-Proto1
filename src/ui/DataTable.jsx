@@ -47,9 +47,10 @@ function useScrollable(ref, deps) {
  * @param {{ key?: string, label?: React.ReactNode, values: Record<string, React.ReactNode> }[]} [props.footer]
  *   footer rows (subtotals). `label` spans the columns before the first column named in `values`; `values` maps column key to cell content.
  * @param {React.ReactNode} [props.empty] shown in a full-width row when there are no rows
+ * @param {(row: object) => string} [props.rowClassName] extra class for a row (the latest closure on the action tracker's Results)
  * @param {string} [props.className]
  */
-export function DataTable({ columns, rows, rowKey = 'id', caption, dense, sort, onSort, onRowClick, selectedKey, rowAriaLabel, maxHeight, footer, empty, className = '' }) {
+export function DataTable({ columns, rows, rowKey = 'id', caption, dense, sort, onSort, onRowClick, selectedKey, rowAriaLabel, maxHeight, footer, empty, rowClassName, className = '' }) {
   const wrap = useRef(null);
   const scrolls = useScrollable(wrap, [rows.length, columns.length, maxHeight, dense]);
   const keyOf = typeof rowKey === 'function' ? rowKey : (r) => r[rowKey];
@@ -82,7 +83,7 @@ export function DataTable({ columns, rows, rowKey = 'id', caption, dense, sort, 
           {rows.map((r, i) => {
             const k = keyOf(r);
             return (
-              <tr key={k} className={onRowClick ? 'is-clickable' : undefined} tabIndex={onRowClick ? 0 : undefined}
+              <tr key={k} className={[onRowClick ? 'is-clickable' : '', rowClassName ? rowClassName(r) : ''].filter(Boolean).join(' ') || undefined} tabIndex={onRowClick ? 0 : undefined}
                 aria-selected={selectedKey != null && selectedKey === k ? true : undefined}
                 aria-label={onRowClick && rowAriaLabel ? rowAriaLabel(r) : undefined}
                 onClick={onRowClick ? (e) => {

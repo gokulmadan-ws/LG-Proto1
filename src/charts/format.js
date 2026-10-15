@@ -93,3 +93,9 @@ export const pts = (r, dp = 1) => (r < 0 ? MINUS : '+') + Math.abs(r * 100).toFi
 export const plural = (n, one, many = one + 's') => `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 /** Axis tick for a ratio: 0.025 -> '2.5%', 0.04 -> '4%', -0.5 -> '-50%' */
 export const pctTick = (r) => (r < 0 ? MINUS : '') + +(Math.abs(r) * 100).toFixed(1) + '%';
+
+/** Bar value labels in thousands, one decimal only when needed: 43600 -> '£43.6k', 84000 -> '£84k', 150000 -> '£150k'. */
+export function gbpK(n) {
+  const k = Math.round(Math.abs(n) / 100) / 10;
+  return (n < 0 ? MINUS : '') + '£' + (Number.isInteger(k) ? k : k.toFixed(1)) + 'k';
+}

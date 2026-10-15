@@ -42,6 +42,8 @@ const ROUTES = [
   { hash: '#/overview', title: 'Overview', rail: 'Overview' },
   { hash: '#/opportunities', title: 'Opportunities', rail: 'Opportunities' },
   { hash: '#/opportunities?type=overCap', title: 'Opportunities', rail: 'Opportunities' },
+  { hash: '#/actions', title: 'Actions', rail: 'Actions' },                     // action tracker build spec 8.4
+  { hash: '#/actions/results', title: null, rail: 'Actions' },
   { hash: '#/renewals', title: 'Renewal radar', rail: 'Renewal radar' },
   { hash: '#/spend', title: 'Cap vs spend', rail: 'Cap vs spend' },
   { hash: '#/spend/matches', title: null, rail: 'Cap vs spend' },
@@ -246,7 +248,7 @@ try {
         railW: Math.round(document.querySelector('.shell__rail').getBoundingClientRect().width),
       }));
       eq(l.header, 1, 'header count'); eq(l.navs, ['Workspace', 'Primary'], 'navs'); eq(l.mains, 1, 'main count'); eq(l.mainId, 'shell-main', 'main id');
-      assert(l.h1InMain, 'h1 not inside main'); eq(l.railItems, 6, 'rail items'); eq(l.headerH, 72, 'header height'); eq(l.railW, 65, 'rail width (64 + 1px border)');
+      assert(l.h1InMain, 'h1 not inside main'); eq(l.railItems, 7, 'rail items (Actions added by the action tracker build spec)'); eq(l.headerH, 72, 'header height'); eq(l.railW, 65, 'rail width (64 + 1px border)');
     });
     await check('sample banner sits above main, inside the canvas, visible without scrolling on every route', async () => {
       for (const r of ROUTES) {
@@ -536,7 +538,7 @@ try {
       await t.page.waitForSelector('.error-panel__details');
       const r = await t.page.evaluate(() => ({ h1: [...document.querySelectorAll('main h1')].map((h) => h.textContent), buttons: [...document.querySelectorAll('.page-header__actions button')].map((b) => b.textContent.trim()).slice(-2), railStill: document.querySelectorAll('nav[aria-label="Primary"] li').length }));
       assert(r.h1.includes("This screen couldn't load."), `h1 ${JSON.stringify(r.h1)}`);
-      eq(r.buttons, ['Reload page', 'Go to overview'], 'actions'); eq(r.railStill, 6, 'rail still rendered');
+      eq(r.buttons, ['Reload page', 'Go to overview'], 'actions'); eq(r.railStill, 7, 'rail still rendered');
       assert((await axe(t.page)).length === 0, 'axe with the error panel');
     });
     await check('overlays mounted by AppFrame: About opens from the banner and closes with Esc', async () => {
@@ -603,7 +605,7 @@ try {
         assert(bad.length === 0, bad.join('\n'));
       });
       if (name === '390x844') {
-        await check('390x844: bottom tab bar with six captions, theme toggle and Menu reachable, no 1px overflow in header', async () => {
+        await check('390x844: bottom tab bar with seven captions, none cut off, theme toggle and Menu reachable, no 1px overflow in header', async () => {
           const s = await t.page.evaluate(() => {
             const bar = document.querySelector('.shell__rail').getBoundingClientRect();
             const toggle = document.querySelector('.shell__theme-toggle').getBoundingClientRect();
@@ -611,11 +613,18 @@ try {
             return {
               barAtBottom: Math.round(bar.bottom) === innerHeight, wide: Math.round(bar.width) === innerWidth,
               captions: [...document.querySelectorAll('.shell__rail-caption')].map((e) => e.textContent),
+              cut: [...document.querySelectorAll('.shell__rail-caption')].filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent),
               toggleVisible: toggle.right <= innerWidth && toggle.width > 0, menuVisible: !!menu && menu.getBoundingClientRect().right <= innerWidth,
               header: document.querySelector('.shell__header').scrollWidth - document.querySelector('.shell__header').clientWidth,
             };
           });
-          eq(s.captions, ['Overview', 'Flags', 'Renewals', 'Spend', 'Contracts', 'Roadmap'], 'captions');
+          eq(s.captions, ['Overview', 'Flags', 'Actions', 'Renewals', 'Spend', 'Contracts', 'Roadmap'], 'captions');
+          eq(s.cut, [], 'captions cut off');
+          // the build spec also asks for 375px: every caption still fits
+          await t.page.setViewportSize({ width: 375, height: 812 });
+          await t.page.waitForTimeout(100);
+          eq(await t.page.evaluate(() => [...document.querySelectorAll('.shell__rail-caption')].filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent)), [], 'captions cut off at 375px');
+          await t.page.setViewportSize(VIEWPORTS.phone);
           assert(s.barAtBottom && s.wide && s.toggleVisible && s.menuVisible && s.header <= 0, JSON.stringify(s));
         });
       }

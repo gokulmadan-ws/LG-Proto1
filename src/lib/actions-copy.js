@@ -107,7 +107,6 @@ export const ACT = {
   page: {
     title: 'Actions',
     description: `Opportunities your team is working on. As at ${fmtDateLong(AS_OF)}.`,
-    resultsDescription: 'What your team has closed, and what it brought back. Your figures.',
     tabsLabel: 'Actions views', board: 'Board', results: 'Results',
   },
   board: {

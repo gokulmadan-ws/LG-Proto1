@@ -5,7 +5,7 @@
 //     rail       rail item id to highlight: a string, null (highlight nothing) or (route) => string | null
 //     component  rendered by App.jsx with the useRoute() object as `route`, plus the convenience props noted below
 //   resolveRoute(route) -> { title, rail, Component, known } always (unknown address -> NotFound, known = false)
-//   RAIL: the six rail items (blueprint section 1 item 11 / requirements section 2)
+//   RAIL: the seven rail items (blueprint section 1 item 11 / requirements section 2, plus Actions from the action tracker build spec)
 import Overview from './views/Overview.jsx';
 import Opportunities from './views/Opportunities.jsx';
 import Renewals from './views/Renewals.jsx';
@@ -17,6 +17,7 @@ import Method from './views/Method.jsx';
 import Roadmap from './views/Roadmap.jsx';
 import Evidence from './views/Evidence.jsx';
 import Guide from './views/Guide.jsx';
+import Actions from './views/Actions.jsx';
 import { NotFound } from './components/NotFound.jsx';
 import { RAIL, RAIL_IDS } from './shell/rail.js';
 
@@ -40,6 +41,7 @@ function SpendRoute({ route }) {
 export const ROUTES = {
   overview: { title: 'Overview', rail: 'overview', component: Overview, maxSeg: 0 },
   opportunities: { title: 'Opportunities', rail: 'opportunities', component: Opportunities, maxSeg: 0 },
+  actions: { title: 'Actions', rail: 'actions', component: Actions, maxSeg: 1, valid: (r) => r.seg.length === 0 || r.seg[0] === 'results' },
   renewals: { title: 'Renewal radar', rail: 'renewals', component: Renewals, maxSeg: 0 },
   spend: { title: 'Cap vs spend', rail: 'spend', component: SpendRoute, maxSeg: 1, valid: (r) => r.seg.length === 0 || SPEND_TABS.has(r.seg[0]) },
   contracts: { title: 'Contracts', rail: 'contracts', component: ContractsRoute, maxSeg: 1 },
