@@ -1,6 +1,6 @@
 # BUILD CONTRACT: Voltmere Electrical booking platform (prototype)
 
-> Status: FROZEN. Version 1.0, written 2026-10-23 (a Friday) by the lead architect.
+> Status: FROZEN. Version 1.1 (integration-risk critic pass applied; the change log is the last section), written 2026-10-23 (a Friday) by the lead architect.
 > Audience: about 8 coding agents (LLMs) working IN PARALLEL on disjoint files who cannot talk to each other. This file is the single source of truth.
 > Location: `/home/user/LG-Proto1/electrician/docs/BUILD-CONTRACT.md`. Owned by WP0. **No agent may edit this file.**
 
@@ -11,14 +11,16 @@
 3. **Only touch files you own** (ownership table, section 6.2). Never edit another package's file, even to fix a typo. If you find a bug in another package's file, leave a `// CROSS-PKG:` comment in YOUR file describing it and carry on. WP0 reconciles drift after merge.
 4. **Never touch anything outside `/home/user/LG-Proto1/electrician/`.** The repo root holds an unrelated project (Kontor, council finance, Springboard design system). Do not read its CSS, do not reuse its components, do not restyle it. The Springboard / Kontor design system is NOT used here.
 5. **No build step, no bundler, no npm runtime dependencies.** Plain HTML + CSS + ES modules in the browser. Preact + htm is vendored at `js/vendor/preact-htm.js` (never modify it).
-6. **All URLs are relative.** The site is served from the sub-path `/LG-Proto1/electrician/` on GitHub Pages and from a domain root on Vercel. Never write a root-absolute URL (`/css/...`). Never hard-code a host name.
+6. **All URLs are relative.** The site is served from the sub-path `/LG-Proto1/electrician/` on GitHub Pages and from a domain root on Vercel. Never write a root-absolute URL (`/css/...`). Never hard-code a host name. In CSS, `url()` is relative to the CSS FILE (`url('../img/hero-wiring.svg')` from `css/`), in HTML to the page, and in JS `import` / `import()` to the importing module.
 7. **No runtime network dependencies.** No CDN, no web fonts from Google, no remote images, no analytics, no `fetch()` of anything off the site. Allowed external LINKS (anchors the user taps, never fetched) are only: `tel:`, `sms:`, `mailto:`, `https://wa.me/<digits>?text=...`, `https://www.google.com/maps/search/?api=1&query=...`.
 8. **No `dangerouslySetInnerHTML`, no `innerHTML`, no `document.write`, no `eval`** anywhere. Icons are rendered from data arrays through `h()` (section 4.8). User-entered text is rendered through htm (which escapes). Always `encodeURIComponent` inside wa.me, maps and mailto links.
 9. **Everything simulated says so.** Anything that WhatsApp/SMS/email/payment/reminders would really do is simulated and labelled "simulated" in the UI (section 3.7).
-10. **Never use `new Date()` with no args, `Date.now()`, or `performance.timeOrigin` outside `js/core/clock.js`.** Use `now()` from the clock module. Never step days with `+ 86400000`; use `addDays()` (the UK clocks go back on Sunday 25 October 2026, two days after this contract was written). Section 7.5.
+10. **Never use `new Date()` with no args, `Date.now()`, or `performance.timeOrigin` outside `js/core/clock.js`.** Use `now()` from the clock module. Never step days with `+ 86400000`; use `addDays()` (the UK clocks go back on Sunday 25 October 2026, two days after this contract was written). Section 7.6.
 11. Every example date in this file ("Sat 24 Oct", "Mon 26 Oct", "VM-1043") is an EXAMPLE for a clock of Fri 23 Oct 2026. Never paste a literal date or weekday into UI copy or code. Compute it.
 12. Write small, readable ES modules. 2-space indent, single quotes, semicolons, `const` by default. Comment the WHY, not the what. Every file starts with a 2-line header comment: `// <path>: <one-line purpose>` and `// Owner: WPn`.
 13. Prototype tone: polish beats breadth. If something is in the WON'T list (section 2), do not build it, however tempting.
+14. Read **6.1.1 (Preact + htm gotchas, each one verified in Chromium against the vendored file) before writing a single template.** Two of them (`spellcheck="false"` and calling `render()` twice on one container) silently break the page.
+15. **Every store mutation can fail** (reasons in 8.3). Never assume `ok: true`; use the generic failure rule in 8.3 for any reason your screen does not handle specially.
 
 ### 0.1 Glossary
 
@@ -70,7 +72,7 @@ Tab B = the customer landing page (`index.html`). Tab A = the owner dashboard (`
 | 0:00 | B | Look at the first screen. Point at the pulsing green dot and "Next free repair visits" with its three chips (the first reads "Tomorrow, 8-10am"), at the four tiles with "From" prices, and at the sticky Call / WhatsApp / Book bar. | His business name, real prices, live availability. | "This is your website. Not a contact form: it reads your real diary. Name, prices, phone are yours." |
 | 0:20 | B | Tap the tile "Landlord safety report". | Booking sheet opens on "When suits you?" with EICR property size (House, 2-3 bed preselected) and a "Soonest" card for the half-day job. | "A landlord wants an EICR. It only offers the mornings and afternoons you can really do." |
 | 0:30 | B | Tap "Pick this", then "Continue". Tap the small dashed "Demo: fill sample details". Tap "Confirm booking". | Details step (four fields), then the confirmation: six breaker switches, the third flips ON; "You're booked in, Priya."; ref `VM-1043`; the "what happens next" timeline; a dashed DEMO panel with the exact WhatsApp bubble Dan "received". | "Four fields, no account, no card. Under a minute. That bubble is the ping you pay the agency for." |
-| 1:00 | B to A | Tap "Open Dan's dashboard" in the DEMO panel. | Dashboard tab opens on the booking detail: "Repeat customer, 2nd booking", Call / WhatsApp / Maps, one big action button "On my way". A toast says "New booking: Priya", the Bookings tab has a dot. | "It lands as a job card, not a message you scroll past. Priya has booked before, so it knows." |
+| 1:00 | B to A | Tap "Open Dan's dashboard" in the DEMO panel. | Dashboard tab opens on the booking detail: "Repeat customer, 2nd booking", Call / WhatsApp / Maps, one big action button "On my way". A toast says "New booking: Priya" and the Messages icon in the header shows a badge. | "It lands as a job card, not a message you scroll past. Priya has booked before, so it knows." |
 | 1:15 | A | Tap the header Messages icon. Show the Compare card, then the new owner alert. Scroll to the older emergency alert "No power in kitchen" and tap its button "Accept (45 min)". | A new green customer bubble appears at the top: "I'm on my way ... about 45 minutes away". Tap "Open in WhatsApp" under it: the SE's own WhatsApp opens with the text ready. | "Your ping lets you read. This one lets you act: one tap inside the message and the customer is told. That is the part you type by hand today." |
 | 1:50 | A | Tap the Calendar tab. Select the first open day (the one the website calls "Tomorrow"). Tap its free "8-10am" row, then "Block this time", pick "Dentist", tap Block. | The row turns hatched "Blocked: Dentist". | "Now watch the website." |
 | 2:05 | A to B | Tap the header "View customer site" icon. | The first chip has moved on to the next free window; open the booking sheet and tomorrow's 8-10am window reads "Booked". | "The diary you edit IS the availability customers see. No double-booking, no 'sorry, I forgot'." |
@@ -94,10 +96,10 @@ Priority key: **MUST** = prototype fails without it, build first. **SHOULD** = b
 |---|---|---|
 | M1 | One store persisted to localStorage (try/catch everything, memory fallback), shared by both pages, live across tabs via the `storage` event plus `visibilitychange`/`pageshow`/`focus` re-read | WP1 |
 | M2 | Availability engine: four fixed two-hour windows, half-day jobs, lead time, horizon, days off, blocks, "Full today", cancelled frees slot, race-safe `createBooking` | WP1 |
-| M3 | Seeded diary relative to today (15 bookings, all statuses, 1 emergency, repeat landlord, owed job) and `resetDemo()`, `simulateIncomingBooking()` | WP1 |
+| M3 | Seeded diary relative to today (15 bookings in four of the five statuses (`on_the_way` is reached by using the app), 1 emergency, repeat landlord, owed job) and `resetDemo()`, `simulateIncomingBooking()` | WP1 |
 | M4 | Simulated WhatsApp outbox: every template in section 10, `waLink()` with demo-phone override, scheduled reminders derived from `sendAt` | WP1 + WP8 |
 | M5 | Tokens (light and dark), base CSS, UI kit (section 12), icons, theme toggle with persistence, PrototypeNotice | WP2 |
-| M6 | Dashboard shell: header, tab bar (below 768), rail (768-1099), sidebar (1100+), hash router with lazy view loading, FAB, unseen-booking toast/badge/title | WP2 |
+| M6 | Dashboard shell: sticky header, bottom tab bar (below 1100), sidebar (1100+), hash router with lazy view loading, FAB, unseen-booking toast/badge/title | WP2 |
 | M7 | Landing page: all 12 sections + sticky mobile action bar (section 13.1), live availability, prices from store, rebrand from settings | WP3 |
 | M8 | Booking flow: service pick, When (EICR size, Soonest, 14-day picker, windows), Details (4 fields), confirmation (breaker animation, ticket, timeline, .ics, DEMO panel), emergency path, slot-taken recovery, Manage (live status, cancel) | WP3 |
 | M9 | Today: Needs you (emergency + approval), Next up with state-driven primary button, "Taking bookings today" switch, take days off, timeline, tomorrow, share link | WP4 |
@@ -123,6 +125,7 @@ Priority key: **MUST** = prototype fails without it, build first. **SHOULD** = b
 | S7 | Template preview sheet on Messages (read-only) | WP8 |
 | S8 | Static pre-rendered header/H1/call button inside `#app` of `index.html` for first paint | WP3 |
 | S9 | Compare card on Messages ("A typical ping" vs this alert) | WP8 |
+| S10 | Customers list and detail side by side at 1100px (below 1100 the detail is its own immersive screen, which is MUST) | WP7 |
 
 ### 2.3 WON'T (explicit; do not build, do not stub)
 
@@ -144,6 +147,9 @@ Priority key: **MUST** = prototype fails without it, build first. **SHOULD** = b
 | Recurring jobs, landlord portfolios, EICR renewal reminders, multi-language, blog, SEO pages, cookie banner (no cookies, no tracking) | Roadmap pitch, not prototype. |
 | Time arithmetic by milliseconds, `Intl.DateTimeFormat` for the "Sat 24 Oct" format (hand-written arrays are used) | Determinism across Node and browsers. |
 | Native `<dialog>` for sheets | Top-layer breaks toasts. Sheets are `div role="dialog"`. |
+| Customer self-service reschedule on the Manage page (`manage-change`, `manage-save-time`). The store function `rescheduleBooking(..., 'customer')` and its unit tests stay; there is no UI | WP3 is the critical path and the demo never needs it. The Manage page offers status, cancel, and call/WhatsApp. |
+| Left icon rail at 768 to 1099 (testid `rail`, `--rail-w`) | One navigation layout fewer to build and test. Tablets use the bottom tab bar up to 1099, the sidebar from 1100. |
+| Sticky day headings in the Bookings list | Nested sticky offsets break on short phones. Plain headings. |
 
 ---
 
@@ -201,7 +207,7 @@ export const PROMISES = {
 };
 ```
 
-Copy that mentions a promise MUST interpolate these values.
+Copy that mentions a promise MUST interpolate these values. Exception: `emergencyFrom` and `extraHourRate` only seed the DEFAULT `price` and `priceNote` of the `emergency`, `fault` and `sockets` services in `makeDefaultSettings()`; screens always read the live service price (so a price edited in Settings shows everywhere).
 
 ### 3.4 Seed data concept (about 15 bookings)
 
@@ -261,9 +267,11 @@ Plus **blocks**: all four windows of `O4` labelled `Van MOT` (`seed: true`, one 
 
 Consequences: `nextFreeSlot(state,'fault')` = Sat 24 Oct window 0 ("Tomorrow, 8-10am"); `nextFreeSlot(state,'eicr')` = Mon 26 Oct morning (Sat morning needs windows 0+1 and window 1 is booked).
 
-**Messages seeded** for every seeded booking that is not in the past (`start` date >= today) and not cancelled: the owner alert at `createdAt`; the customer confirmation one minute later when status is confirmed; the scheduled reminder when `remindersOn`. Today's `done` jobs also get a `customer_completed` message. Seeded messages carry `seed: true`.
+**Messages seeded** for every seeded booking that is not in the past (`start` date >= today) and not cancelled: the owner alert at `createdAt`; the customer confirmation one minute later when status is confirmed; the scheduled reminder when `remindersOn` and the booking is `confirmed` and `reminderSendAt` is not null. Today's `done` jobs also get a `customer_completed` message. Seeded messages carry `seed: true`.
 
-**createdAt for seeded bookings:** past jobs: start date minus 2 days at 09:00; future jobs: `min(now - 5 min, start date minus 3 days at 09:00)`; S07: `now - 12 minutes`; S11: `now - 40 minutes`.
+**Seed message ids and order (so tests and e2e can name them).** Ids are `msg_seed_<NN>_<role>` where `NN` is the booking number `01` to `15` and `role` is `alert` (the owner alert), `conf` (the customer confirmation or received message), `rem` (the scheduled reminder) or `done` (`customer_completed`). The emergency alert is therefore `msg_seed_07_alert`. Seed messages get `seq` numbers in ascending `at` order and are never counted as unread (8.6).
+
+**createdAt for seeded bookings:** bookings whose start day is today or earlier: start day minus 2 days at 09:00; bookings on later days: `min(now - 5 min, start day minus 3 days at 09:00)`; S07: `now - 12 minutes`; S11: `now - 40 minutes`. Every seeded booking has `seenByOwner: true` except S07 and S11; `reviewRequested` is true for S01 to S04 and false for every other booking.
 
 **Fixture totals at clock `?now=2026-10-23T20:30&freeze=1`** (used by tests; everything must match):
 
@@ -280,7 +288,7 @@ Consequences: `nextFreeSlot(state,'fault')` = Sat 24 Oct window 0 ("Tomorrow, 8-
 
 ### 3.5 Sample reviews (labelled as sample, copy exact; WP3 `js/landing/content.js`)
 
-Three stacked cards under the heading "What customers say" and a visible chip `SAMPLE REVIEWS, not real customers`. Summary line: `4.9 out of 5 from 212 reviews (sample)`. Each card carries the tag `Sample review · <town> · Sep 2026` and a job type. No "Verified" wording anywhere.
+Three stacked cards under the heading "What customers say" and a visible chip `SAMPLE REVIEWS, not real customers`. Summary line: `4.9 out of 5 from 212 reviews (sample)`. Each card carries the tag `Sample review · <town>` (no date: rule 11 forbids pasted dates) and a job type. No "Verified" wording anywhere.
 
 1. "Fuse box kept tripping every evening. Dan found a faulty immersion heater in 40 minutes and quoted before he touched anything." (Priya N., Thornley Green, Fault finding)
 2. "Needed an EICR for two flats with a tenant moving in Friday. Booked at 9pm, done Wednesday, certificate in my inbox that afternoon." (Marcus T., landlord, Hollin Cross, EICR safety report)
@@ -305,6 +313,8 @@ Component `PrototypeNotice` (section 12). Variants and exact text:
 | Messages banner (`messages-banner`) | `inline` | `SIMULATED. Nothing is sent from this prototype. These are the messages the live system would send through the WhatsApp Business Platform. Tap "Open in WhatsApp" to try one on your own phone.` |
 | Booking confirmation, inside the ticket card | inline line | `Dan gets a WhatsApp alert (simulated in this prototype).` |
 | Every simulated message entry | label | `Sent (simulated)` or `Scheduled for Fri 18:00 (simulated)` |
+
+**Strip styling and hit area (`strip` variant).** Background `--cta-soft`, text `--text` at `--fs-12`, 1px `--line` bottom border; the `PROTOTYPE` badge is `--panel` with `--panel-text`; content centred on one line with ellipsis. The strip is 28px (`--h-strip`) but its link must still measure at least 44x44 (gate Q2): the link is `display: inline-flex; align-items: center; min-height: 44px; padding-inline: 8px; margin-block: -8px;` so its box overflows the strip by 8px above and below without changing the strip's height. The strip is `position: static` (scrolls away) and sits ABOVE the sticky header in the DOM, so the header paints over the lower 8px of the link overflow; this is accepted.
 
 The notice is never hidden by a rebrand.
 
@@ -353,7 +363,7 @@ Rules: (a) light values on `:root`; (b) the dark block appears TWICE, byte-ident
   --surface: #FFFFFF;       /* cards, sheets, inputs */
   --surface-2: #F3EEE4;     /* sunken areas, "sand" */
   --line: #E3DCCD;          /* hairlines, dividers */
-  --field-border: #7D7766;  /* input and control borders (4.5:1 on white) */
+  --field-border: #7D7766;  /* input and control borders (4.4:1 on white, 4.2:1 on --bg; UI needs 3:1) */
   --scrim: rgba(11, 16, 32, 0.55);
   /* text */
   --text: #14213D;          /* 15:1 on --bg */
@@ -361,6 +371,7 @@ Rules: (a) light values on `:root`; (b) the dark block appears TWICE, byte-ident
   --text-3: #5A647C;        /* 5.6:1 on --bg, 5.1:1 on --surface-2 */
   --link: #1E4FD8;
   --focus: #1E4FD8;         /* 3px ring, 2px offset */
+  --focus-on-panel: #FFD15C; /* the same ring on navy panels (hero, final CTA, footer): 10:1 on --panel; --focus is only 2.4:1 there */
   /* brand: spark amber (primary action) */
   --cta: #FFB400;
   --cta-ink: #14213D;       /* text on --cta, 9:1 */
@@ -417,6 +428,7 @@ Rules: (a) light values on `:root`; (b) the dark block appears TWICE, byte-ident
   --text-3: #8D97B0;
   --link: #8FB0FF;
   --focus: #FFD15C;
+  --focus-on-panel: #FFD15C;
   --cta: #FFC233;
   --cta-ink: #14213D;
   --cta-press: #FFD15C;
@@ -450,7 +462,7 @@ Rules: (a) light values on `:root`; (b) the dark block appears TWICE, byte-ident
   --shadow-bar: 0 -1px 0 var(--line);
 ```
 
-All pairs above were checked against WCAG AA (text 4.5:1, UI 3:1). Do not change a value without re-running the contrast check (QA script `tests/qa/contrast.mjs`, section 15).
+All pairs above were computed by the critic pass (text 4.5:1, UI 3:1, light and dark): every pair passes. The one failure found (`--focus` on `--panel` in light mode, 2.4:1) is fixed by `--focus-on-panel`: every interactive element inside a `--panel` surface (`.lp-hero`, `.lp-final`, `.lp-footer`) uses `outline-color: var(--focus-on-panel)`. Note the focus ring is drawn 2px OUTSIDE the element, so it is measured against the surrounding surface, not against the element's own fill. Do not change a value without re-running the contrast check (QA script `tests/qa/contrast.mjs`, section 15).
 
 **Non-colour tokens (once, in `:root`, same in both themes)**
 
@@ -482,7 +494,7 @@ All pairs above were checked against WCAG AA (text 4.5:1, UI 3:1). Do not change
   --tap: 44px;  --h-input: 52px;  --h-btn: 48px;  --h-btn-lg: 56px;
   --h-strip: 28px;  --h-header: 56px;  --h-tabbar: 64px;  --h-stickybar: 64px;  --h-fab: 56px;
   --container: 1120px;  --gutter: 16px;  /* base.css raises --gutter to 24px at 768 and 32px at 1100 */
-  --rail-w: 88px;  --sidebar-w: 240px;
+  --sidebar-w: 240px;   /* there is no rail token: the rail was cut (2.3) */
   /* safe areas (viewport-fit=cover is set on both pages) */
   --safe-top: env(safe-area-inset-top, 0px);    --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-left: env(safe-area-inset-left, 0px);
@@ -539,19 +551,19 @@ Cards radius `--r-lg`, buttons and inputs `--r-md`, chips and slot buttons `--r-
 |---|---|---|---|
 | Logo mark: amber rounded square with a navy lightning bolt | `img/logo-mark.svg` (hex colours allowed in this file and `favicon.svg` only) | WP2 | Also rendered inline by `BrandMark`. |
 | Favicon | `img/favicon.svg` | WP2 | Same mark. |
-| PNG icons | `img/icon-192.png`, `img/icon-512.png`, `img/apple-touch-icon.png` (180x180) | WP2 | Rendered from `logo-mark.svg` with Playwright by `scripts/gen-png.mjs`. |
+| PNG icons | `img/icon-192.png`, `img/icon-512.png`, `img/apple-touch-icon.png` (180x180) | WP2 | Rendered from `logo-mark.svg` with Playwright by `scripts/gen-png.mjs`. The script loads `playwright-core` itself with `createRequire(process.env.QA_DEPS_DIR + '/')` (it cannot import WP0's `lib.mjs`, which does not exist yet in Phase 1); `scripts/gen-icons.mjs` likewise reads `lucide-static` from a throwaway `npm i --prefix <scratchpad>` directory given as `LUCIDE_DIR`. Neither script touches `electrician/` except to write its output. |
 | Hero wiring grid and pale bolt | `img/hero-wiring.svg` | WP3 | Dotted grid at 6% opacity plus one oversized bolt bleeding off the right edge; used as a CSS background on the hero panel. |
 | Dan avatar | `img/dan-avatar.svg` | WP3 | "DM" monogram on an amber disc. No photo. |
 | Six-breaker consumer unit (confirmation art) | inline component `BreakerArt` in `js/landing/art.js` | WP3 | Third switch flips ON in 450ms (`--dur-flip`, `--ease-spring`). Static final state under reduced motion. |
 | Empty-state line drawings (plug, calendar, tick) | inline in `EmptyState` via `Icon` large | WP2 | Use `plug`, `calendar-days`, `circle-check` at 48px with `--text-3`. |
-| Review avatars, customer avatars | `Avatar` (initials on one of 6 tints chosen by `hashHue(name)`) | WP2 | Tints are derived from `--status-*-bg` tokens, no new colours. |
+| Review avatars, customer avatars | `Avatar` (initials on one of 6 tints chosen by `hashHue(name)`, an integer 0 to 5) | WP2 | No new colours. Tint 0 `--status-new-bg/fg`, 1 `--status-confirmed-bg/fg`, 2 `--status-on-the-way-bg/fg`, 3 `--status-done-bg/fg`, 4 `--surface-2` with `--text-2`, 5 `--cta-soft` with `--cta-text`. The cancelled and urgent pairs are never used for avatars because they carry meaning. |
 | Chat wallpaper | `--chat-bg` flat colour | WP2 | No WhatsApp artwork, no WhatsApp logo. Use `message-circle` plus the word "WhatsApp". |
 
 Decorative SVGs carry `aria-hidden="true"`.
 
 ### 4.9 Icon set (lucide-static, ISC licence)
 
-Source: `lucide-static@1.61.0` (npm). WP2 runs `scripts/gen-icons.mjs` once (using a throwaway `npm i lucide-static` in the scratchpad) to write `js/ui/icons.js`. Stroke 1.75 at 24px (`stroke-linecap/linejoin: round`, `fill: none`, `stroke: currentColor`). The data format is element arrays rendered with `h()`, never strings (rule 8):
+Source: `lucide-static@1.61.0` (npm). WP2 runs `scripts/gen-icons.mjs` once (using a throwaway `npm i lucide-static` in the scratchpad) to write `js/ui/icons.js`. Stroke 1.75 at 24px (`stroke-linecap/linejoin: round`, `fill: none`, `stroke: currentColor`). The data format is element arrays rendered with `h()`, never strings (rule 8). The generator must handle the six element types that occur in the icons below (checked): `path`, `rect`, `circle`, `line`, `polyline`, `polygon`:
 
 ```js
 // js/ui/icons.js
@@ -579,11 +591,11 @@ Icon use map (so every package picks the same glyph): services `fault=wrench`, `
 ### 5.1 Principles (both pages)
 
 1. **Design at 375x812 first.** Then 320x568 must not overflow, then enhance at 480, 768, 1100.
-2. Breakpoints (literal in CSS, `min-width`): `480px`, `768px`, `1100px`. No others. Names: base (<480), `sm` 480, `md` 768, `lg` 1100.
-3. **Zero horizontal page scroll from 320px up.** Every flex/grid child gets `min-width: 0`; user text gets `overflow-wrap: anywhere`; images and SVGs `max-width: 100%`. Inner scroll-snap strips (next-free chips never scroll; the dashboard week strip may) are contained in a wrapper with `overflow-x: auto; overscroll-behavior-x: contain`.
+2. Breakpoints (literal in CSS, `min-width`): `480px`, `768px`, `1100px`. No others, with ONE documented exception: `375px` may be used ONLY by the booking date grid and the landing sticky bar (5.2, 5.4), because seven 44px cells need 332px. Names: base (<480), `sm` 480, `md` 768, `lg` 1100.
+3. **Zero horizontal page scroll from 320px up.** Every flex/grid child gets `min-width: 0`; user text gets `overflow-wrap: anywhere`; images and SVGs `max-width: 100%`. Inner scroll-snap strips (next-free chips never scroll; the dashboard week strip may) are contained in a wrapper with `overflow-x: auto; overscroll-behavior-x: contain`. Never put `overflow-x: hidden` on `html`, `body` or `#app` to hide overflow: it breaks `position: sticky` and masks real bugs (Q1 measures real overflow). The only `overflow` on `html` is `.is-scroll-locked`.
 4. **Touch targets are at least 44x44 CSS px** for every interactive element: buttons, icon buttons, chips, tabs, switches, radio/checkbox rows (the whole row is the target), links in lists and footers, `summary` rows (56px). Exemption: a link inside a sentence of body text with class `ui-link--inline`. Keep at least 8px between adjacent targets; 16px between a primary and a destructive button.
 5. **Thumb zone:** primary actions live in the bottom third: sticky bottom bars, bottom sheets, the FAB, full-width buttons on mobile.
-6. **Safe areas:** `<meta viewport ... viewport-fit=cover>`. Header, sheets, sticky bar, tab bar, toasts and the FAB add `env(safe-area-inset-*)` via the `--safe-*` tokens. Use `100dvh` (with a `100vh` fallback declared first). Never `100vh` alone.
+6. **Safe areas:** `<meta viewport ... viewport-fit=cover>`. Header, sheets, sticky bar, tab bar, toasts and the FAB add `env(safe-area-inset-*)` via the `--safe-*` tokens. Use `100dvh` (with a `100vh` fallback declared first). Never `100vh` alone. Page containers (`lp-container`, `db-page`) use `padding-inline: max(var(--gutter), var(--safe-left))` and `max(var(--gutter), var(--safe-right))` so a landscape notch never clips content.
 7. **Inputs are 16px minimum** (no iOS zoom), 52px tall, labels above and always visible, `font: inherit`.
 8. **Keyboard and autofill attributes** (exact):
 
@@ -598,12 +610,20 @@ Icon use map (so every package picks the same glyph): services `fault=wrench`, `
 | Price (GBP) | `type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done"` |
 | Date (settings) | `type="date"` |
 | Search | `type="search" inputmode="search" enterkeyhint="search" autocomplete="off"` |
+| Max lengths (`maxlength`) | name 60, mobile 20, postcode 8, house number and street 80, note 300, business fields in Settings 80 |
+
+In htm templates a boolean-valued attribute must be written `spellcheck=${false}`, never `spellcheck="false"` (the string makes the property true; 6.1.1 trap 1). The other attributes in this table are safe as plain strings.
+
 
 9. **Sticky bars** (landing action bar, sheet footers, dashboard action bar) add the safe-area bottom inset to their padding and reserve matching `padding-bottom` on the scroll content so nothing is hidden underneath.
-10. **Sheets** (section 12.4): below 768px a bottom sheet (or full-screen `size="full"`), `max-height: calc(100dvh - var(--safe-top) - 16px)`, rounded top `--r-xl`, grab handle (decorative), sticky footer for actions; from 768px a centred dialog 560px wide (480px for `size="auto"`), `max-height: 90dvh`, with a scrim. Focus is trapped, `Esc` closes, the page behind is `inert`, body scroll is locked, focus returns to the opener. No swipe-to-dismiss (WON'T).
+10. **Sheets** (section 12.4): below 768px a bottom sheet (or full-screen `size="full"`), `max-height: calc(100dvh - var(--safe-top) - 16px)`, rounded top `--r-xl`, grab handle (decorative), sticky footer for actions; from 768px a centred dialog 560px wide (480px for `size="auto"`), `max-height: 90dvh`, with a scrim. Focus is trapped, `Esc` closes, the page behind is `inert`, body scroll is locked, focus returns to the opener. No swipe-to-dismiss (WON'T). On-screen keyboard behaviour is item 15.
 11. **Dark mode:** `prefers-color-scheme` honoured by default; the user can force Auto/Light/Dark. Stored in `localStorage['vm_theme']` (`'auto'|'light'|'dark'`; missing = auto). A short inline `<script>` in each page's `<head>` reads it BEFORE first paint and sets `data-theme` on `<html>` (exact script in 16.1). The `ThemeToggle` writes it and updates the two `theme-color` meta tags. `:root[data-theme="light"]` and `[data-theme="dark"]` override the media query.
 12. **Reduced motion** (4.3) and `forced-colors`: keep borders on cards, chips and buttons (`border: 1.5px solid`) so they remain visible.
 13. **Print:** not required.
+14. **Touch behaviour (base.css).** `html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }`; `a, button, [role=button], [role=switch], [role=radio], input, select, textarea, summary { touch-action: manipulation; }` (removes the double-tap zoom delay); `-webkit-tap-highlight-color: transparent` with the visible `:active` state from 4.6 instead; `overscroll-behavior: contain` on every scrolling panel (sheet body, strips).
+15. **On-screen keyboard.** iOS Safari and Chrome do NOT shrink `100dvh` when the keyboard opens, so a bottom-fixed footer ends up behind the keyboard and the submit button is unreachable. `bootApp` starts `trackViewport()` (private to `js/ui/boot.js`): on `visualViewport` `resize` and `scroll` it sets the CSS variable `--kb-inset` on `<html>` to `max(0, innerHeight - visualViewport.height - visualViewport.offsetTop)` in px (0 when `visualViewport` is missing, and 0 while `visualViewport.scale` is not 1, i.e. while the user has pinch-zoomed) and toggles the class `is-keyboard-open` while the inset is above 120px. Consumers: a `Sheet` panel is positioned with `bottom: var(--kb-inset, 0px)` and its `max-height` / full height subtracts `var(--kb-inset, 0px)`, so its sticky footer rides above the keyboard; when a field inside a sheet or page receives focus it is scrolled into view with `scrollIntoView({ block: 'center' })` after 250ms; `html.is-keyboard-open` hides the landing sticky bar, the dashboard tab bar, the FAB and any `db-sticky-actions` that is NOT inside a sheet (they would float over the keyboard). The viewport meta also carries `interactive-widget=resizes-content` (16.1), which makes Chrome on Android resize the layout instead (the computed inset is then 0, so nothing double-counts).
+16. **The dashboard header is sticky** (`top: 0`, `z-index: var(--z-sticky)`) below the non-sticky prototype strip; strip, header and content are SIBLINGS under one page-tall container (a wrapper around strip + header would unstick the header); the tab bar is `position: fixed`; the landing header is sticky (13.1 L2).
+17. **Live regions** (`ToastHost`, `coverage-result`, the booking selection announcer, `demo-sim-result`, `setting-saved`) are rendered from first paint and only their TEXT changes; most screen readers do not announce a region that is inserted together with its message.
 
 ### 5.2 Landing page layout per breakpoint
 
@@ -611,7 +631,7 @@ Icon use map (so every package picks the same glyph): services `fault=wrench`, `
 |---|---|---|---|
 | Container | gutter 16px, full width | gutter 24px | max `--container` 1120px, gutter 32px |
 | Prototype strip | 28px, one line, ellipsis | same | same |
-| Header | sticky, `--h-header` 56px + safe-top; brand left, ONE 44px round call button right; no hamburger | brand left; text links Services, How it works, Reviews, Area, FAQ; phone number as text; amber "Book a visit" button | same, links spaced wider |
+| Header | sticky, `--h-header` 56px + safe-top; brand left, ONE 44px round call button right; no hamburger | brand left; the phone number as a text link and the amber "Book a visit" button. The five anchor links are NOT shown below 1100 (they do not fit beside brand, phone and button at 768) | adds the text links Services, How it works, Reviews, Area, FAQ between brand and phone |
 | Hero | single column: live block, H1, sub, trust line, tile grid 2x2 (tile min-height 88px), quiet links | two columns: copy left, tile card right | same, H1 up to 56px |
 | Trust bar | 2x2 | 4 across | 4 across |
 | Emergency strip | collapsed `<details>`, 56px summary | same | same |
@@ -621,21 +641,21 @@ Icon use map (so every package picks the same glyph): services `fault=wrench`, `
 | Meet Dan + coverage | stacked | 2 columns | 2 columns |
 | FAQ | single column `<details>` | single column, max 720px | same |
 | Final CTA | full-width amber button + two secondary | inline buttons | same |
-| Sticky action bar | fixed bottom 64px + safe-bottom: `Call` (84px), `WhatsApp` (84px), `Book a visit` (flex 1, 56px) | HIDDEN from 768px | hidden |
+| Sticky action bar | fixed bottom 64px + safe-bottom: `Call` (84px), `WhatsApp` (84px), `Book a visit` (flex 1, 56px); below 375px see the paragraph under this table | HIDDEN from 768px | hidden |
 | Booking sheet | full screen (`100dvh`), slides up 280ms | centred 560px dialog with scrim | same |
 | Page bottom padding | `calc(var(--h-stickybar) + var(--safe-bottom) + 16px)` | none | none |
 
-At 320px the sticky bar shows `Call` and `WhatsApp` as icon over 12px label in 72px wide buttons and the `Book a visit` button must still show its full label.
+Below 375px (320 to 374) the sticky bar shows `Call` and `WhatsApp` as icon over 12px label in 64px wide buttons with 12px side padding and 8px gaps, so `Book a visit` keeps at least 136px and shows its full label (this is the one use of the 375px exception in 5.1.2). In-page anchors (`#services`, `#how`, `#reviews`, `#area`, `#faq`) need `scroll-margin-top: calc(var(--h-header) + var(--safe-top) + 8px)` on each anchored section so the sticky header never covers the heading. Landmarks: the sticky header is the `<header>`; the strip is a `<div role="note" aria-label="Prototype notice">` placed just before it as a SIBLING (never wrap strip and header in one element: `position: sticky` only works inside a parent as tall as the page, so a wrapper would unstick the header after 84px of scrolling); L3 to L11 are inside `<main>`, L12 is the `<footer>`; each section is a `<section aria-labelledby>`.
 
 ### 5.3 Dashboard layout per breakpoint
 
 | Element | Base (<768) | `md` 768 to 1099 | `lg` 1100+ |
 |---|---|---|---|
 | Strip + header | strip 28px; header 56px + safe-top: brand mark + short name, right: Messages icon (badge), ThemeToggle, customer-site link | same | same |
-| Navigation | fixed bottom tab bar, 64px + safe-bottom, 5 tabs (icon 24px over 12px label): Today, Calendar, Bookings, Insights, More; active tab = filled `--cta` pill | left rail `--rail-w` 88px: icon over 12px label, same 5 items plus Messages and "New booking" button | left sidebar `--sidebar-w` 240px: brand, 5 items, Messages, Customers, "New booking" button, Demo tools and What's real links at the bottom |
+| Navigation | fixed bottom tab bar, 64px + safe-bottom, 5 tabs (icon 24px over 12px label): Today, Calendar, Bookings, Insights, More; active tab = filled `--cta` pill | the same bottom tab bar (its five items sit in a centred row, max 560px); there is NO rail (cut, section 2.3) | left sidebar `--sidebar-w` 240px: brand, 5 items, Messages, Customers, "New booking" button, Demo tools and What's real links at the bottom |
 | Content | single column, gutter 16px, bottom padding clears tab bar + FAB | centred column max 720px | content max 1080px |
-| FAB "New booking" | 56px amber round button, bottom right above the tab bar, on Today / Calendar / Bookings (list) | hidden (rail has the button) | hidden |
-| Immersive routes (booking detail, new booking, customer detail) | tab bar and FAB hidden; page header with back arrow; sticky bottom action bar | rail stays; detail replaces the list | Bookings and Customers become master-detail: list 420px left, detail right |
+| FAB "New booking" | 56px amber round button, bottom right above the tab bar, on Today / Calendar / Bookings (list) | same, aligned to the right edge of the centred column | hidden (the sidebar has the button) |
+| Immersive routes (booking detail, new booking, customer detail) | tab bar and FAB hidden; page header with back arrow; sticky bottom action bar | same as base (detail replaces the list) | Bookings (S5) and Customers (S10) become master-detail, list 420px left and detail right (both SHOULD; without them the detail simply replaces the list, as below 1100); the sidebar stays |
 | Today | one column | one column, cards two across where noted | two columns: Needs you + Next up left, timeline + tomorrow + share right |
 | Calendar | week strip + selected-day rows | 7-column week grid (rows = windows) | week grid; clicking a booking opens it in the right-hand panel of Bookings via `#/bookings/<id>` |
 | Sheets | bottom sheets | centred dialogs | centred dialogs |
@@ -644,10 +664,11 @@ At 320px the sticky bar shows `Call` and `WhatsApp` as icon over 12px label in 7
 
 - Header brand: wordmark truncates with ellipsis, never wraps; icons keep 44px.
 - Hero tiles stay two columns; tile text may wrap to 2 lines (title 16px, price 14px); tile min-height 88px.
-- The 14-day date picker shows 5 columns below 360px and 7 columns from 360px (cell min 44x56). It is a wrapping grid, not a scroller.
+- The date picker (customer: up to `maxDaysAhead` days; owner mode and the reschedule sheet: 28 days) shows 5 columns below 375px and 7 columns from 375px (cell min 44x56, 4px gaps: seven cells need 332px, a 375px screen gives 343px, a 360px screen would give only 328px). It is a wrapping grid, not a scroller.
 - Window buttons are full width, 56px.
 - Tab bar labels are 12px and may not wrap (`white-space: nowrap`), 5 items fit in 320px (64px each).
 - No fixed pixel widths above 288px anywhere.
+- The dashboard Calendar week strip (13.7) may scroll inside its own wrapper below 360px; the selected day is scrolled into view.
 
 ---
 
@@ -659,15 +680,28 @@ At 320px the sticky bar shows `Call` and `WhatsApp` as icon over 12px label in 7
 |---|---|
 | Language | Plain HTML + CSS + ES modules. No build, no bundler, no TypeScript (JSDoc types only). |
 | UI | Preact + htm, vendored at `js/vendor/preact-htm.js` (never edit). It exports exactly: `h, html, render, Component, createContext, useState, useReducer, useEffect, useLayoutEffect, useRef, useImperativeHandle, useMemo, useCallback, useContext, useDebugValue, useErrorBoundary`. There is NO `preact/compat`, NO `useSyncExternalStore`, NO `useId`. Use `class=` (not `className`). Event props are `onClick`, `onInput`, `onChange`, `onKeyDown`. |
-| Import path to the vendor file | `'../vendor/preact-htm.js'` from `js/ui/`, `js/core/`, `js/landing/`, `js/booking/`, `js/dashboard/`; `'../../vendor/preact-htm.js'` from `js/dashboard/views/` and `js/dashboard/shared/`. Always include the `.js` extension on every import. |
+| Import path to the vendor file | `'../vendor/preact-htm.js'` from `js/ui/`, `js/core/`, `js/landing/`, `js/booking/`, `js/dashboard/`; `'../../vendor/preact-htm.js'` from `js/dashboard/views/` and `js/dashboard/shared/`. Always include the `.js` extension on every import. Same depth rule for the rest: from `js/dashboard/views/` and `js/dashboard/shared/` the UI barrel is `'../../ui/index.js'` and core modules are `'../../core/<name>.js'`; from `js/dashboard/`, `js/landing/` and `js/booking/` they are `'../ui/index.js'` and `'../core/<name>.js'`; from `js/ui/` core is `'../core/<name>.js'`. |
 | State | One client-side store, `js/core/store.js`, persisted to `localStorage`, shared by both pages, live across tabs. Preact binding: `useStore(selector)` in `js/ui/hooks.js`. |
 | Routing | Dashboard: hash routes (`#/today`). Landing: hash drives the booking sheet (`#book/...`) and in-page anchors. No real-path routing, no 404 handling needed. |
 | CSS | Hand-written, tokens in `css/tokens.css`, BEM-ish class names with per-package prefixes (12.1). Each page loads only the CSS it needs (16.1). |
 | Fonts / icons / images | Local files (4.2, 4.8, 4.9). |
-| Tests | Node 22: `node --test` for unit tests (WP1). Playwright (`playwright-core` 1.56.1, Chromium at `/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`, launch args `['--no-sandbox']`, never `playwright install`) for e2e and QA (WP0). `axe-core` is loaded from `/home/user/LG-Proto1/node_modules/axe-core` by QA scripts only. |
+| Tests | Node 22: `node --test` for unit tests (WP1). **Node 22 treats a bare directory argument as a module path and fails (verified), so always pass a QUOTED glob.** Playwright (`playwright-core` 1.56.1, Chromium at `/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`, launch args `['--no-sandbox']`, never `playwright install`) for e2e and QA (WP0). **Neither Playwright nor axe-core is installed in this repo** (there is no `node_modules`; the root `package.json` belongs to the unrelated Kontor project, so never run `npm install` at the repo root and never commit `node_modules`). Each agent that needs them (every package for its own checks, WP0 for the suite) installs them once into ITS OWN scratchpad with `npm i --prefix <scratchpad>/qa-deps playwright-core@1.56.1 axe-core@4.10.2`, and WP0's test scripts get them from `loadDeps()` in `tests/e2e/lib.mjs`, which uses `createRequire(process.env.QA_DEPS_DIR + '/')` (ES modules ignore `NODE_PATH`). Every browser context is created with `{ timezoneId: 'Europe/London', locale: 'en-GB' }` (7.6). |
 | Module type | The nearest `package.json` is the repo root one (`"type": "module"`), so `.js` files under `electrician/` are ES modules in Node too. Do NOT add `electrician/package.json`. |
 | Local dev server | `python3 -m http.server <port> --directory /home/user/LG-Proto1/electrician`. ES modules do not load from `file://`. Ports per package: WP0 4100, WP2 4102, WP3 4103, WP4 4104, WP5 4105, WP6 4106, WP7 4107, WP8 4108 (so parallel agents never collide). |
-| Unit test command (from repo root) | `TZ=Europe/London node --test electrician/tests/unit/` |
+| Unit test command (from repo root) | `TZ=Europe/London node --test "electrician/tests/unit/*.test.mjs"` (quoted glob; a bare directory fails on Node 22, and running `node --test` with no argument would also discover the Kontor tests) |
+
+### 6.1.1 Preact + htm gotchas (every row verified in Chromium against `js/vendor/preact-htm.js`)
+
+| # | Trap | Do this instead |
+|---|---|---|
+| 1 | `spellcheck="false"` written as a string makes `input.spellcheck` TRUE (the string `'false'` is truthy). | Always `spellcheck=${false}`. `inputmode`, `enterkeyhint`, `autocapitalize`, `autocomplete`, `pattern`, `maxlength`, `tabindex` are all safe as plain strings. |
+| 2 | `render()` called twice on the SAME container replaces the first tree. | One container per `render()` call. Each `Sheet` instance and the `ToastHost` get their own container (12.4). |
+| 3 | `render()` into a container that already has children APPENDS and leaves the old children in the DOM. | Empty the container first. `bootApp` empties `#app`; a pre-rendered header (S8) is therefore replaced, not hydrated. |
+| 4 | htm trims whitespace around newlines: `<b>a</b>` + newline + `<i>b</i>` renders with NO space between them. | Keep inline siblings on one line, or write `${' '}` between them. |
+| 5 | Text inputs: `value=${v}` with `onInput`. `<select>`: `value=${v}` with `onChange` (works). | Do not use `onChange` on text inputs. |
+| 6 | `aria-pressed=${false}` renders `"false"` (good). `disabled=${false}` omits the attribute (good). `inert=${true}` sets the attribute. `class`, not `className`; `for`, not `htmlFor`. | |
+| 7 | `style` takes a string or an object; custom properties work in the object form: `style=${{ '--x': '4px' }}`. | |
+| 8 | Sheet content is a SEPARATE Preact root (no portals). Values from `createContext` providers in the page are not visible inside it. | Do not use context for anything a sheet child needs; read the store with `useStore`, which works in any root. |
 
 ### 6.2 File tree and OWNERSHIP TABLE (one owner per file; no file has two owners)
 
@@ -729,7 +763,7 @@ electrician/
 │   │   ├── shared/
 │   │   │   └── job-actions.js  [WP5] JobActionBar, NeedsYouActions, PaidButton, sheets, undo toast
 │   │   ├── views/
-│   │   │   ├── _stub.js  [WP2] StubView placeholder for unbuilt views
+│   │   │   ├── stub.js  [WP2] StubView placeholder for unbuilt views (no leading underscore: some static hosts and Jekyll skip such files)
 │   │   │   ├── about.js  [WP7] What's real view
 │   │   │   ├── booking-detail.js  [WP5] BookingDetail named component
 │   │   │   ├── bookings.js  [WP5] Bookings list, search, filters, master-detail
@@ -745,7 +779,7 @@ electrician/
 │   │   ├── app.js  [WP2] Dashboard boot
 │   │   ├── router.js  [WP2] parseHash, routeHref, navigate, useRoute, isImmersive
 │   │   ├── routes.js  [WP2] ROUTES table
-│   │   ├── shell.js  [WP2] Header, tab bar, rail, sidebar, FAB, view loader
+│   │   ├── shell.js  [WP2] Header, tab bar, sidebar, FAB, view loader
 │   │   └── watcher.js  [WP2] New-booking announcements, title prefix
 │   ├── landing/
 │   │   ├── app.js  [WP3] Landing boot and page composition
@@ -768,7 +802,7 @@ electrician/
 │   │   ├── notice.js  [WP2] PrototypeNotice
 │   │   ├── sheet.js  [WP2] Sheet, ConfirmDialog
 │   │   ├── theme.js  [WP2] ThemeToggle, getTheme, setThemeChoice, applyTheme, initTheme
-│   │   ├── toast.js  [WP2] toast, dismissToast, ToastHost
+│   │   ├── toast.js  [WP2] toast, dismissToast, showUndoToast, ToastHost
 │   │   ├── util.js  [WP2] cx, uid, copyText, pageHref, pageTarget, focusTitle
 │   │   └── whatsapp.js  [WP2] WhatsAppBubble, PhoneMock
 │   └── vendor/
@@ -779,7 +813,7 @@ electrician/
 ├── tests/
 │   ├── e2e/
 │   │   ├── flows.mjs  [WP0] Flows F1 to F20
-│   │   ├── lib.mjs  [WP0] E2E helpers
+│   │   ├── lib.mjs  [WP0] E2E helpers: loadDeps(), launch(), static server (with --prefix), page helpers
 │   │   └── run.mjs  [WP0] E2E runner (static server, browser, flows)
 │   ├── qa/
 │   │   ├── axe.mjs  [WP0] Q3
@@ -816,7 +850,7 @@ electrician/
 |---|---|
 | WP0 Integration and QA [17] | `README.md`, `vercel.json`, `.nojekyll`, `docs/BUILD-CONTRACT.md`, `tests/e2e/run.mjs`, `tests/e2e/lib.mjs`, `tests/e2e/flows.mjs`, `tests/qa/run.mjs`, `tests/qa/overflow.mjs`, `tests/qa/targets.mjs`, `tests/qa/axe.mjs`, `tests/qa/contrast.mjs`, `tests/qa/network.mjs`, `tests/qa/keyboard.mjs`, `tests/qa/basics.mjs`, `tests/qa/grep.mjs`, `tests/qa/screens.mjs` |
 | WP1 Core data layer [19] | `js/core/clock.js`, `js/core/dates.js`, `js/core/config.js`, `js/core/format.js`, `js/core/availability.js`, `js/core/messages.js`, `js/core/ics.js`, `js/core/seed.js`, `js/core/store.js`, `js/core/selectors.js`, `tests/unit/clock.test.mjs`, `tests/unit/dates.test.mjs`, `tests/unit/format.test.mjs`, `tests/unit/availability.test.mjs`, `tests/unit/messages.test.mjs`, `tests/unit/ics.test.mjs`, `tests/unit/seed.test.mjs`, `tests/unit/store.test.mjs`, `tests/unit/selectors.test.mjs` |
-| WP2 UI foundation [38] | `dashboard.html`, `manifest.webmanifest`, `css/fonts.css`, `css/tokens.css`, `css/base.css`, `css/components.css`, `css/dashboard.css`, `fonts/bricolage-grotesque-latin-wght-normal.woff2`, `fonts/figtree-latin-wght-normal.woff2`, `fonts/LICENSE-OFL.txt`, `img/logo-mark.svg`, `img/favicon.svg`, `img/icon-192.png`, `img/icon-512.png`, `img/apple-touch-icon.png`, `scripts/gen-icons.mjs`, `scripts/gen-png.mjs`, `js/vendor/preact-htm.js`, `js/ui/index.js`, `js/ui/icons.js`, `js/ui/util.js`, `js/ui/hooks.js`, `js/ui/display.js`, `js/ui/button.js`, `js/ui/form.js`, `js/ui/sheet.js`, `js/ui/toast.js`, `js/ui/whatsapp.js`, `js/ui/notice.js`, `js/ui/theme.js`, `js/ui/boot.js`, `js/ui/load-css.js`, `js/dashboard/app.js`, `js/dashboard/shell.js`, `js/dashboard/router.js`, `js/dashboard/routes.js`, `js/dashboard/watcher.js`, `js/dashboard/views/_stub.js` |
+| WP2 UI foundation [38] | `dashboard.html`, `manifest.webmanifest`, `css/fonts.css`, `css/tokens.css`, `css/base.css`, `css/components.css`, `css/dashboard.css`, `fonts/bricolage-grotesque-latin-wght-normal.woff2`, `fonts/figtree-latin-wght-normal.woff2`, `fonts/LICENSE-OFL.txt`, `img/logo-mark.svg`, `img/favicon.svg`, `img/icon-192.png`, `img/icon-512.png`, `img/apple-touch-icon.png`, `scripts/gen-icons.mjs`, `scripts/gen-png.mjs`, `js/vendor/preact-htm.js`, `js/ui/index.js`, `js/ui/icons.js`, `js/ui/util.js`, `js/ui/hooks.js`, `js/ui/display.js`, `js/ui/button.js`, `js/ui/form.js`, `js/ui/sheet.js`, `js/ui/toast.js`, `js/ui/whatsapp.js`, `js/ui/notice.js`, `js/ui/theme.js`, `js/ui/boot.js`, `js/ui/load-css.js`, `js/dashboard/app.js`, `js/dashboard/shell.js`, `js/dashboard/router.js`, `js/dashboard/routes.js`, `js/dashboard/watcher.js`, `js/dashboard/views/stub.js` |
 | WP3 Landing and booking flow [23] | `index.html`, `css/landing.css`, `css/booking.css`, `img/hero-wiring.svg`, `img/dan-avatar.svg`, `js/landing/app.js`, `js/landing/content.js`, `js/landing/header.js`, `js/landing/hero.js`, `js/landing/sections.js`, `js/landing/footer.js`, `js/landing/sticky-bar.js`, `js/landing/art.js`, `js/booking/booking-sheet.js`, `js/booking/nav.js`, `js/booking/service-step.js`, `js/booking/when-step.js`, `js/booking/day-picker.js`, `js/booking/details-step.js`, `js/booking/emergency-step.js`, `js/booking/confirmation.js`, `js/booking/manage.js`, `js/booking/draft.js` |
 | WP4 Today [2] | `css/today.css`, `js/dashboard/views/today.js` |
 | WP5 Bookings, detail, job actions [4] | `css/bookings.css`, `js/dashboard/views/bookings.js`, `js/dashboard/views/booking-detail.js`, `js/dashboard/shared/job-actions.js` |
@@ -856,7 +890,9 @@ Folders that do not appear above stay empty or absent. An agent must not create 
 | WP5 `booking-detail.js`, WP6 `calendar.js` | none from other feature packages | | |
 | Everyone | `js/core/*.js` named exports (section 8-10), `js/ui/index.js` barrel (section 12) | | WP1, WP2 |
 
-**Definition of done (every package).** (1) Every export in this contract for your files exists with the exact name and signature. (2) Every `data-testid` for your elements in section 14 exists. (3) Verified in Chromium at 320x568, 375x812, 768x1024, 1100x800 and 1440x900, light and dark: no horizontal overflow, every tap target >= 44px, no console errors, no network requests off-site. (4) You ran axe-core on your screens in light and dark with zero serious/critical violations. (5) No hard-coded dates, no `Date.now()`, no `innerHTML`. (6) Header comment in every file. (7) Your final message lists files written and any `CONTRACT-GAP` / `CROSS-PKG` notes.
+**WP3 build order and triage (WP3 is the longest pole: 23 files).** Build in this order and stop adding polish when time runs out: (1) `nav.js`, `booking-sheet.js`, `service-step.js`, `when-step.js`, `day-picker.js`, `details-step.js`, `confirmation.js`, `draft.js`; (2) `index.html`, `app.js`, `header.js`, `hero.js`, `sticky-bar.js`; (3) the remaining landing sections (`sections.js`, `footer.js`, `content.js`); (4) `emergency-step.js`; (5) `manage.js`; (6) SHOULDs: `BreakerArt` animation (a static final state is acceptable first), `hero-wiring.svg`, static pre-render S8. Items 1 to 3 plus the confirmation already deliver the whole demo script in 1.2.
+
+**Definition of done (every package).** (1) Every export in this contract for your files exists with the exact name and signature. (2) Every `data-testid` for your elements in section 14 exists. (3) Verified in Chromium at 320x568, 375x812, 768x1024, 1100x800 and 1440x900, light and dark: no horizontal overflow, every tap target >= 44px, no console errors, no network requests off-site. (4) You ran axe-core on your screens in light and dark with zero serious/critical violations (Playwright and axe-core are not in the repo: install `playwright-core@1.56.1` and `axe-core@4.10.2` into your own scratchpad with `npm i --prefix <scratchpad>/qa-deps` and set `QA_DEPS_DIR` to it, 6.1). (5) No hard-coded dates, no `Date.now()`, no `innerHTML`. (6) Header comment in every file. (7) Your final message lists files written and any `CONTRACT-GAP` / `CROSS-PKG` notes.
 
 **What each package ships, in detail**
 
@@ -978,7 +1014,7 @@ There is deliberately NO slot-length, buffer or travel-time setting: the slot le
 | `rewire` | Rewire survey | Free survey visit and a written quote within 48 hours. | file-text | free | 0 | Free visit, written quote | none | 1 | About 45 mins | |
 | `emergency` | Emergency visit | Power out or something unsafe? Dan aims to be with you within 2 hours. | siren | from | 95 | Includes the first hour | none | 0 | As soon as possible | |
 
-(Emergency description interpolates `PROMISES.emergencyArrivalHours` and `business.ownerFirstName`.)
+(Emergency description interpolates `PROMISES.emergencyArrivalHours` and `business.ownerFirstName`. It is stored once at creation and is NOT rendered anywhere in the UI (the landing emergency copy is L5, built from live values), so a later rebrand can never leave a stale name on screen. A service with `priceType: 'free'` (`rewire`) has no price input in Settings and `servicePriceLabel` returns `Free`.)
 
 ### 7.4 Booking, Block, Message, derived Customer, State
 
@@ -1039,6 +1075,7 @@ There is deliberately NO slot-length, buffer or travel-time setting: the slot le
  * @property {'whatsapp'} channel
  * @property {TemplateKind} kind
  * @property {string} body                 final text, placeholders already filled, may contain *bold*
+ * @property {number} seq                 monotonic per store: `meta.msgSeq` + 1 at insertion. Stamps only have minute precision (and the clock may be frozen), so `seq` is the tie-break when `at` is equal and the basis of 'unread' (8.6)
  * @property {true} simulated
  * @property {boolean} seed
  *
@@ -1066,7 +1103,7 @@ There is deliberately NO slot-length, buffer or travel-time setting: the slot le
  * @property {Booking[]} bookings
  * @property {Block[]} blocks
  * @property {Message[]} messages
- * @property {{ rev: number, messagesSeenAt: Stamp|null, simCursor: number }} meta
+ * @property {{ rev: number, msgSeq: number, messagesSeenSeq: number, simCursor: number }} meta   msgSeq = highest `seq` handed out; messagesSeenSeq = value of msgSeq when the owner last opened Messages; simCursor = simulator pool position
  */
 ```
 
@@ -1094,7 +1131,9 @@ UI labels: `new` "New request", `confirmed` "Confirmed", `on_the_way` "On the wa
 | `markPaid` | `done` | `done` (`paid: true`) | owner | none | sets `paidMethod`, `paidAt` |
 | `markUnpaid` | `done` | `done` (`paid: false`) | owner | none | used by Undo |
 
-`done` and `cancelled` are terminal for `status`. Any other call returns `{ ok: false, reason: 'bad_transition' }`. `undo(token)` reverses a mutation (8.5).
+`done` and `cancelled` are terminal for `status`. Any other call returns `{ ok: false, reason: 'bad_transition' }`. `undo(token)` reverses a mutation (8.3).
+
+**The change cutoff.** `isWithinChangeCutoff(booking, nowStamp)` is true when the start is less than `PROMISES.freeChangeHours` away, INCLUDING a start that is already in the past (so an urgent request, whose `start` is its request time, is always 'close' and the customer is told to call). A customer-made `cancelBooking` or `rescheduleBooking` returns `{ ok: false, reason: 'not_allowed' }` inside the cutoff, for urgent bookings, and for any status other than `new` / `confirmed`. Owner-made calls ignore the cutoff.
 
 ### 7.6 Time handling (exact)
 
@@ -1105,6 +1144,8 @@ UI labels: `new` "New request", `confirmed` "Confirmed", `on_the_way` "On the wa
 5. **Now:** `now()` from `clock.js` returns a Date. `nowStamp()` returns the Stamp. `todayKey()` the DayKey. Override for tests/screenshots: URL query `?now=YYYY-MM-DDTHH:mm` (optionally `&freeze=1`). Without `freeze` the override keeps ticking from that instant; with `freeze=1` it never moves. When overridden the Demo tools screen shows `Clock override active: <stamp>`.
 6. **Minute arithmetic** uses `minutesBetween(a, b)` on Stamps via local Date objects, so a 90-minute lead time is 90 real minutes even across a clock change.
 7. **Formatting uses hand-written arrays** (`DAY_SHORT`, `MONTH_SHORT`), never `Intl`: `fmtDayShort('2026-10-24')` is `Sat 24 Oct`.
+8. **`diffDays(a, b)`** counts whole days from `Date.UTC(y, m - 1, d)` of each key divided by a private `MS_PER_DAY = 24 * 60 * 60 * 1000` declared in `dates.js` (UTC has no clock changes, so the 25-hour day on 25 October 2026 still counts as 1). This is the only place a milliseconds-per-day constant may exist; the literal `86400000` stays forbidden (Q10).
+9. **Time zone.** Unit tests run under `TZ=Europe/London`; every Playwright context uses `timezoneId: 'Europe/London'` and `locale: 'en-GB'` (14.3). The app uses the browser's local zone; no zone name is ever stored.
 
 ### 7.7 Storage keys and schema version
 
@@ -1116,6 +1157,8 @@ UI labels: `new` "New request", `confirmed` "Confirmed", `on_the_way` "On the wa
 | `vm_boot_fail` | `sessionStorage` | `'1'` after a failed boot; a second failed boot in the same tab calls `resetDemo({ keepSettings: false })`. |
 
 Every storage access is wrapped in `try/catch`. If `localStorage` throws or is missing, the store runs in memory for the page lifetime, `getStorageStatus()` returns `{ ok: false, mode: 'memory' }`, and the Demo tools screen shows `Saving is blocked in this browser mode, so bookings made on the website will not appear on the dashboard.` Cross-page sync then degrades silently.
+
+**Theme has one source of truth.** `vm_theme` is authoritative (the inline head script reads it before first paint). `settings.theme` is only a mirror written by `setTheme` so that the OTHER page notices the change: `initTheme()` subscribes to the store and re-applies `getTheme()` (which reads `vm_theme`) whenever the state changes, so flipping the theme on one page flips the other page live.
 
 **Schema version and migration rule.** `SCHEMA_VERSION = 1`. On load: parse JSON; if parsing fails, or `v` is missing, or `v > SCHEMA_VERSION`, discard and reseed. If `v < SCHEMA_VERSION`, run `MIGRATIONS[v]` functions in order (none exist yet; an empty map). If a migration is missing, discard and reseed (it is demo data). A future `v2` writes to `vm_state_v2` and leaves `vm_state_v1` untouched.
 
@@ -1169,6 +1212,77 @@ Everything in `js/core/` is **pure ES modules with no Preact and no DOM imports*
 | `store.js` | `initStore`, `getState`, `subscribe`, `syncFromStorage`, `getStorageStatus`, `createBooking`, `confirmBooking`, `acceptEmergency`, `declineBooking`, `markOnTheWay`, `completeBooking`, `markPaid`, `markUnpaid`, `cancelBooking`, `rescheduleBooking`, `updateBooking`, `markSeen`, `markAllSeen`, `sendQuickMessage`, `sendPaymentNudge`, `sendReviewRequest`, `sendMessageNow`, `markMessagesSeen`, `addBlock`, `blockRange`, `removeBlock`, `removeBlockGroup`, `addDaysOff`, `removeDayOff`, `setDayFull`, `updateSettings`, `updateService`, `setTheme`, `setDemoPhone`, `resetDemo`, `simulateIncomingBooking`, `undo` (signatures in 8.3) |
 | `selectors.js` | `selectBrand`, `selectServices`, `selectService`, `quotedPriceFor`, `servicePriceLabel`, `selectBookingById`, `selectBookingByRef`, `selectBookingsOn`, `selectNeedsYou`, `selectNextUp`, `selectUpcoming`, `selectOwed`, `selectOwedTotal`, `selectUnseenBookings`, `selectNextOpenDay`, `selectCustomers`, `selectCustomerByKey`, `customerKeyOf`, `selectRepeatInfo`, `selectMessages`, `selectUnreadMessageCount`, `selectInsights`, `isWithinChangeCutoff` (signatures in 8.6) |
 
+### 8.1.1 Exact signatures for the modules that 8.1 lists by name only
+
+Every package codes against these. Types are in 7.1 and 7.4. Defaults that read "now" come from `clock.js`.
+
+**`dates.js`** (pure)
+
+| Export | Signature and result |
+|---|---|
+| `DAY_SHORT`, `DAY_LONG`, `MONTH_SHORT`, `MONTH_LONG` | arrays indexed by JS weekday (0 = Sunday) or month (0 = January): `'Sat'`, `'Saturday'`, `'Oct'`, `'October'` |
+| `dateKey(date)` | `Date` -> the `DayKey` of its LOCAL date |
+| `parseDayKey(key)` | `DayKey` -> `Date` at 12:00 local (7.6) |
+| `addDays(key, n)` | `DayKey` -> `DayKey`; `n` may be negative |
+| `diffDays(a, b)` | whole days from `a` to `b`: `diffDays('2026-10-23', '2026-10-26') === 3`, negative when `b` is earlier (7.6 item 8) |
+| `weekdayOf(key)` | 0 to 6 (JS numbering) |
+| `weekStart(key)` / `weekDates(key)` | the Monday on or before `key` / the 7 keys Monday to Sunday |
+| `monthKeyOf(keyOrStamp)` | `'2026-10'` |
+| `toStamp(date)` / `parseStamp(stamp)` | `Date` -> `Stamp` (local, minute precision) / `Stamp` -> `Date` (local) |
+| `stampDay(stamp)` / `stampTime(stamp)` | `DayKey` / `'HH:mm'` |
+| `makeStamp(dayKey, 'HH:mm')` | `Stamp` |
+| `addMinutes(stamp, n)` | `Stamp`, computed through a local `Date` (correct across a clock change) |
+| `minutesBetween(a, b)` | integer real minutes from stamp `a` to stamp `b` (negative when `b` is earlier) |
+| `fmtDayShort(key)` / `fmtDayLong(key)` | `'Sat 24 Oct'` / `'Saturday 24 October'` |
+| `fmtRelativeDay(key, todayKeyStr = todayKey())` | `'Today'`, `'Tomorrow'`, `'Yesterday'`, otherwise `fmtDayShort(key)` |
+| `fmtClock(stampOrDate)` | `'HH:mm'`, 24-hour |
+| `fmtTimeAgo(stamp, nowStampStr = nowStamp())` | `'just now'` (under a minute, or in the future), `'12 min ago'`, `'3 h ago'` (under 24 hours), `'Yesterday'`, otherwise `fmtDayShort` of its day |
+| `fmtWindow(windowId)` | `WINDOWS[windowId].label`, e.g. `'8–10am'` |
+
+**`format.js`** (pure)
+
+| Export | Signature and result |
+|---|---|
+| `gbp(n)` | `'£195'`; `'£12.50'` when not a whole number; negative `'-£5'` |
+| `normalisePhone(input)` | any accepted UK mobile variant -> display form `'07700 900231'`; anything else -> `null` |
+| `isUkMobile(input)` | boolean, `normalisePhone(input) !== null` |
+| `toWaDigits(input)` | digits for wa.me per 10.5; `''` when the input has no digits; accepts any international number |
+| `normaliseDemoPhone(input)` | `''` -> `''`; a UK mobile or a `+` / `00` international number of 8 to 15 digits -> digits; else `null` |
+| `normalisePostcode(input)` | trim, upper-case, one space before the last 3 characters: `'mb34qp'` -> `'MB3 4QP'`; input shorter than 5 characters is returned trimmed and upper-cased |
+| `isValidPostcode(input)` | boolean: after `normalisePostcode` it matches `/^[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2}$/` (deliberately lenient: `AB1 2CD` is valid and falls in the `outside` zone) |
+| `outwardCode(input)` | `'MB3'`; `''` when invalid |
+| `postcodeZone(input, business)` | `'invalid'`, `'covered'`, `'edge'` or `'outside'`; `business` is any object with `coveredOutward` and `edgeOutward` arrays (the `Business` object or the `selectBrand` result) |
+| `validateName(v)`, `validatePhone(v)`, `validatePostcode(v)`, `validateLine1(v)` | `''` when valid, otherwise the exact message from 13.2.3 (empty and invalid cases differ for phone and postcode) |
+| `initials(name)` | `'Priya Nair'` -> `'PN'`; one word -> its first two letters upper-case; blank -> `'?'` |
+| `firstName(name)` | the first whitespace-separated word, original case |
+| `hashHue(name)` | integer 0 to 5, stable (sum of char codes mod 6): the avatar tint index |
+| `makeId(prefix)` | `prefix + '_' + 8 random base36 characters` from `Math.random()`. NEVER time-based, so a frozen test clock cannot make two ids collide. Prefixes: `bk`, `msg`, `blk`, `off`, `grp` |
+| `plural(n, one, many = one + 's')` | `plural(1, 'job')` -> `'1 job'`, `plural(2, 'job')` -> `'2 jobs'` |
+
+**`config.js`**: `makeDefaultSettings()` returns a fresh deep `Settings` object per 7.3 and 3.1 on every call; `TEMPLATE_KINDS` is the array of the 19 ids in 10.1; `PLACEHOLDERS` is `{ [name]: 'description' }` for the table in 10.2; `KIND_LABELS` and `DEFAULT_TEMPLATES` are `Record<TemplateKind, string>`.
+
+**`messages.js`**
+
+| Export | Signature and result |
+|---|---|
+| `renderTemplate(text, ctx)` | string, per the rendering rules in 10.2 |
+| `buildContext(booking, state, extra = {})` | the `ctx` object holding every placeholder in 10.2 (all values are strings) |
+| `buildMessage(kind, booking, state, extra = {})` | PURE (no write). Returns a `Message` WITHOUT `id` and `seq`: `{ at, sendAt, bookingId, to, toName, toPhone, channel: 'whatsapp', kind, body, simulated: true, seed: false }`. `to` is `'owner'` for kinds starting `owner_` (`toName` = `business.ownerFullName`, `toPhone` = `business.phone`), else `'customer'` (the booking customer's name and phone). `extra` = `{ at = nowStamp(), sendAt = null, oldWhen, newWhen, reason, etaMinutes, nextFree }`; when a template needs `nextFree` and `extra.nextFree` is absent it is computed from `nextFreeSlot(state, booking.serviceId)`. UI previews (ETA, cancel, reschedule sheets) call this to show the exact text before the action. |
+| `reminderSendAt(booking, createdStamp)` | per 10.4. Pure: it does NOT look at `remindersOn` (the store checks that) |
+| `messageIsScheduled(msg, nowStampStr)` | per 10.4 |
+| `bubbleActions(message, booking, nowStampStr)` | per 10.6; `booking` may be `null` (deleted by a reset) -> `[]` |
+
+**`ics.js`**: `buildIcs(booking, settings)`, `icsFilename(booking, settings)` (needs `business.shortName`), `downloadIcs(booking, settings)`.
+
+**`seed.js`**
+
+| Export | Shape |
+|---|---|
+| `buildSeed(now, settings, existing = { bookings: [], blocks: [] })` | 8.7.1 |
+| `SEED_CUSTOMERS` | object keyed by the Key column of 3.4: `{ priya: { name, phone, email: '', addresses: [{ line1, postcode }, ...] }, ... }` (Marcus has two addresses) |
+| `SAMPLE_CUSTOMER` | flat, used by `demo-fill`: `{ name: 'Priya Nair', phone: '07700 900231', email: '', line1: '14 Alder Row', postcode: 'MB3 4QP' }` |
+| `SIM_POOL` | array of 8 `{ name, phone, line1, postcode, notes }` for `simulateIncomingBooking`: invented names and streets, phones `07700 900500` to `07700 900507`, postcodes spread over `MB1` to `MB10` (covered), `notes` a short realistic line (may be `''`) |
+
 ### 8.2 `clock.js`
 
 ```js
@@ -1192,9 +1306,9 @@ All mutating functions return a result object. Success: `{ ok: true, ...data }`.
 | `initStore(opts?)` | `opts = { storage?: StorageLike, force?: boolean }`; `storage` is injectable for tests (`getItem/setItem/removeItem`) | `State` | Idempotent unless `force`. Loads or seeds, applies the day-rollover rule (8.7.3), installs the cross-tab listeners (8.5). |
 | `getState()` | none | `State` (immutable snapshot; never mutate) | Calls `initStore()` lazily. |
 | `subscribe(fn)` | `fn(state, prevState)` | `unsubscribe()` | `fn` runs after every local mutation AND after an external change is detected. |
-| `syncFromStorage()` | none | `boolean` (true if state changed) | Re-reads storage, replaces state if `meta.rev` differs, notifies. Called by the listeners and at the start of every mutation. |
+| `syncFromStorage()` | none | `boolean` (true if state changed) | Re-reads storage; if the raw JSON string differs from the last string this page read or wrote, it replaces the state and notifies (comparing the raw string, not only `meta.rev`, also catches two tabs that both advanced to the same `rev`). Called by the listeners and at the start of every mutation. |
 | `getStorageStatus()` | none | `{ ok: boolean, mode: 'local'\|'memory' }` | |
-| `createBooking(draft, opts?)` | see 8.4 | `{ ok: true, booking, messages: Message[] }` or failure | Assigns `ref`, re-validates the slot inside the read-modify-write, writes history, writes messages (8.4). |
+| `createBooking(draft)` | `draft`: `BookingDraft`, see 8.4 | `{ ok: true, booking, messages: Message[] }` or failure | Assigns `ref`, re-validates the slot inside the read-modify-write, writes history, writes messages (8.4). |
 | `confirmBooking(id, by = 'owner')` | | `{ ok, booking, undoToken }` | per 7.5 |
 | `acceptEmergency(id, etaMinutes)` | `etaMinutes` one of 45, 60, 120 (any positive int accepted) | `{ ok, booking, undoToken }` | |
 | `declineBooking(id)` | | `{ ok, booking, undoToken }` | |
@@ -1203,27 +1317,29 @@ All mutating functions return a result object. Success: `{ ok: true, ...data }`.
 | `markPaid(id, method)` | `method` in `PAID_METHODS` | `{ ok, booking, undoToken }` | |
 | `markUnpaid(id)` | | `{ ok, booking }` | |
 | `cancelBooking(id, by, { reason = '', notify = true } = {})` | `by` `'owner'\|'customer'` | `{ ok, booking, undoToken }` | Also deletes the booking's unsent scheduled messages. |
-| `rescheduleBooking(id, { date, windowId }, by = 'owner', { notify = true } = {})` | | `{ ok, booking, undoToken }` or `slot_taken` + `alternatives` | Replaces the scheduled reminder. |
+| `rescheduleBooking(id, { date, windowId }, by = 'owner', { notify = true } = {})` | | `{ ok, booking, undoToken }` or `slot_taken` + `alternatives` | Replaces the scheduled reminder. Validates the target with `isSlotFree(..., { ignoreBookingId: id, ownerMode: by === 'owner' })` so a job can move within its own windows; a half-day job's `windowId` must be 0 or 2; `by === 'customer'` follows the cutoff rule in 7.5. |
 | `updateBooking(id, patch)` | `patch` keys limited to `internalNotes`, `quotedPrice`, `finalPrice` | `{ ok, booking }` | |
 | `markSeen(id)` / `markAllSeen()` | | `{ ok }` | sets `seenByOwner: true` |
 | `sendQuickMessage(bookingId, kind)` | `kind` in `customer_running_late`, `customer_need_access`, `customer_quote_ready` | `{ ok, message }` | logs one message |
 | `sendPaymentNudge(bookingId)` | only `done && !paid` | `{ ok, message }` | logs `customer_payment_nudge` |
 | `sendReviewRequest(bookingId)` | only `done`; not already requested | `{ ok, message }` | logs `customer_review_request` immediately (`sendAt: null`), sets `reviewRequested` |
 | `sendMessageNow(messageId)` | | `{ ok, message }` | sets `sendAt: null`, `at: nowStamp()` |
-| `markMessagesSeen()` | | `{ ok }` | `meta.messagesSeenAt = nowStamp()` |
+| `markMessagesSeen()` | | `{ ok }` | `meta.messagesSeenSeq = meta.msgSeq` |
 | `addBlock({ date, windowId, label })` | | `{ ok, block, undoToken }` or `booked` | |
 | `blockRange({ fromDate, toDate = fromDate, windowIds = [0,1,2,3], label })` | | `{ ok, added: Block[], skipped: {date,windowId,reason}[], undoToken }` | windows already booked are skipped; all added blocks share one `groupId` |
 | `removeBlock(id)` / `removeBlockGroup(groupId)` | | `{ ok, undoToken }` | |
 | `addDaysOff(dates, label = 'Day off')` | `dates: DayKey[]` | `{ ok, added: DayOff[], undoToken, bookedCount }` | `bookedCount` = existing live bookings on those days (they stay) |
 | `removeDayOff(id)` | | `{ ok, undoToken }` | |
 | `setDayFull(date, full)` | `full: boolean` | `{ ok, undoToken }` | adds/removes `date` in `settings.fullDays` |
-| `updateSettings(patch)` | partial `Settings`; `business` merges shallowly; `hours` replaces | `{ ok, settings }` or `{ ok: false, reason: 'invalid', errors: { [field]: message } }` | trims strings; `business.phone` normalised via `normalisePhone`; empty `name`, `shortName`, `ownerFirstName` rejected |
-| `updateService(id, patch)` | keys `name`, `description`, `price`, `active`, `variants: [{id, price}]` | `{ ok, service }` | `price`/variant prices must be integers 0 to 99999 |
+| `updateSettings(patch)` | partial `Settings`; `business` merges shallowly; `hours` replaces | `{ ok, settings }` or `{ ok: false, reason: 'invalid', errors: { [field]: message } }` | trims strings; `business.phone` normalised via `normalisePhone`. `errors` keys are the field names inside `business` (`name`, `shortName`, `ownerFirstName`, `phone`) or the top-level setting name (`leadMinutes`, `maxDaysAhead`). Messages: `This can't be empty.` for the three required strings, `Enter a UK mobile like 07700 900412` for `phone`. `leadMinutes` must be one of 60, 90, 120, 180, 240 and `maxDaysAhead` one of 7, 14, 21, 28. A failed patch changes nothing. |
+| `updateService(id, patch)` | keys `name`, `description`, `price`, `active`, `variants: [{id, price}]` | `{ ok, service }` | `price`/variant prices must be integers 0 to 99999, else `{ ok: false, reason: 'invalid', errors: { price: 'Enter a whole number of pounds.' } }`. When `variants` is given, `service.price` is recomputed as the lowest variant price (so the headline `From £150` follows). `price` is ignored for `priceType: 'free'`. |
 | `setTheme(choice)` | `'auto'\|'light'\|'dark'` | `{ ok }` | writes `vm_theme` and `settings.theme`; setting `<html data-theme>` is the UI layer's job (`applyTheme`), not core's |
 | `setDemoPhone(input)` | `''` clears; else a UK mobile or international number | `{ ok, digits }` or `invalid` | stores digits only in `settings.demoPhoneDigits` |
-| `resetDemo({ keepSettings = true } = {})` | | `{ ok }` | Reseeds bookings, blocks, messages, `refSeq`, `seededFor`, `meta`. `keepSettings: true` keeps `business`, `services`, `hours`, rules, `theme`, `demoPhoneDigits`, but clears `daysOff` and `fullDays`. `false` restores all defaults except `theme` and `demoPhoneDigits`. |
-| `simulateIncomingBooking({ kind = 'standard' } = {})` | `kind`: `'standard'` (follows settings), `'approval'` (forces an edge-zone postcode so status is `new`), `'emergency'` | `{ ok, booking }` | Exactly the `createBooking` code path with `source: 'website'`. Uses `SIM_POOL[meta.simCursor % length]`, increments `simCursor`, picks the earliest free window for the chosen service. |
-| `undo(token)` | token from a mutation | `{ ok }` or `{ ok: false, reason: 'stale' }` | restores the records that mutation touched (booking, messages it added, blocks / daysOff / fullDays) if they have not changed since; tokens live in memory only (max 20) |
+| `resetDemo({ keepSettings = true } = {})` | | `{ ok }` | Reseeds bookings, blocks, messages, `refSeq`, `seededFor` and `meta` (`rev` keeps counting up; `msgSeq` and `messagesSeenSeq` become the highest seed `seq`; `simCursor` becomes 0). `keepSettings: true` keeps `business`, `services`, `hours`, rules, `theme`, `demoPhoneDigits`, but clears `daysOff` and `fullDays`. `false` restores all defaults except `theme` and `demoPhoneDigits`. |
+| `simulateIncomingBooking({ kind = 'standard' } = {})` | `kind`: `'standard'` (follows settings), `'approval'` (forces an edge-zone postcode so status is `new`), `'emergency'` | `{ ok, booking }` | Exactly the `createBooking` code path with `source: 'website'`. Uses `SIM_POOL[meta.simCursor % length]`, increments `simCursor`, picks the earliest free window for the chosen service (`nextFreeSlot`); if none is free it returns `{ ok: false, reason: 'slot_taken' }`. `standard` and `approval` book the `fault` service; `emergency` books `emergency` with `emergencyReasons: ['no_power']` and the note `Power went off suddenly`; `approval` overrides the pool postcode with `MB11 5HD` (an edge outward code). |
+| `undo(token)` | token from a mutation | `{ ok }` or `{ ok: false, reason: 'stale' }` | restores the records that mutation touched (booking, messages it added, blocks / daysOff / fullDays) if they have not changed since; tokens live in memory only (max 20). "Not changed since" means each touched record deep-equals the state that mutation produced. Undoing a cancel, decline or reschedule also re-checks that the windows it would re-occupy are still free (`isSlotFree` with `ownerMode: true` and `ignoreBookingId`); if another booking has taken them the result is `stale`, never a double booking. |
+
+**Generic failure rule (UI).** A mutation that returns a `reason` the screen does not handle specially shows `toast({ message: 'That did not work: the diary changed. Please check and try again.', tone: 'danger' })`; `not_found` shows `That booking no longer exists.` (a reset in another tab removed it); `undo` returning `stale` shows `Too late to undo.`. Submit buttons guard against double taps: while a submit is in flight the button is `loading` and a second tap is ignored (a second `createBooking` would otherwise return `slot_taken` against the first and flash a banner over the confirmation).
 
 ### 8.4 `createBooking` in detail
 
@@ -1247,12 +1363,12 @@ All mutating functions return a result object. Success: `{ ok: true, ...data }`.
 
 Algorithm (all inside one read-modify-write, after `syncFromStorage()`):
 
-1. Validate. Errors map keys: `name`, `phone`, `postcode`, `line1`, `serviceId`, `date`, `windowId`, `emergencyReasons`, with the exact messages from `format.js` validators (13.2.3). Return `{ ok: false, reason: 'invalid', errors }`.
+1. Validate. Errors map keys: `name`, `phone`, `postcode`, `line1`, `serviceId`, `date`, `windowId`, `emergencyReasons`, with the exact messages from `format.js` validators (13.2.3). Also: `date` must be a valid `DayKey`; `windowId` must be 0 to 3 and, for a half-day service, 0 or 2 (`errors.windowId`); `name` is cut to 60 characters and `notes` to 300 after trimming. Return `{ ok: false, reason: 'invalid', errors }`.
 2. Service must exist and be `active` (else `service_unavailable`). `urgent` requires `settings.takingEmergencies` (else `emergencies_off`).
 3. Non-urgent: `isSlotFree(state, { date, windowId, blocks, ownerMode: !!asOwner })`; if not free return `{ ok: false, reason: 'slot_taken', alternatives: nextFreeSlots(state, serviceId, 3, { ownerMode }) }`. Urgent bookings skip this.
 4. Build the booking: `ref = 'VM-' + refSeq++`; `start = makeStamp(date, WINDOWS[windowId].start)` (urgent: `nowStamp()`); `durationMin = blocks * 120` (urgent 0); `quotedPrice` per `quotedPriceFor`; `phone` normalised display; `postcode` normalised; `seenByOwner = !!asOwner`; history `created`.
-5. Status: urgent -> `new`; `asOwner` -> `confirmed`; else `autoConfirm && postcodeZone(postcode) === 'covered'` -> `confirmed`; else `new`. If `confirmed` also push history `confirmed` (`by: asOwner ? 'owner' : 'system'`).
-6. Messages (via `buildMessage`): `asOwner`: none to owner; `customer_confirmed` + reminder only if `notifyCustomer !== false`. Customer-made: `owner_new_booking` (or `owner_emergency`) always; customer: `customer_confirmed` (+ scheduled `customer_reminder` per `reminderSendAt`) when confirmed, `customer_received` when `new`, `customer_emergency_received` when urgent. `at` = `nowStamp()`.
+5. Status: urgent -> `new`; `asOwner` -> `confirmed`; else `autoConfirm && postcodeZone(postcode, settings.business) === 'covered'` -> `confirmed`; else `new`. If `confirmed` also push history `confirmed` (`by: asOwner ? 'owner' : 'system'`).
+6. Messages (via `buildMessage`): `asOwner`: none to owner; `customer_confirmed` + reminder only if `notifyCustomer !== false`. Customer-made: `owner_new_booking` (or `owner_emergency`) always; customer: `customer_confirmed` (+ scheduled `customer_reminder` per `reminderSendAt`) when confirmed, `customer_received` when `new`, `customer_emergency_received` when urgent. `at` = `nowStamp()`. Messages are inserted in this order so the OWNER ALERT gets the highest `seq` of the group and therefore sorts first on the (newest-first) Messages screen when `at` ties: scheduled reminder, then the customer message, then the owner alert. `createBooking` returns `messages` in that insertion order.
 7. Persist, notify, return.
 
 ### 8.5 Cross-tab sync, persistence, performance
@@ -1260,16 +1376,16 @@ Algorithm (all inside one read-modify-write, after `syncFromStorage()`):
 - State is stored whole under `vm_state_v1` after every mutation (`meta.rev` increments by 1). Data is tiny.
 - Listeners installed by `initStore` (guarded by `typeof window !== 'undefined'`): `window 'storage'` (key `vm_state_v1` or `null`), `document 'visibilitychange'` (when visible), `window 'pageshow'`, `window 'focus'`. Each calls `syncFromStorage()`. Phones freeze background tabs, so the foreground re-read is what makes the "booking appears on the dashboard" moment reliable.
 - Every mutation starts with `syncFromStorage()` so two tabs cannot clobber each other.
-- `getState()` returns the same object reference until a change, so selectors may use reference equality.
+- `getState()` returns the same object reference until a change, so selectors may use reference equality. Every mutation works on a deep copy (`structuredClone(state)`, falling back to `JSON.parse(JSON.stringify(state))` where `structuredClone` is missing, i.e. iOS before 15.4; the state is plain JSON), bumps `meta.rev`, writes the JSON, then swaps the module state and notifies. Unchanged records may therefore get new object identities after ANY mutation: views and selectors must not rely on record identity across mutations (one re-render per mutation is fine at this data size).
 
 ### 8.6 Selectors (`js/core/selectors.js`, all pure: `(state, ...) => value`)
 
 ```js
-selectBrand(state)              // { name, shortName, descriptor, ownerFirst, ownerFull, tagline, phone, phoneDigits, telHref, email, areaName, areaText, towns, schemeLine, insuranceLine, hoursText }
+selectBrand(state)              // { name, shortName, descriptor, ownerFirst, ownerFull, tagline, phone, phoneDigits, telHref, email, areaName, areaText, towns, schemeLine, insuranceLine, hoursText, demoPhoneDigits, coveredOutward, edgeOutward }   // pass the whole brand to postcodeZone(pc, brand); pass brand.demoPhoneDigits as the 3rd argument of every waLink()
 selectServices(state, { activeOnly = true } = {})   // Service[] in settings order
 selectService(state, id)        // Service | null
 quotedPriceFor(service, variantId)   // number (variant price, else service.price)
-servicePriceLabel(service)      // 'From £75' | 'From £150' (by_size: 'From £150') | 'Free' | 'From £95'
+servicePriceLabel(service)      // 'From £75' | 'From £150' (by_size: 'From £150') | 'Free' | 'From £95' | fixed: '£120'
 selectBookingById(state, id)
 selectBookingByRef(state, ref)  // case-insensitive
 selectBookingsOn(state, dayKey, { includeCancelled = false } = {})   // sorted by start, then createdAt; includes urgent bookings whose start date is dayKey
@@ -1280,25 +1396,25 @@ selectOwed(state)               // done && !paid, oldest start first
 selectOwedTotal(state)          // sum of finalPrice
 selectUnseenBookings(state)     // seenByOwner === false, newest first
 selectNextOpenDay(state, fromDayKey)   // first day after fromDayKey that has any open window per settings.hours and is not a day off
-selectCustomers(state)          // Customer[] sorted by lastJobAt/nextJobAt desc then name
+selectCustomers(state)          // Customer[] sorted by the later of nextJobAt and lastJobAt descending (null counts as ''), then name ascending
 selectCustomerByKey(state, key)
 customerKeyOf(phone)            // toWaDigits(phone)
-selectRepeatInfo(state, booking)   // { isRepeat: boolean, nth: number }  nth = 1-based position among that customer's non-cancelled bookings ordered by createdAt
-selectMessages(state, { to, bookingId, scheduledOnly, nowStamp } = {})   // newest `at` first
-selectUnreadMessageCount(state) // messages with at > meta.messagesSeenAt (all if null)
+selectRepeatInfo(state, booking)   // { isRepeat: boolean, nth: number }   // isRepeat = nth >= 2  nth = 1-based position among that customer's non-cancelled bookings ordered by createdAt
+selectMessages(state, { to, bookingId, scheduledOnly, nowStamp } = {})   // newest first: `at` descending, then `seq` descending (`scheduledOnly` needs `nowStamp`)
+selectUnreadMessageCount(state) // count of messages with `to === 'owner' && !seed && seq > meta.messagesSeenSeq` (seed alerts are 'already seen'; comparing `seq`, not minute-precision stamps, means a message that arrives in the same minute as the owner opened Messages still counts)
 selectInsights(state, nowStamp) // { collectedMonth, collectedMonthCount, owedTotal, owedCount, bookedNext14, bookedNext14Count, avgJob, weeks, byService }
-isWithinChangeCutoff(booking, nowStamp)   // true when start is less than PROMISES.freeChangeHours ahead
+isWithinChangeCutoff(booking, nowStamp)   // true when start is less than PROMISES.freeChangeHours ahead, INCLUDING a start in the past (7.5)
 ```
 
 `selectInsights` definitions: `collectedMonth` = sum of `finalPrice` for `done && paid` with `paidAt` in the same calendar month as `nowStamp`; `owed*` as `selectOwed`; `bookedNext14` = sum of `quotedPrice` over non-urgent bookings with status `new|confirmed|on_the_way` and start day in `[today, today + 13]`; `avgJob` = rounded mean `finalPrice` of `done` bookings whose start day is within the last 30 days (0 if none); `weeks` = last 6 Monday-start weeks oldest to newest `{ weekStart: DayKey, label: 'Mon 19 Oct', total }` summing `finalPrice` of paid jobs by `paidAt` week; `byService` = `{ serviceId, name, jobs, total }` for done bookings, sorted by total desc.
 
 ### 8.7 Seed (`seed.js`) and rollover
 
-**8.7.1 `buildSeed(now, settings)` returns** `{ bookings, blocks, messages, refSeq }` following the table in 3.4 exactly. It uses the SAME `buildMessage` function as the store and the SAME `reminderSendAt`. Seed bookings use fixed refs `VM-1028` to `VM-1042` and `refSeq: 1043`. Ids are `bk_seed_01` ... `bk_seed_15` (stable so tests and deep links are deterministic). Message ids `msg_seed_<n>`. Seed `history` has a `created` entry at `createdAt` plus the transitions implied by the status (`confirmed`, `done`, `paid`, `cancelled`).
+**8.7.1 `buildSeed(now, settings, existing = { bookings: [], blocks: [] })` returns** `{ bookings, blocks, messages, refSeq }` following the table in 3.4 exactly. `existing` holds the NON-seed records already in the store; placement (8.7.2) treats their windows as taken, so a day rollover can never double-book a window that the owner or a customer already holds. `buildSeed` builds its messages with `buildMessage(kind, booking, { settings, bookings, blocks }, extra)` using the partial state it has built so far (no seeded message needs `nextFree`). It uses the SAME `buildMessage` function as the store and the SAME `reminderSendAt`. Seed bookings use fixed refs `VM-1028` to `VM-1042` and `refSeq: 1043`. Ids are `bk_seed_01` ... `bk_seed_15` (stable so tests and deep links are deterministic). Message ids follow 3.4 (`msg_seed_<NN>_<role>`); `buildSeed` numbers their `seq` from 1 in ascending `at` order and the STORE adds the current `meta.msgSeq` to each when it merges a re-seed (day rollover), so `seq` keeps increasing. Seed `history` has a `created` entry at `createdAt` plus the transitions implied by the status (`confirmed`, `done`, `paid`, `cancelled`).
 
-**8.7.2 Placement algorithm.** Resolve `dayRef` to a date: `T` = today; `P(k)` / `O(k)` = k-th previous / next day whose weekday has at least one window in the DEFAULT hours (Mon to Sat). Then place `blocks` (1 or 2) windows: candidate start windows are the preferred window first, then the remaining valid starts in ascending order (half-day valid starts are 0 and 2 only); a candidate is usable when every covered window is in the default hours for that weekday and not already taken by a non-cancelled seed booking or a seed block. If no candidate fits, move to the next open day in the same direction (max 5 days) and retry. `T` ignores default hours (so a Sunday "today" still shows its jobs). Status for `T` entries: `done` when the window's end stamp <= now, else `confirmed`; `done` + paid cash when specified; `paidAt` = window end stamp; `finalPrice` = quoted unless specified. The urgent S07 uses `start = nowStamp`, `durationMin: 0`, `emergencyReasons: ['no_power']`, `notes: 'No power in kitchen'`. S15's `cancelledBy: 'customer'`, `cancelReason: 'Customer asked'`.
+**8.7.2 Placement algorithm.** Resolve `dayRef` to a date: `T` = today; `P(k)` / `O(k)` = k-th previous / next day whose weekday has at least one window in the DEFAULT hours (Mon to Sat). Then place `blocks` (1 or 2) windows: candidate start windows are the preferred window first, then the remaining valid starts in ascending order (half-day valid starts are 0 and 2 only); a candidate is usable when every covered window is in the default hours for that weekday and not already taken by a non-cancelled seed booking, a seed block, or any non-cancelled booking or block in `existing`. If no candidate fits, move to the next open day in the same direction (max 5 days) and retry. `T` ignores default hours (so a Sunday "today" still shows its jobs). Status for `T` entries: `done` when the window's end stamp <= now, else `confirmed`; `done` + paid cash when specified; `paidAt` = window end stamp; `finalPrice` = quoted unless specified. The urgent S07 uses `start = nowStamp`, `durationMin: 0`, `emergencyReasons: ['no_power']`, `notes: 'No power in kitchen'`. S15's `cancelledBy: 'customer'`, `cancelReason: 'Customer asked'`.
 
-**8.7.3 Day rollover.** On `initStore`: if no stored state, or invalid -> full seed (`seededFor = todayKey()`). Else if `seededFor !== todayKey()` -> remove every record with `seed: true` (bookings, blocks, messages), run `buildSeed`, keep all non-seed records, `settings` (except that `daysOff` and `fullDays` entries before today are dropped), and keep `refSeq = max(stored refSeq, seed refSeq)`. This keeps weekdays aligned and Today populated every morning. It does NOT run on tab focus.
+**8.7.3 Day rollover.** On `initStore`: if no stored state, or invalid -> full seed (`seededFor = todayKey()`). Else if `seededFor !== todayKey()` -> remove every record with `seed: true` (bookings, blocks, messages), run `buildSeed(now, settings, { bookings: <the non-seed bookings>, blocks: <the non-seed blocks> })`, keep all non-seed records, `settings` (except that `daysOff` and `fullDays` entries before today are dropped), and keep `refSeq = max(stored refSeq, seed refSeq)`. This keeps weekdays aligned and Today populated every morning. It does NOT run on tab focus.
 
 ### 8.8 Hook layer (WP2, `js/ui/hooks.js`) for reference
 
@@ -1312,19 +1428,19 @@ Selectors passed to `useStore` must be stable functions (define them outside the
 
 ### 8.9 What the unit tests (WP1, `tests/unit/*.test.mjs`) must prove
 
-Run with `TZ=Europe/London node --test electrician/tests/unit/`. Each file uses `node:test` and `node:assert/strict`, injects an in-memory storage into `initStore({ storage, force: true })` and uses `setClock(...)`.
+Run with `TZ=Europe/London node --test "electrician/tests/unit/*.test.mjs"` (quoted glob: a bare directory fails on Node 22). Each file uses `node:test` and `node:assert/strict`, injects an in-memory storage into `initStore({ storage, force: true })` and uses `setClock(...)`.
 
 | File | Must prove |
 |---|---|
 | `clock.test.mjs` | `?now=` parsing (with and without seconds, bad input ignored); `freeze`; `setClock(null)` restores real time; `clockQuery()` round-trips. |
-| `dates.test.mjs` | `addDays('2026-10-24', 1) === '2026-10-25'` and `addDays('2026-10-25', 1) === '2026-10-26'` under `TZ=Europe/London`; `minutesBetween('2026-10-25T00:00','2026-10-26T00:00') === 1500`; `weekStart('2026-10-25') === '2026-10-19'` (Sunday belongs to the Monday-start week); `weekDates` length 7 Monday first; `fmtDayShort('2026-10-24') === 'Sat 24 Oct'`; `fmtRelativeDay`; `fmtTimeAgo`. |
-| `format.test.mjs` | phone variants all normalise to `07700 900231` / `447700900231`: `07700900231`, `07700 900 231`, `+44 7700 900231`, `447700900231`, `00447700900231`; rejects `01234 567890`, `0770090023`, letters; postcode `mb3 4qp`, `MB34QP` -> `MB3 4QP`; `outwardCode`; `postcodeZone` for `MB3 4QP` covered, `MB12 6AB` edge, `AB1 2CD` outside, `xx` invalid; `gbp(195) === '£195'`, `gbp(12.5) === '£12.50'`; validators return the exact messages in 13.2.3. |
+| `dates.test.mjs` | `addDays('2026-10-24', 1) === '2026-10-25'` and `addDays('2026-10-25', 1) === '2026-10-26'` under `TZ=Europe/London`; `minutesBetween('2026-10-25T00:00','2026-10-26T00:00') === 1500`; `weekStart('2026-10-25') === '2026-10-19'` (Sunday belongs to the Monday-start week); `weekDates` length 7 Monday first; `fmtDayShort('2026-10-24') === 'Sat 24 Oct'`; `fmtRelativeDay`; `fmtTimeAgo`; `monthKeyOf`; `diffDays('2026-10-24', '2026-10-27') === 3` across the clock change. |
+| `format.test.mjs` | phone variants all normalise to `07700 900231` / `447700900231`: `07700900231`, `07700 900 231`, `+44 7700 900231`, `447700900231`, `00447700900231`; rejects `01234 567890`, `0770090023`, letters; postcode `mb3 4qp`, `MB34QP` -> `MB3 4QP`; `outwardCode`; `postcodeZone` for `MB3 4QP` covered, `MB12 6AB` edge, `AB1 2CD` outside, `xx` invalid; `toWaDigits('+44 (0)7700 900231') === '447700900231'` (the `(0)` is dropped); `isValidPostcode('AB1 2CD')` is true; `makeId('bk')` called 1000 times under a FROZEN clock gives 1000 distinct ids; `gbp(195) === '£195'`, `gbp(12.5) === '£12.50'`; validators return the exact messages in 13.2.3. |
 | `availability.test.mjs` | The four worked examples in 9.8 verbatim; state precedence (9.2); half-day pairing; `too_soon` boundary (a window starting exactly at now + lead is `free`); horizon last day `today + 13` free and `today + 14` closed; cancelled booking frees the window; urgent bookings never occupy; owner mode ignores lead/full/horizon but never overrides `booked`/`blocked`/day off; `describeHours` outputs. |
 | `messages.test.mjs` | Every kind in `TEMPLATE_KINDS` renders for a sample booking with no leftover `{` or `}`, no empty lines, no emoji (`/\p{Extended_Pictographic}/u`), no `!`; placeholder substitution; `waLink` digit rules and demo override; `reminderSendAt` rules (10.4); `bubbleActions` per status; `messageIsScheduled`. |
-| `ics.test.mjs` | CRLF line endings; floating `DTSTART:20261024T080000` with no `Z`; `DTEND` = start + `durationMin`; escaping of `,` `;` `\` and newlines; folding at 75 octets; `UID`; filename `voltmere-VM-1043.ics`. |
-| `seed.test.mjs` | At clock `2026-10-23T20:30` frozen: the fixture totals in 3.4 (15 bookings, needs-you 2, owed £245, collected £850, next-14 £675/7, avg £183, 11 customers); no overlapping non-cancelled bookings; day loads Sat few, Sun closed, Mon good, Tue full, Wed full; `nextFreeSlot('fault')` = Sat 2026-10-24 window 0, `nextFreeSlot('eicr')` = Mon 2026-10-26 window 0 blocks 2; invariants hold at 7 other clocks (every weekday at 09:00 and Sun 12:00): at least 14 bookings, all five statuses present, one urgent `new`, at least one owed job, Marcus has 2 EICRs at 2 addresses, first open day's window 0 is free. |
-| `store.test.mjs` | Round-trip through injected storage; schema rejection reseeds; `createBooking` happy path (ref `VM-1043`, status `confirmed`, 3 messages: owner alert, confirmation, scheduled reminder); validation errors and exact messages; second booking of the same window returns `slot_taken` with 3 alternatives; edge postcode -> `new` + `customer_received`; `autoConfirm: false` -> `new`; urgent never blocks a window and is never auto-confirmed; `emergencies_off`; every row of the transition table (one allowed, one disallowed); cancel frees the window; reschedule moves it and replaces the reminder; customer cancel refused within 24h; `completeBooking` with `paid: true` sets `paidAt`; `markPaid` then Insights `collectedMonth` rises; `undo` restores booking and removes messages, and returns `stale` after a later change; `resetDemo` keepSettings semantics; `simulateIncomingBooking` kinds and `simCursor` cycling; day rollover keeps non-seed bookings and settings; `syncFromStorage` picks up an externally written newer `rev` and notifies subscribers; `subscribe`/unsubscribe; storage throwing -> memory mode with `getStorageStatus().ok === false`. |
-| `selectors.test.mjs` | `selectNeedsYou` order; `selectNextUp` priority; `selectOwed`; `selectInsights` fixture values; `selectCustomers` derivation, `Landlord` and `Repeat` tags, `selectRepeatInfo.nth` for Priya's second booking is 2; `selectUnreadMessageCount`; `isWithinChangeCutoff`. |
+| `ics.test.mjs` | CRLF line endings; floating `DTSTART:20261024T080000` with no `Z`; `DTSTAMP` is the ONE UTC value and matches `/^DTSTAMP:\d{8}T\d{6}Z$/` (createdAt `2026-10-23T20:30` under `TZ=Europe/London` gives `DTSTAMP:20261023T193000Z`); `DTEND` = start + `durationMin`; escaping of `,` `;` `\` and newlines; folding at 75 octets; `UID`; filename `voltmere-VM-1043.ics`. |
+| `seed.test.mjs` | At clock `2026-10-23T20:30` frozen: the fixture totals in 3.4 (15 bookings, needs-you 2, owed £245, collected £850, next-14 £675/7, avg £183, 11 customers); no overlapping non-cancelled bookings; `buildSeed(now, settings, { bookings: [<a booking holding Sat window 0>], blocks: [] })` never places a seed booking in a window that `existing` holds; the emergency alert id is `msg_seed_07_alert`; day loads Sat few, Sun closed, Mon good, Tue full, Wed full; `nextFreeSlot('fault')` = Sat 2026-10-24 window 0, `nextFreeSlot('eicr')` = Mon 2026-10-26 window 0 blocks 2; invariants hold at 7 other clocks (every weekday at 09:00 and Sun 12:00): at least 14 bookings, statuses `new`, `confirmed`, `done` and `cancelled` present (`on_the_way` is not seeded), one urgent `new`, at least one owed job, Marcus has 2 EICRs at 2 addresses, first open day's window 0 is free. |
+| `store.test.mjs` | Round-trip through injected storage; schema rejection reseeds; `createBooking` happy path (ref `VM-1043`, status `confirmed`, 3 messages: owner alert, confirmation, scheduled reminder); validation errors and exact messages; second booking of the same window returns `slot_taken` with 3 alternatives; edge postcode -> `new` + `customer_received`; `autoConfirm: false` -> `new`; urgent never blocks a window and is never auto-confirmed; `emergencies_off`; every row of the transition table (one allowed, one disallowed); cancel frees the window; reschedule moves it and replaces the reminder; customer cancel refused within 24h; `completeBooking` with `paid: true` sets `paidAt`; `markPaid` then Insights `collectedMonth` rises; `undo` restores booking and removes messages, and returns `stale` after a later change; `resetDemo` keepSettings semantics; `simulateIncomingBooking` kinds and `simCursor` cycling; day rollover keeps non-seed bookings and settings; `syncFromStorage` picks up an externally written newer `rev` and notifies subscribers; `subscribe`/unsubscribe; storage throwing -> memory mode with `getStorageStatus().ok === false`; message `seq` strictly increases, and the owner alert of a new booking has the highest `seq` of its group; `undo` of a cancel returns `stale` when another booking has since taken the freed window. |
+| `selectors.test.mjs` | `selectNeedsYou` order; `selectNextUp` priority; `selectOwed`; `selectInsights` fixture values; `selectCustomers` derivation, `Landlord` and `Repeat` tags, `selectRepeatInfo.nth` for Priya's second booking is 2; `selectUnreadMessageCount` (counts only non-seed owner messages with `seq` above `messagesSeenSeq`; a message created in the same minute, with an equal `at`, after `markMessagesSeen()` still counts as unread); `isWithinChangeCutoff` (true for a start in the past). |
 
 ---
 
@@ -1393,7 +1509,7 @@ slotHuman(date, windowId, blocks, todayKeyStr)          // 'Today, 3–5pm' | 'T
 describeHours(hours)                                    // 'Mon to Fri 8am to 5pm, Sat 8am to 12pm'
 ```
 
-`serviceOrBlocks` is a `ServiceId` (looked up in `settings.services` for `blocks`) or the number `1` / `2`. `getDayLoad` counts SINGLE windows: `total` = number of windows open that weekday (0 when day off, past day, beyond horizon in customer mode); `free` = those whose per-window state is `free`; `level`: `total === 0` -> `closed`; `free === 0` -> `full`; `free === 1` -> `few`; else `good`. `describeHours` groups consecutive weekdays with identical open-window sets (Monday-first order), formats each group's span from the first open window's start to the last open window's end (`8am`, `12pm`, `5pm`; end 12:00 is `12pm`), and omits closed days; a fully closed week returns `'Closed'`.
+`serviceOrBlocks` is a `ServiceId` (looked up in `settings.services` for `blocks`) or the number `1` / `2`. `getDayLoad` counts SINGLE windows: `total` = number of windows open that weekday (0 when day off, a date before today, beyond the horizon in customer mode, or when EVERY open window of today is already `past`, so late in the evening today reads `closed`, not `full`); `free` = those whose per-window state is `free`; `level`: `total === 0` -> `closed`; `free === 0` -> `full`; `free === 1` -> `few`; else `good`. `describeHours` groups consecutive weekdays with identical open-window sets (Monday-first order), formats each group's span from the first open window's start to the last open window's end (`8am`, `12pm`, `5pm`; end 12:00 is `12pm`), and omits closed days; a fully closed week returns `'Closed'`. `getDayStatus` kinds: `past` = a date before today; `beyond` = after the horizon (customer mode only); `dayoff` (label = the day-off label); `closed` = no open window that weekday, or today with every open window past (label `Closed`); `full` = in `fullDays` (customer mode only; label `Full`); otherwise `open`. UIs that need a per-SERVICE answer (the booking DayPicker, 13.2.2) must read `getBookableDays(...).freeSlots`, not `load.level`: `load` counts single windows, so a half-day service can show a 'good' load and still have zero bookable slots.
 
 ### 9.4 Emergency bookings
 
@@ -1440,9 +1556,10 @@ customer_running_late      customer_need_access       customer_quote_ready
 | `{priceLine}` | by price type: fixed/by_size `Fixed price {price}, pay after the job.`; from `From {price}, pay after the job. I'll confirm before any extra work.`; free `No charge for the visit.` | |
 | `{when}` | `Sat 24 Oct, 8–10am` (half-day: `Mon 26 Oct, morning, 8–10am`; urgent: `as soon as possible`) | |
 | `{whenLong}` | `Sat 24 Oct, arriving between 8 and 10am` (half-day: `Mon 26 Oct, morning, arriving between 8 and 10am`; urgent: `as soon as possible`) | |
+| `{serviceWhen}` | `{service} on {when}`; for an urgent booking `your emergency visit` (so declined and cancelled messages never read "can't make as soon as possible") | `EICR safety report on Sat 24 Oct, 8–10am` |
 | `{dateShort}` | `Sat 24 Oct` | |
 | `{arrive}` | `between 8 and 10am` | |
-| `{line1}` / `{postcode}` / `{address}` | `14 Alder Row` / `MB3 4QP` / `14 Alder Row, MB3 4QP` (urgent with no line1: postcode only) | |
+| `{line1}` / `{postcode}` / `{address}` | `14 Alder Row` / `MB3 4QP` / `14 Alder Row, MB3 4QP` (urgent with no line1: postcode only). `{line1}` itself falls back to the postcode when empty (an urgent request without a street), so no template ever renders a dangling gap | |
 | `{noteLine}` | `Note: "<customer note>"` or empty | |
 | `{statusLine}` | owner alert only: `Confirmed automatically.` or `Needs your OK: <reason>.` where reason is `outside your usual area (MB12)` or `auto-confirm is off` | |
 | `{emergencyList}` | labels of `emergencyReasons` joined `, ` | `No power at all, Burning smell or sparks` |
@@ -1452,15 +1569,15 @@ customer_running_late      customer_need_access       customer_quote_ready
 | `{oldWhen}` / `{newWhen}` | `when` before / after a reschedule | |
 | `{reasonLine}` | `Reason: <cancelReason>.` or empty (omitted for `declined`) | |
 | `{receivedReason}` | `I just need to check travel to {postcode}.` for edge/outside zones, else empty | |
-| `{nextFree}` / `{nextFreeLine}` | `Tomorrow, 8–10am` / `My next free visit is <nextFree>.` or `Please call me and I'll find a time.` | |
+| `{nextFree}` / `{nextFreeLine}` | `Tomorrow, 8–10am` / `My next free visit is <nextFree>.` or `Please call me and I'll find a time.`; for an urgent booking `{nextFreeLine}` is `If anyone is in danger call 999, or {powerCutNumber} for a power cut.` | |
 | `{finalLine}` | paid: `Paid with thanks, {finalPrice}.` else `The total is {finalPrice}, payable by card, bank transfer or cash.` | |
-| `{certLine}` | for services `eicr`, `consumer`, `ev`, `rewire`: `Your certificate follows today.`; else empty | |
+| `{certLine}` | for services `eicr`, `consumer`, `ev`: `Your certificate follows today.`; else empty (`rewire` is a survey visit and has no certificate) | |
 | `{jobLink}` | `<SITE_BASE_URL>dashboard.html#/bookings/<id>` | |
 | `{manageLink}` | `<SITE_BASE_URL>index.html#manage/<ref>` | |
-| `{reviewLink}` | `voltmere.example/review (sample link)` | |
-| `{awayMinutes}`, `{emergencyReplyMinutes}`, `{emergencyCallAfterMinutes}` | from `PROMISES` | `30`, `10`, `15` |
+| `{reviewLink}` | `<domain of business.email, else prototype.invalid>/review (sample link)`, e.g. `voltmere.example/review (sample link)` | |
+| `{awayMinutes}`, `{emergencyReplyMinutes}`, `{emergencyCallAfterMinutes}`, `{powerCutNumber}` | from `PROMISES` | `30`, `10`, `15`, `105` |
 
-**Rendering rules (`renderTemplate(text, ctx)`):** replace every `{name}` found in `ctx`; an unknown placeholder is a bug (throw in dev, leave blank in prod and unit tests fail); after substitution trim each line, collapse runs of spaces, **drop lines that are empty**, and join with `\n`. Bodies may contain `*bold*` (WhatsApp markup); `WhatsAppBubble` renders it. No emoji. No exclamation marks. `buildContext(booking, settings, extra)` builds `ctx`; `extra` carries `{ oldWhen, newWhen, nextFree, reason, baseUrl, etaMinutes }`.
+**Rendering rules (`renderTemplate(text, ctx)`):** replace every `{name}` found in `ctx`; an unknown placeholder is a bug: `renderTemplate` throws, `buildMessage` catches it, blanks that placeholder and calls `console.warn` (a template typo must never block a booking), and the unit test fails because it asserts that nothing threw or warned; after substitution trim each line, collapse runs of spaces, **drop lines that are empty**, and join with `\n`. Bodies may contain `*bold*` (WhatsApp markup); `WhatsAppBubble` renders it. No emoji. No exclamation marks. `buildContext(booking, state, extra)` builds `ctx` (8.1.1); `extra` carries `{ oldWhen, newWhen, nextFree, reason, etaMinutes }`.
 
 ### 10.3 Default template text (exact; `DEFAULT_TEMPLATES`)
 
@@ -1485,7 +1602,7 @@ Reply within {emergencyReplyMinutes} minutes. Open: {jobLink}
 
 owner_customer_cancelled
 *Cancelled by customer {ref}*
-{customerName} cancelled {service} on {when}.
+{customerName} cancelled {serviceWhen}.
 {reasonLine}
 That window is free again.
 
@@ -1501,7 +1618,7 @@ customer_confirmed
 Hi {customerFirst}, it's {ownerFirst} from {business}. You're booked in: {serviceFull}, {whenLong}, at {line1}. {priceLine} I'll message when I'm {awayMinutes} minutes away. Need to change it? Reply here or call {ownerPhone}. Ref {ref}
 
 customer_declined
-Hi {customerFirst}, it's {ownerFirst} from {business}. Sorry, I can't make {when} for {service}. {nextFreeLine} Call {ownerPhone} if you'd like to talk it through. Ref {ref}
+Hi {customerFirst}, it's {ownerFirst} from {business}. Sorry, I can't do {serviceWhen}. {nextFreeLine} Call {ownerPhone} if you'd like to talk it through. Ref {ref}
 
 customer_rescheduled
 Hi {customerFirst}, it's {ownerFirst} from {business}. I've moved your {service} from {oldWhen} to {newWhen} at {line1}. Does that still work? Reply here or call {ownerPhone}. Ref {ref}
@@ -1525,7 +1642,7 @@ customer_reminder
 Hi {customerFirst}, it's {ownerFirst} from {business}. A reminder: I'm booked to arrive {whenLong} at {line1} for {serviceFull}. I'll message when I'm {awayMinutes} minutes away. Need to change it? Call {ownerPhone}. Ref {ref}
 
 customer_cancelled
-Hi {customerFirst}, it's {ownerFirst} from {business}. I'm sorry, I have to cancel {service} on {when}. {reasonLine} {nextFreeLine} Ref {ref}
+Hi {customerFirst}, it's {ownerFirst} from {business}. I'm sorry, I have to cancel {serviceWhen}. {reasonLine} {nextFreeLine} Ref {ref}
 
 customer_payment_nudge
 Hi {customerFirst}, it's {ownerFirst} from {business}. A quick reminder that {finalPrice} is due for {service} on {dateShort}. You can pay by card, bank transfer or cash. Thank you. Ref {ref}
@@ -1544,7 +1661,7 @@ Example rendered `customer_confirmed` (Priya, EICR house, Mon 26 Oct): `Hi Priya
 
 ### 10.4 Scheduled messages
 
-- `reminderSendAt(booking, createdStamp)` returns the Stamp for `customer_reminder`: `<day before the booking date>T18:00` (`PROMISES.reminderHour`); if that is `<= createdStamp`, use `<booking date>T07:00` when that is `> createdStamp`; else `null` (no reminder). Only for confirmed, non-urgent bookings when `settings.remindersOn`.
+- `reminderSendAt(booking, createdStamp)` returns the Stamp for `customer_reminder`: `<day before the booking date>T18:00` (`PROMISES.reminderHour`); if that is `<= createdStamp`, use `<booking date>T07:00` when that is `> createdStamp`; else `null` (no reminder). The function is pure; the STORE calls it only for `confirmed`, non-urgent bookings and only when `settings.remindersOn`.
 - `customer_review_request` after `completeBooking(sendReview)`: `sendAt = completion stamp + PROMISES.reviewDelayMinutes`.
 - `messageIsScheduled(msg, nowStamp)` = `msg.sendAt !== null && msg.sendAt > nowStamp`. There are no timers: Sent versus Scheduled is derived at render time. `sendMessageNow` flips it manually.
 - Reschedule and cancel delete the booking's unsent scheduled messages; reschedule adds a fresh reminder.
@@ -1560,7 +1677,7 @@ mailtoLink(email, subject = '', body = '')   // 'mailto:' + email + '?subject=' 
 mapsLink(line1, postcode)                    // 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(line1 + ', ' + postcode)
 ```
 
-`toWaDigits(input)`: strip everything except digits; `00` prefix is dropped; a leading `0` becomes `44`; a leading `44` is kept. `07700 900231`, `+44 7700 900231`, `447700900231` and `00447700900231` all give `447700900231`.
+`toWaDigits(input)`: strip everything except digits; `00` prefix is dropped; a leading `0` becomes `44`; a leading `44` is kept; a leading `440` becomes `44` (the `(0)` in `+44 (0)7700 900231`). `07700 900231`, `+44 7700 900231`, `447700900231` and `00447700900231` all give `447700900231`.
 
 **Demo phone override.** `settings.demoPhoneDigits`, when non-empty, replaces the recipient of EVERY `waLink` (callers pass `state.settings.demoPhoneDigits` as the third argument). Fictional `07700 900xxx` numbers cannot receive WhatsApp, so without this the "Open in WhatsApp" moment is a dead link. `normaliseDemoPhone(input)` accepts a UK mobile (converted with `toWaDigits`) or an international number of 8 to 15 digits with `+`, and returns digits or `null`. Demo tools explains this in plain words.
 
@@ -1581,9 +1698,9 @@ The Messages screen performs: `confirm` -> `confirmBooking(id)`; `accept_45` -> 
 
 ### 10.7 Calendar file (`ics.js`)
 
-`buildIcs(booking, settings)` returns the text; `icsFilename(booking)` returns `voltmere-VM-1043.ics` (`business.shortName` lower-cased, non-alphanumerics to `-`, then `-` + ref); `downloadIcs(booking, settings)` creates a Blob (`text/calendar;charset=utf-8`), clicks a temporary `<a download>`, and revokes the URL (browser only; safe to import in Node).
+`buildIcs(booking, settings)` returns the text; `icsFilename(booking, settings)` returns `voltmere-VM-1043.ics` (`business.shortName` lower-cased, non-alphanumerics to `-`, then `-` + ref); `downloadIcs(booking, settings)` creates a Blob (`text/calendar;charset=utf-8`), clicks a temporary `<a download>`, and revokes the URL (browser only; safe to import in Node).
 
-Rules: lines end with CRLF; fold any line longer than 75 octets (CRLF + one space); escape `\`, `;`, `,` and newlines (`\n`) in text values; **floating local times with no `Z` and no TZID**.
+Rules: lines end with CRLF; fold any line longer than 75 octets (CRLF + one space); escape `\`, `;`, `,` and newlines (`\n`) in text values; **`DTSTART` and `DTEND` are floating local times with no `Z` and no TZID; `DTSTAMP` alone is UTC** (RFC 5545 requires it): `parseStamp(createdAt).toISOString()` reshaped to `YYYYMMDDTHHmmssZ`.
 
 ```text
 BEGIN:VCALENDAR
@@ -1593,7 +1710,7 @@ CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
 UID:bk_k3j2h9x1@voltmere.example          (booking.id @ the domain of business.email, else 'prototype.invalid')
-DTSTAMP:20261023T203000                    (createdAt)
+DTSTAMP:20261023T193000Z                   (createdAt in UTC; here 20:30 BST = 19:30Z)
 DTSTART:20261026T080000                    (booking.start)
 DTEND:20261026T120000                      (start + durationMin)
 SUMMARY:Voltmere Electrical: EICR safety report
@@ -1621,7 +1738,14 @@ Section anchors: `#services`, `#how`, `#reviews`, `#area`, `#faq` (plain in-page
 | `#booked/<ref>` | Confirmation screen | reads the booking from the store, so it survives refresh; unknown ref -> friendly not-found |
 | `#manage/<ref>` | Manage page | |
 
-Opening pushes a history entry so the browser Back gesture steps back; `Esc`, the close button and the scrim close the sheet. `closeBooking()` uses `history.back()` when the app pushed the entry, otherwise `history.replaceState(null, '', location.pathname + location.search)`. The page behind keeps its scroll position and is `inert` while the sheet is open.
+**Navigation model (exact; it fixes the trap where Back or X leaves the sheet half open).** Opening the sheet pushes exactly ONE history entry and every step change inside it uses `history.replaceState`, so the system Back gesture and the close button both close the sheet in one step, however many steps the user visited. `replaceState` fires no `hashchange`, so `js/booking/nav.js` owns a tiny route emitter and ALL navigation goes through it:
+
+- `openBooking(opts)` pushes the hash for `opts` (`history.pushState`) and notifies subscribers. Used by every entry point outside the sheet that wants the sheet (tiles, sticky bar, header button, final CTA).
+- `goBooking(opts)` replaces the current entry (`replaceState`) and notifies. EVERY in-sheet navigation uses it (service pick, Continue, the back chevron, `Edit`, the slot-taken alternatives, `#booked`, `#manage`); never an `<a href="#book/...">` click inside the sheet (that would push).
+- `closeBooking()` calls `history.back()` when the sheet was opened by a push (`openedByApp`), otherwise `history.replaceState(null, '', location.pathname + location.search)` followed by a notify. `openedByApp` is true when the route went from none to a sheet route through a push; it is false when the page loaded on a deep link such as `index.html#book/fault`.
+- `useBookRoute()` is the hook the landing app uses: `parseBookHash(location.hash)`, re-evaluated on the emitter, `hashchange` and `popstate` (so a plain hash link from outside the sheet, such as a hero chip, and the browser Back both work; the same listener sets `openedByApp` when a plain link opened the sheet).
+
+`Esc`, the close button and the scrim call `closeBooking()`. The page behind keeps its scroll position and is `inert` while the sheet is open.
 
 ### 11.2 Dashboard route table (`js/dashboard/routes.js`, exact)
 
@@ -1642,7 +1766,7 @@ export const ROUTES = [
 export const DEFAULT_ROUTE = '#/today';
 ```
 
-| Route | Params / query | Nav label | Tab bar slot | Rail/sidebar |
+| Route | Params / query | Nav label | Tab bar slot | Sidebar |
 |---|---|---|---|---|
 | `#/today` | | Today | 1 | yes |
 | `#/calendar`, `#/calendar/<YYYY-MM-DD>` | `date` | Calendar | 2 | yes |
@@ -1651,7 +1775,7 @@ export const DEFAULT_ROUTE = '#/today';
 | `#/insights` | | Insights | 4 | yes |
 | `#/more` | | More | 5 | yes |
 | `#/messages` | query `b` = booking id to filter | (opened from the header icon; highlights More) | 5 | sidebar: Messages; header icon on every size |
-| `#/new` | query `date`, `window`, `service`, `customer` (key), `source` | (FAB, rail and sidebar button; no tab) | none | button |
+| `#/new` | query `date`, `window`, `service`, `customer` (key), `source` | (FAB and sidebar button; no tab) | none | button |
 | `#/settings`, `#/demo`, `#/about` | | (rows on More) | 5 | sidebar bottom links |
 
 Unknown hash or empty hash redirects (`replace`) to `#/today`. A route whose `:id` or `:key` does not resolve shows the view's own friendly not-found, never a blank page.
@@ -1667,6 +1791,7 @@ parseHash(hash)                   // '#/bookings/bk_1?f=owed' -> { name: 'bookin
 routeHref(name, params = {}, query = {})   // routeHref('bookings', { id }, { f: 'owed' }) -> '#/bookings/bk_1?f=owed'; omits empty params/query
 navigate(hash, { replace = false } = {})   // sets location.hash (or replaceState); never reloads
 useRoute()                        // hook: current { name, params, query, path }; re-renders on 'hashchange'
+goBack(fallbackHash = '#/today')  // history.back() when the router has seen at least one in-app hash change since page load, otherwise navigate(fallbackHash, { replace: true }) (a deep link has no history to go back to)
 isImmersive(route)                // boolean
 ```
 
@@ -1681,8 +1806,8 @@ export const css = ['css/today.css'];    // optional array of stylesheet hrefs R
 export default function TodayView({ route }) { /* Preact component; route = { name, params, query, path }; no other required props */ }
 ```
 
-- A view renders its own `PageHeader` (which contains the one `<h1 data-testid="view-title" tabindex="-1">`). The shell provides header, tab bar/rail/sidebar, FAB, toast host, strip. The view renders ONLY the content area.
-- The shell (`js/dashboard/shell.js`) does `const mod = await import(route.module)` inside try/catch; on failure (file not built yet, syntax error) it renders `views/_stub.js` `StubView({ route, error })` with `data-testid="view-stub"` and the text `This screen is not built yet.` (so a half-merged repo still boots without console errors beyond the failed import). It awaits `loadCss` for `mod.css`, shows `Skeleton` while loading, wraps the view in `useErrorBoundary` (friendly `Something went wrong on this screen. Reload.` card), scrolls to top when `route.name` changes, moves focus to `[data-testid="view-title"]` after each route change, and sets `document.title`.
+- A view renders its own `PageHeader` (which contains the one `<h1 data-testid="view-title" tabindex="-1">`). The shell provides header, tab bar/sidebar, FAB and strip (the toast host is mounted by `bootApp`, 11.6). The view renders ONLY the content area.
+- The shell (`js/dashboard/shell.js`) does `const mod = await import(route.module)` inside try/catch; on failure (file not built yet, syntax error) it renders `views/stub.js` `StubView({ route, error })` with `data-testid="view-stub"` and the text `This screen is not built yet.` (so a half-merged repo still boots without console errors beyond the failed import). It awaits `loadCss` for `mod.css`, shows `Skeleton` while loading, wraps the view in `useErrorBoundary` (friendly `Something went wrong on this screen. Reload.` card), scrolls to top when `route.name` changes, moves focus to `[data-testid="view-title"]` after each route change, and sets `document.title`.
 - A view subscribes to data with `useStore(selector)` and never reads `localStorage` itself.
 - Only `js/dashboard/app.js` (WP2) imports `bootApp`. Views never call `render`.
 
@@ -1694,22 +1819,26 @@ export function JobActionBar({ booking, variant = 'card' })   // variant 'card' 
 export function NeedsYouActions({ booking })                  // Needs-you buttons per 13.4: Confirm | Accept + ETA, Decline, Call, WhatsApp.
 export function PaidButton({ booking, size = 'md' })          // "Mark paid" button that opens the payment-method sheet; used by Insights owed rows.
 export function primaryActionFor(booking)                     // pure. { id: 'confirm'|'accept'|'on_my_way'|'mark_done'|'mark_paid'|'review'|'rebook', label, icon } | null
-export function showUndoToast(message, undoToken)             // toast with an "Undo" action calling store.undo(undoToken)
 
+// NOTE: showUndoToast is NOT here. It lives in js/ui/toast.js (WP2, 12.3) so every package can use it without a cross-package import.
 // js/booking/booking-sheet.js  (WP3). Imported by WP6.
 export function BookingSheet({ mode = 'customer', presentation = 'sheet', intent = {}, onClose, onBooked })
 // js/booking/nav.js (WP3)
 export function parseBookHash(hash)   // null | { kind: 'book', serviceId?, date?, windowId?, emergency? } | { kind: 'booked', ref } | { kind: 'manage', ref }
 export function bookHref(opts)        // opts like { serviceId, date, windowId } | { emergency: true } | { bookedRef } | { manageRef } -> '#book/fault/2026-10-24/0'
-export function openBooking(opts)     // location.hash = bookHref(opts)
-export function closeBooking()
+export function openBooking(opts)     // history.pushState to bookHref(opts), notifies: opens the sheet (11.1)
+export function goBooking(opts)       // history.replaceState to bookHref(opts), notifies: every in-sheet step (11.1)
+export function closeBooking()        // 11.1
+export function useBookRoute()        // hook: parseBookHash(location.hash), live (11.1)
 ```
 
-`BookingSheet` props: `mode` `'customer'` (landing; steps navigate through the hash) or `'owner'` (dashboard `#/new`; steps are internal state because the dashboard owns the hash); `presentation` `'sheet'` (overlay `Sheet size="full"`, 560px dialog from 768) or `'page'` (inline panel inside the view); `intent` `{ serviceId, variantId, date, windowId, emergency, ref, customerKey, source }`; `onClose()` when the user dismisses; `onBooked(booking)` after a successful owner-mode save.
+With `presentation="sheet"` the booking frame is a `Sheet size="full"` using its `header` prop (12.3) for the back / step label / close row. `BookingSheet` props: `mode` `'customer'` (landing; steps navigate through the hash) or `'owner'` (dashboard `#/new`; steps are internal state because the dashboard owns the hash); `presentation` `'sheet'` (overlay `Sheet size="full"`, 560px dialog from 768) or `'page'` (inline panel inside the view); `intent` `{ serviceId, variantId, date, windowId, emergency, ref, customerKey, source }`; `onClose()` when the user dismisses; `onBooked(booking)` after a successful owner-mode save.
 
 ### 11.6 Dashboard boot (`js/dashboard/app.js`, WP2)
 
-Order: `initTheme()` -> `bootApp(App)` where `App` = `<Shell/>` + `<ToastHost/>` + `<Watcher/>` (new-booking announcements, 11.7). `bootApp` wraps `initStore()` in try/catch: on first failure it sets `sessionStorage['vm_boot_fail'] = '1'` and renders `Couldn't load saved data. Reload to reset.` with a Reload button; on a second failure in the same tab it calls `resetDemo({ keepSettings: false })` and reloads once.
+`js/dashboard/app.js` sets `window.name = 'vm-dashboard'` then calls `bootApp(App)` where `App` = `<Shell/>` + `<Watcher/>` (new-booking announcements, 11.7). **`bootApp(vnode, { container = '#app' })` does, in this order:** (1) `initStore()` inside try/catch: on the first failure it sets `sessionStorage['vm_boot_fail'] = '1'` and renders `Couldn't load saved data. Reload to reset.` with a Reload button; on a second failure in the same tab it removes `localStorage['vm_state_v1']` (try/catch) and reloads once (it cannot call `resetDemo`, which needs a working store); a successful boot removes `vm_boot_fail`; (2) `initTheme()`; (3) `trackViewport()` (5.1 item 15); (4) creates `#overlay-root` (last child of `<body>`) with its first child `<div id="toast-root">` and renders `ToastHost` into `#toast-root`; (5) EMPTIES `#app` and calls `render(vnode, #app)`. Apps never call `initTheme`, `ToastHost` or `render` themselves.
+
+**Landing boot** (`js/landing/app.js`, WP3): sets `window.name = 'vm-site'`, then `bootApp(<LandingApp/>)`. `LandingApp` is wrapped in `useErrorBoundary`: on a render error it shows `Something went wrong on this page. Reload, or call {phone}.` (phone from the store if readable, else the default from `makeDefaultSettings()`). It composes L1 to L13, renders `<BookingSheet mode="customer" presentation="sheet" ...>` whenever `useBookRoute()` is non-null, and has an effect that keeps `document.title` and the meta description in step with `selectBrand` (13.1).
 
 ### 11.7 New-booking announcements (`js/dashboard/watcher.js`, WP2)
 
@@ -1718,6 +1847,7 @@ Order: `initTheme()` -> `bootApp(App)` where `App` = `<Shell/>` + `<ToastHost/>`
 - On later store changes: each newly arrived unseen booking not yet announced shows a toast `New booking: <first name>, <when>` with action `View` -> `#/bookings/<id>`. Emergency (urgent) arrivals use tone `danger` and text `URGENT request: <first name>`.
 - `document.title` is prefixed `(n) ` while `n` unseen bookings exist.
 - Tab badges: Today = count of `selectNeedsYou`; Bookings = a dot when any unseen booking exists. `markSeen(id)` is called by booking detail on mount (WP5).
+- Bookings made by the Demo tools simulator (source `website`, unseen) are announced like any other arrival, so the Demo tools screen shows no toast of its own (13.15). The Bookings list has a ghost button `Mark all seen` (`bookings-mark-all-seen`, 13.5) that calls `markAllSeen()`; without it the two unseen seed bookings would keep the Bookings tab dot lit until each is opened (that is expected at first launch: the dot means "something here is new").
 - No sound, no vibration (WON'T).
 
 ---
@@ -1728,7 +1858,7 @@ Import everything from the barrel: `import { Button, Sheet, toast, useStore, pag
 
 ### 12.1 CSS conventions
 
-- kebab-case BEM: `block`, `block__element`, `block--modifier`. State classes (global, defined in `components.css`): `is-active`, `is-selected`, `is-disabled`, `is-open`, `is-loading`, `is-new` (1.2s highlight), `is-unseen` (persistent unseen marker).
+- kebab-case BEM: `block`, `block__element`, `block--modifier`. State classes (global, defined in `components.css`): `is-active`, `is-selected`, `is-disabled`, `is-open`, `is-loading`, `is-new` (1.2s highlight), `is-unseen` (persistent unseen marker). Two more state classes live on `<html>` and are defined in `base.css`: `is-scroll-locked` (a sheet is open: `overflow: hidden`) and `is-keyboard-open` (5.1 item 15).
 - Every package uses its OWN prefix and its OWN CSS file. Never style another package's prefix.
 
 | Prefix | File | Owner | Used for |
@@ -1784,28 +1914,30 @@ All components accept `class` (extra classes) and spread remaining props onto th
 | `Select` | `form.js` | `id*`, `value`, `onChange`, `options*` (`[{ value, label }]`) | Native `<select>`, 52px. `.ui-select`. |
 | `Textarea` | `form.js` | `id*`, `value`, `onInput`, `rows = 3` | `.ui-textarea`. |
 | `Switch` | `form.js` | `checked*`, `onChange(checked)*`, `label*`, `description`, `disabled`, `id` | `<button role="switch" aria-checked>` in a 56px row; the whole row is the target. Drawn as a breaker lever: a 52x32 rounded body with a small rectangular lever that flicks up/down and a green LED dot when on (state also shown by the word `On` / `Off` for non-colour signalling). `.ui-switch`, `.ui-switch__lever`, `.ui-switch__led`, `.is-on`. |
-| `Segmented` | `form.js` | `options*` (`[{ value, label, icon, testid }]`), `value*`, `onChange(value)*`, `ariaLabel*`, `size = 'md'` | `role="radiogroup"`; options are `<button role="radio" aria-checked>` >= 44px; arrow keys move selection; each option gets `data-testid={option.testid}`. `.ui-seg`, `.ui-seg__opt`, `.is-selected`. |
+| `Segmented` | `form.js` | `options*` (`[{ value, label, icon, testid }]`), `value*`, `onChange(value)*`, `ariaLabel*`, `size = 'md'` | `role="radiogroup"`; options are `<button role="radio" aria-checked>` >= 44px; arrow keys move selection (roving tabindex: the selected option is `tabindex="0"`, the others `-1`); a Segmented wider than its container scrolls inside its own wrapper and scrolls the selected option into view on mount; each option gets `data-testid={option.testid}`. `.ui-seg`, `.ui-seg__opt`, `.is-selected`. |
 | `Stepper` | `form.js` | `value*`, `onChange*`, `step = 5`, `min = 0`, `max = 99999`, `format = gbp`, `label*` | Minus and plus 48px buttons around a numeric input (`inputmode="numeric"`). `.ui-stepper`. testids come from the caller via `testids = { input, minus, plus }`. |
-| `Sheet` | `sheet.js` | `open*`, `onClose*`, `title*`, `description`, `size = 'auto'` (`auto`,`full`), `footer` (node), `dismissible = true`, `initialFocus` (ref), `testid`, `children` | See 12.4. |
-| `ConfirmDialog` | `sheet.js` | `open*`, `title*`, `body`, `confirmLabel = 'Confirm'`, `cancelLabel = 'Cancel'`, `tone = 'default'` (`danger` makes the confirm button red), `onConfirm*`, `onCancel*` | Built on `Sheet size="auto"`. testids `confirm-dialog`, `confirm-ok`, `confirm-cancel`. |
-| `toast` / `dismissToast` / `ToastHost` | `toast.js` | `toast({ message*, actionLabel, onAction, duration = 6000, tone = 'default' })` returns an id | `ToastHost` mounted once per page (inside `bootApp`); `role="status" aria-live="polite"`; max 2 visible; positioned above the tab bar / sticky bar via CSS custom property `--toast-bottom` (set by page CSS) plus `--safe-bottom`; testids `toast`, `toast-action`. Actions are real buttons >= 44px. Pauses auto-dismiss on hover/focus. |
+| `Sheet` | `sheet.js` | `open*`, `onClose*`, `title*`, `description`, `size = 'auto'` (`auto`,`full`), `header` (node; replaces the default sticky header, `title` is then rendered visually hidden but still names the dialog), `footer` (node), `dismissible = true`, `initialFocus` (ref), `testid`, `children` | See 12.4. |
+| `ConfirmDialog` | `sheet.js` | `open*`, `title*`, `body` (string or node, e.g. a `Select`), `confirmLabel = 'Confirm'`, `cancelLabel = 'Cancel'`, `tone = 'default'` (`danger` makes the confirm button red), `onConfirm*`, `onCancel*` | Built on `Sheet size="auto"`. testids `confirm-dialog`, `confirm-ok`, `confirm-cancel`. |
+| `toast` / `dismissToast` / `showUndoToast` / `ToastHost` | `toast.js` | `toast({ message*, actionLabel, onAction, duration = 6000, tone = 'default' })` returns an id | `ToastHost` is mounted ONCE per page by `bootApp` into `#toast-root`, outside `#app` (never by a view or the shell); `role="status" aria-live="polite"` (a `tone: 'danger'` toast uses `role="alert"`); max 2 visible; positioned with `bottom: calc(var(--toast-bottom, 16px) + var(--safe-bottom))`. Defaults: `components.css` sets `--toast-bottom: 16px`; `dashboard.css` sets `calc(var(--h-tabbar) + var(--h-fab) + 28px)` below 1100px (it clears the tab bar AND the FAB) and `24px` from 1100px; `landing.css` sets `calc(var(--h-stickybar) + 12px)` below 768px. Toasts are `pointer-events: none` except their action button. testids `toast`, `toast-action`. Actions are real buttons >= 44px. Auto-dismiss pauses on hover/focus. **`showUndoToast(message, undoToken, { duration = 6000 } = {})` lives here, not in job-actions:** a toast with an `Undo` action that calls `store.undo(undoToken)` and shows `Too late to undo.` when the result is `stale`. |
 | `WhatsAppBubble` | `whatsapp.js` | `body*`, `direction = 'out'` (`out` = to customers, `in` = owner alerts), `stateLabel` (`Sent (simulated)` or `Scheduled for Fri 18:00 (simulated)`), `scheduled`, `time`, `actions` (`[{ id, label, href }]`), `onAction(id)`, `toLabel` | Parses `*bold*` into `<strong>` safely (no HTML injection), keeps newlines (`white-space: pre-wrap`), shows `check-check` for sent and `clock` for scheduled. Action buttons are full-width white pills >= 44px under the bubble. `.ui-bubble`, `.ui-bubble--out\|in`, `.ui-bubble__actions`, `.ui-bubble__meta`. |
 | `PhoneMock` | `whatsapp.js` | `title`, `subtitle`, `children` | Rounded phone frame with a `--chat-bg` wallpaper header strip; hosts bubbles. `.ui-phone`, `.ui-chat`. Used by the landing confirmation DEMO panel. |
-| `PrototypeNotice` | `notice.js` | `variant = 'strip'` (`strip`,`footer`,`inline`), `page = 'landing'` (`landing`,`dashboard`), `children` (inline only), plus rest props | Exact wording in 3.7. `strip`: `data-testid="prototype-strip"`, link `data-testid="prototype-strip-link"`. `footer`: `data-testid="footer-disclosure"`. |
+| `PrototypeNotice` | `notice.js` | `variant = 'strip'` (`strip`,`footer`,`inline`), `page = 'landing'` (`landing`,`dashboard`), `children` (inline only), plus rest props | Exact wording, styling and hit area in 3.7. `strip`: `data-testid="prototype-strip"`, link `data-testid="prototype-strip-link"`. `footer`: `data-testid="footer-disclosure"`. |
 | `ThemeToggle` | `theme.js` | `variant = 'icon'` (`icon`,`segmented`) | `icon`: one IconButton that cycles Auto -> Light -> Dark, `aria-label="Theme: Auto"` (current), icon `sun-moon`/`sun`/`moon`, `data-testid="theme-toggle"`. `segmented`: `Segmented` with testids `theme-auto`, `theme-light`, `theme-dark`. |
 | `getTheme` `setThemeChoice` `applyTheme` `initTheme` | `theme.js` | | `setThemeChoice(choice)` calls `store.setTheme`, writes `vm_theme`, calls `applyTheme` (sets/removes `data-theme` on `<html>`, updates both `theme-color` metas: light `#FBF8F2`, dark `#0B1020`). `initTheme()` reconciles at boot. |
 | `useStore` `useNow` `useMediaQuery` `useBrand` | `hooks.js` | 8.8 | |
-| `cx` `uid` `copyText` `pageHref` `pageTarget` `focusTitle` `bootApp` `loadCss` | `util.js` / `boot.js` / `load-css.js` | `cx(...)` joins truthy class names; `uid(prefix)` counter id; `copyText(text)` returns `Promise<boolean>` (Clipboard API, textarea fallback); `pageHref(file, hash = '')` returns `file + clockQuery() + hash`; `pageTarget(file)` returns `'vm-dashboard'` for `dashboard.html` and `'vm-site'` for `index.html` (cross-page links set `target` to it and NO `rel="noopener"`); `focusTitle()` focuses `[data-testid="view-title"]`; `bootApp(vnode, { container = '#app' })`; `loadCss(href)` returns a Promise and is idempotent | |
+| `cx` `uid` `copyText` `pageHref` `pageTarget` `focusTitle` `bootApp` `loadCss` | `util.js` / `boot.js` / `load-css.js` | `cx(...)` joins truthy class names; `uid(prefix)` counter id; `copyText(text)` returns `Promise<boolean>` (Clipboard API, textarea fallback); `pageHref(file, hash = '')` returns `file + clockQuery() + hash`; `pageTarget(file)` returns `'vm-dashboard'` for `dashboard.html` and `'vm-site'` for `index.html` (cross-page links set `target` to it and NO `rel="noopener"`); `focusTitle()` focuses `[data-testid="view-title"]`; `bootApp(vnode, { container = '#app' })` (steps in 11.6); `loadCss(href)` returns a Promise and is idempotent | |
 
 ### 12.4 `Sheet` behaviour (exact)
 
-- Rendered into `<div id="overlay-root">` (created as the last child of `<body>` if absent), by an imperative `render()` into that node, because the vendored Preact has no portal. Prop updates re-render.
+- Rendered into its OWN container: each `Sheet` instance appends a fresh `<div class="ui-sheet-root">` to `<div id="overlay-root">` (created as the last child of `<body>` if absent) and calls `render()` into THAT div only, never into `#overlay-root` itself (a second `render()` on a shared container replaces the first tree, 6.1.1 trap 2), because the vendored Preact has no portal. Prop updates re-render the same container; closing or unmounting calls `render(null, container)` and removes the div. `#overlay-root` also holds `<div id="toast-root">` as its FIRST child, created by `bootApp`.
+- **Header.** Default: a sticky header with the `<h2>` title and a 44px close button (`sheet-close`). With the `header` prop that node replaces it and the `<h2>` becomes visually hidden (`u-sr-only`) so `aria-labelledby` still works; the booking flow uses this for its back / step / close row.
+- **Keyboard.** The panel's `bottom` is `var(--kb-inset, 0px)` and its heights subtract the same variable (5.1 item 15), so the sticky footer stays above the on-screen keyboard.
 - `role="dialog" aria-modal="true" aria-labelledby=<title id>`; `aria-describedby` when `description`. The title is an `<h2>` (the page keeps exactly one `<h1>`).
 - On open: remember `document.activeElement`; set `inert` on `#app` (and `aria-hidden="true"`); add `is-scroll-locked` to `<html>` (`overflow: hidden`); move focus to `initialFocus` or the first focusable in the body or the close button.
 - Focus trap: `Tab` / `Shift+Tab` cycle inside the panel. `Esc` calls `onClose` when `dismissible`. Scrim click calls `onClose` when `dismissible`.
 - On close: remove `inert`, unlock scroll, restore focus to the remembered opener (if still in the document).
 - Layout: below 768px the panel is anchored to the bottom, full width, `--r-xl` top corners, grab handle, sticky header with title and a 44px close button, scrollable body (`overscroll-behavior: contain`), sticky footer (padding includes `--safe-bottom`); `size="full"` makes it `100dvh`. From 768px a centred dialog 480px (`auto`) or 560px (`full`), `max-height: 90dvh`. Slide-up `--dur-sheet` `--ease-out`; under reduced motion it simply appears.
-- Nested sheets: a sheet opened from inside a sheet stacks (z-index `--z-sheet` + 1); closing the top one restores focus to its opener.
+- Nested sheets: a sheet opened from inside a sheet stacks (z-index `--z-sheet` + 1) and the lower panel gets `inert` while the upper one is open; closing the top one removes that and restores focus to its opener.
 
 ### 12.5 Icons module (`js/ui/icons.js`)
 
@@ -1820,12 +1952,13 @@ Conventions for every screen spec:
 - `{ownerFirst}`, `{name}`, `{shortName}`, `{phone}`, `{areaName}`, `{areaText}`, `{hoursText}`, `{schemeLine}` come live from `useBrand()`. `{awayMinutes}`, `{freeChangeHours}`, `{arrivalWindowHours}` etc. come from `PROMISES`. Prices come from `selectServices` / `servicePriceLabel`. Never hard-code any of these in copy.
 - `data-testid` values for every element are listed in section 14 (defined once there, authoritative). Where this section names a testid in parentheses it is only a pointer: build every element listed for your screen in 14 with exactly that testid.
 - "Copy" in backticks is exact (apart from interpolated `{...}`). Dates and windows are computed (3.4).
+- Every `waLink(phone, text, demoPhoneDigits)` call passes `brand.demoPhoneDigits` (8.6) so the demo phone override works everywhere; `waShareLink` never does. A mutation failure that a screen does not handle specially follows the generic rule in 8.3.
 - "Empty state" and "loading" are specified where they exist. There is no network, so there are no loading spinners; the only skeleton is the view loader (11.4).
 - Dark mode and 320px must work for every element. Status is never colour-only.
 
 ### 13.1 Landing page (`index.html`, WP3)
 
-Document `<title>`: `{name}: {tagline}`; meta description: `Book {name} online in 60 seconds. Real availability, clear prices, a certificate with every job. Prototype with sample data.` Both update from settings on boot (`document.title`). Section order and ids:
+Document `<title>`: `{name}: {tagline}`; meta description: `Book {name} online in 60 seconds. Real availability, clear prices, a certificate with every job. Prototype with sample data.` Both stay in step with the LIVE brand: an effect in `LandingApp` re-sets `document.title` and the meta description whenever `selectBrand` changes, so a rebrand made in another tab shows within 2 seconds without a reload (F6). Section order and ids:
 
 | # | Section | Anchor |
 |---|---|---|
@@ -1845,14 +1978,14 @@ Document `<title>`: `{name}: {tagline}`; meta description: `Book {name} online i
 
 **L1 Prototype strip.** `PrototypeNotice variant="strip" page="landing"` (3.7).
 
-**L2 Header.** Sticky, `--h-header` + safe-top, paper background at 92% opacity with `backdrop-filter: blur(8px)` (solid `--bg` fallback). Left: `BrandMark` 32px, wordmark `{shortName}` (display, 800, 20px, one line, ellipsis) over `{descriptor}` in 12px tracked caps. Right on mobile: ONE 44px round call `IconButton` (`phone`, `tel:`, `aria-label="Call {ownerFirst}"`). From 768px also: text links `Services`, `How it works`, `Reviews`, `Area`, `FAQ` (anchors), the phone number as a text link, and a small primary `Book a visit` button (opens `#book`). No hamburger.
+**L2 Header.** Sticky, `--h-header` + safe-top, paper background at 92% opacity with `backdrop-filter: blur(8px)` (solid `--bg` fallback). Left: `BrandMark` 32px, wordmark `{shortName}` (display, 800, 20px, one line, ellipsis) over `{descriptor}` in 12px tracked caps. Right on mobile: ONE 44px round call `IconButton` (`phone`, `tel:`, `aria-label="Call {ownerFirst}"`). From 768px also: the phone number as a text link and a small primary `Book a visit` button (opens `#book`); from 1100px also the text links `Services`, `How it works`, `Reviews`, `Area`, `FAQ` (anchors) between brand and phone (5.2: they do not fit at 768). No hamburger.
 
 **L3 Hero.** Navy `--panel`, bottom corners `--r-2xl`, faint wiring-grid background (`img/hero-wiring.svg`, 6% opacity). Top to bottom at 375:
 
 1. **Live availability** (`live-availability`): a pulsing 8px `--dot-free` dot (static under reduced motion) and the label `Next free repair visits`, then up to THREE chips from `nextFreeSlots(state, 'fault', 3)`, each showing its `human` text (`Today, 3–5pm`, `Tomorrow, 8–10am`, `Mon 26 Oct, 8–10am`). The first chip is the soonest, styled accent. Each chip (44px) opens `#book/fault/<date>/<windowId>` (the Details step with that window preselected). Recomputed on every store change and every minute (`useNow(60000)`). Variants: if today is in `fullDays`, prepend the line `{ownerFirst} is fully booked today.`; if no slot exists in the horizon, replace chips with `Diary full for the next {maxDaysAhead} days. Call {ownerFirst}` and a call button. The label says "repair visits" because it is computed for the `fault` service; other services compute their own Soonest card in the booking sheet.
 2. **H1** (`--fs-h1`, display 800): `A proper electrician, booked in 60 seconds.` The words `60 seconds` are wrapped in `<span class="lp-hero__accent">` coloured `--cta` with a hand-drawn SVG underline.
 3. **Sub** (17px, max 2 lines at 375): `Pick a time from {ownerFirst}'s real diary. Clear prices, a certificate with every job, and you pay after.`
-4. **Trust line** (`hero-trust`, 13px, wraps to at most 2 lines): `4.9 rating (sample) · Certificate with every job · Insured (sample)`.
+4. **Trust line** (`hero-trust`, `--fs-14` (there is no 13px token), wraps to at most 2 lines): `4.9 rating (sample) · Certificate with every job · Insured (sample)`.
 5. Eyebrow `What do you need?` then a 2x2 tile grid (min tile height 88px, gap 12px). Tiles (testid `hero-tile-<serviceId>`), each a button opening `#book/<serviceId>`:
 
 | Service | Title | Sub | Price (live) |
@@ -1883,9 +2016,9 @@ Below: 12px muted `{schemeLine}`.
 3. Do not touch anything wet, scorched or sparking.
 ```
 
-Then two 52px buttons (stacked on mobile): solid red `Call {ownerFirst} now · {phone}` (`emergency-call`, `tel:`) and outline `Request an emergency visit` (`emergency-request`, opens `#book/emergency`). Footnote 12px: `Emergency visits {emergencyHoursText}. From £{emergencyFrom} including the first hour. {ownerFirst} aims to be with you within {emergencyArrivalHours} hours.` When `takingEmergencies` is false: the request button is not rendered and the footnote becomes `Not taking emergency visits right now. Call 999 for fire or shock, or {powerCutNumber} for a power cut.`
+Then two 52px buttons (stacked on mobile): solid red `Call {ownerFirst} now · {phone}` (`emergency-call`, `tel:`) and outline `Request an emergency visit` (`emergency-request`, opens `#book/emergency`). Footnote 12px: `Emergency visits {emergencyHoursText}. From {gbp(price of the live emergency service)} including the first hour. {ownerFirst} aims to be with you within {emergencyArrivalHours} hours.` When `takingEmergencies` is false: the request button is not rendered and the footnote becomes `Not taking emergency visits right now. Call 999 for fire or shock, or {powerCutNumber} for a power cut.`
 
-**L6 Services and prices** (`#services`). H2 `Clear prices, agreed before we start`. Sub `"From" prices are for standard jobs. If something bigger turns up, {ownerFirst} quotes in writing before any extra work.` Cards in a `services-list`: every ACTIVE service except `emergency`, in settings order. Each card is ONE button (whole card, min-height 72px) opening `#book/<id>`: icon tile; name; description (max 2 lines); right-aligned display-font price from `servicePriceLabel`; under it the `priceNote`; meta chips `durationLabel` and the `tag` chip when present. `eicr` also shows three mini price chips from its variants (`Flat £150`, `2–3 bed house £195`, `4+ bed £260`). `rewire` shows `Free`. 1 column mobile, 2 at 768, 3 at 1100. Footnote 12px: `Prices include standard materials and certification. No call-out fee on booked visits. Sample prices.`
+**L6 Services and prices** (`#services`). H2 `Clear prices, agreed before we start`. Sub `"From" prices are for standard jobs. If something bigger turns up, {ownerFirst} quotes in writing before any extra work.` Cards in a `services-list`: every ACTIVE service except `emergency`, in settings order. Each card is ONE button (whole card, min-height 72px) opening `#book/<id>`: icon tile; name; description (max 2 lines); right-aligned display-font price from `servicePriceLabel`; under it the `priceNote`; meta chips `durationLabel` and the `tag` chip when present. `eicr` also shows three mini price chips from its variants (`Flat £150`, `2–3 bed house £195`, `4+ bed £260`). `rewire` shows `Free`. 1 column mobile, 2 at 768, 3 at 1100. Footnote 12px: `Prices include standard materials and certification. No call-out fee on booked visits. Sample prices.` If no service is active, the list is replaced by `No services are on offer right now. Call {ownerFirst}.` with a Call button (the same text replaces Step 0 of the booking sheet).
 
 **L7 How it works** (`#how`). H2 `Booked in a minute, sorted in a visit`. Three numbered steps (big numerals, connecting line):
 1. `Pick a time` `You see {ownerFirst}'s real diary, not a we'll-call-you-back form.`
@@ -1894,9 +2027,9 @@ Then two 52px buttons (stacked on mobile): solid red `Call {ownerFirst} now · {
 
 Closing line: `Free to change or cancel up to {freeChangeHours} hours before.`
 
-**L8 Reviews (sample)** (`#reviews`). H2 `What customers say`; chip `SAMPLE REVIEWS, not real customers` (`reviews-sample-chip`); five star icons and `4.9 out of 5 from 212 reviews (sample)`; the three stacked cards from 3.5 (no carousel; 3 columns from 768): stars, quote, `Avatar`, name and job type, tag `Sample review · <town> · Sep 2026`.
+**L8 Reviews (sample)** (`#reviews`). H2 `What customers say`; chip `SAMPLE REVIEWS, not real customers` (`reviews-sample-chip`); five star icons and `4.9 out of 5 from 212 reviews (sample)`; the three stacked cards from 3.5 (no carousel; 3 columns from 768): stars, quote, `Avatar`, name and job type, tag `Sample review · <town>`.
 
-**L9 Meet {ownerFirst} and coverage** (`#area`). Dan card (`dan-card`): avatar `img/dan-avatar.svg` (alt empty, decorative), `Hi, I'm {ownerFirst}.`, paragraph `Fourteen years an electrician, mostly in and around {areaName}. It's just me and my apprentice Sam, so when you book, I'm the one who turns up. Part P registered, 18th Edition qualified, fully insured (all sample).`, then a labelled row `Qualifications` + `SampleTag` and four chips: `City & Guilds 2365`, `18th Edition`, `Inspection and Testing 2391`, `Part P registered`. Coverage card: heading `Do I cover your postcode?`; `Input` (`coverage-input`, postcode attributes from 5.1, placeholder `e.g. MB3 4QP`) and a 52px `Check` button (`coverage-check`; Enter also submits). Result region (`coverage-result`, `aria-live="polite"`):
+**L9 Meet {ownerFirst} and coverage** (`#area`). Dan card (`dan-card`): avatar `img/dan-avatar.svg` (alt empty, decorative), `Hi, I'm {ownerFirst}.`, paragraph `Fourteen years an electrician, mostly in and around {areaName}. It's just me and my apprentice Sam, so when you book, I'm the one who turns up. Part P registered, 18th Edition qualified, fully insured (all sample).`, then a labelled row `Qualifications` + `SampleTag` and four chips: `City & Guilds 2365`, `18th Edition`, `Inspection and Testing 2391`, `Part P registered`. Coverage card: heading `Do I cover your postcode?`; `Input` (`coverage-input`, postcode attributes from 5.1, placeholder `e.g. MB3 4QP`) and a 52px `Check` button (`coverage-check`; Enter also submits). Result region (`coverage-result`, `aria-live="polite"`; the zone comes from `postcodeZone(value, brand)`):
 
 | `postcodeZone` | Result copy | Buttons |
 |---|---|---|
@@ -1909,7 +2042,7 @@ Under it: town chips `{towns}` with caption `(fictional)`, and `{hoursText}. Eme
 
 **L10 FAQ** (`#faq`, `faq`). H2 `Quick answers`. Six native `<details>` (summary min 56px), testids `faq-item-0` to `faq-item-5`:
 0. `How much will it cost?` -> `The price on each service is what you pay for standard jobs. If {ownerFirst} finds something bigger, you get the price in writing before any extra work. You pay after the job by card, bank transfer or cash.`
-1. `Do I need to be home?` -> `Someone over 18 needs to let {ownerFirst} in and show him the fuse box. Landlords can book with a tenant's number and arrange access by message.`
+1. `Do I need to be home?` -> `Someone over 18 needs to let {ownerFirst} in and show where the fuse box is. Landlords can book with a tenant's number and arrange access by message.`
 2. `Will I get a certificate?` -> `Yes. Notifiable work is registered through {ownerFirst}'s competent person scheme and you get the certificate by email or WhatsApp.`
 3. `What is an EICR and do I need one?` -> `An Electrical Installation Condition Report is a safety inspection. Landlords in England must have rented homes inspected at least every 5 years, and buyers and lenders often ask for one. Findings are coded C1, C2, C3 or FI and {ownerFirst} explains each in plain English.`
 4. `What does arrival window mean?` -> `{ownerFirst} arrives at some point in a {arrivalWindowHours}-hour window, for example 10am to 12, and messages you when {ownerFirst} is {awayMinutes} minutes away.`
@@ -1917,33 +2050,33 @@ Under it: town chips `{towns}` with caption `(fictional)`, and `{hoursText}. Eme
 
 **L11 Final call to action** (`final-cta`). Navy panel. Line `Your next free repair visit is {human}.` (live from `nextFreeSlot(state,'fault')`; fallback `Diary full for now. Call {ownerFirst}.`). Full-width 56px primary `Book a visit` (`final-book`, `#book`). Two secondary buttons: `Call {ownerFirst}` (tel) and `WhatsApp` (`waLink`, prefilled `Hi {ownerFirst}, I'd like to book an electrician.`).
 
-**L12 Footer** (`footer`). Brand block (`BrandMark`, `{name}`), `{phone}` (tel link), `{email}` (mailto link), `{areaText}`, `{hoursText}`; `{schemeLine}`; `PrototypeNotice variant="footer"` (`footer-disclosure`); links (each 44px high): `Owner login (demo) →` (`footer-owner-link`, `pageHref('dashboard.html', '#/today')`) and `What's real in this prototype` (`pageHref('dashboard.html', '#/about')`); `Appearance` with `ThemeToggle variant="segmented"`; plain text (not links) `Privacy and Terms: not in this prototype`. No cookie banner. Bottom padding clears the sticky bar.
+**L12 Footer** (`footer`). Brand block (`BrandMark`, `{name}`), `{phone}` (tel link), `{email}` (mailto link), `{areaText}`, `{hoursText}`; `{schemeLine}`; `PrototypeNotice variant="footer"` (`footer-disclosure`); links (each 44px high): `Owner login (demo) →` (`footer-owner-link`, `pageHref('dashboard.html', '#/today')`) and `What's real in this prototype` (`footer-about-link`, `pageHref('dashboard.html', '#/about')`); `Appearance` with `ThemeToggle variant="segmented"`; plain text (not links) `Privacy and Terms: not in this prototype`. No cookie banner. Bottom padding clears the sticky bar.
 
-**L13 Sticky action bar** (`sticky-bar`, below 768px). Fixed bottom, `--h-stickybar` + safe-bottom, surface background, top border, `--shadow-bar`. Left to right: `Call` (`sticky-call`, `phone` icon over a 12px label, 84px wide, `tel:`), `WhatsApp` (`sticky-whatsapp`, `message-circle` over label, 84px, `waLink` prefilled `Hi {ownerFirst}, I'd like to book an electrician.`), primary `Book a visit` (`sticky-book`, flex 1, 56px, opens `#book`). Hidden while the booking sheet is open (`html.is-scroll-locked`). At 320px the two small buttons are 72px and the `Book a visit` label must still fit.
+**L13 Sticky action bar** (`sticky-bar`, below 768px). Fixed bottom, `--h-stickybar` + safe-bottom, surface background, top border, `--shadow-bar`. Left to right: `Call` (`sticky-call`, `phone` icon over a 12px label, 84px wide, `tel:`), `WhatsApp` (`sticky-whatsapp`, `message-circle` over label, 84px, `waLink` prefilled `Hi {ownerFirst}, I'd like to book an electrician.`), primary `Book a visit` (`sticky-book`, flex 1, 56px, opens `#book`). Hidden while the booking sheet is open (`html.is-scroll-locked`) and while the on-screen keyboard is open (`html.is-keyboard-open`, 5.1 item 15). Below 375px the two small buttons are 64px wide (5.2) so the `Book a visit` label always fits.
 
 ### 13.2 Booking flow (customer mode; `js/booking/*`, WP3)
 
-**13.2.1 Frame.** `Sheet size="full"` with `testid="booking-sheet"`. Header (48px targets): back chevron (`booking-back`, hidden on the first step), step label (`Step 1 of 2`, `Step 2 of 2`; none on step 0 or confirmation), close X (`booking-close`). Under the header a two-segment progress bar (`booking-progress`). A slim dashed `Prototype` ribbon sits at the top of the body; on the Details and Emergency steps it also holds the small dashed button `Demo: fill sample details` (`demo-fill`), which fills Priya Nair's details (`SAMPLE_CUSTOMER`) and moves focus to the submit button. A persistent footer line on every step: `Rather talk to someone? Call {ownerFirst} or WhatsApp` with two 44px links (`booking-call`, `booking-whatsapp`). Drafts autosave to `sessionStorage['vm_draft_v1']` (service, variant, date, window, name, phone, postcode, line1, note, emergency reasons) and restore on refresh; cleared on success.
+**13.2.1 Frame.** `Sheet size="full"` with `testid="booking-sheet"`. Header, passed as the `Sheet` `header` prop (48px targets): back chevron (`booking-back`, hidden on the first step), step label (`Step 1 of 2`, `Step 2 of 2`; none on step 0 or confirmation), close X (`booking-close`). Under the header a two-segment progress bar (`booking-progress`). A slim dashed `Prototype` ribbon sits at the top of the body; on the Details and Emergency steps it also holds the small dashed button `Demo: fill sample details` (`demo-fill`), which fills Priya Nair's details (`SAMPLE_CUSTOMER`) and moves focus to the submit button. The LAST ITEM OF THE SCROLLING BODY on every step (deliberately not part of the sticky footer, which would eat a quarter of a 320x568 screen) is the line `Rather talk to someone? Call {ownerFirst} or WhatsApp` with two 44px links (`booking-call`, `booking-whatsapp`). Drafts autosave to `sessionStorage['vm_draft_v1']` (service, variant, date, window, name, phone, postcode, line1, note, emergency reasons) and restore on refresh; cleared on success. On restore the URL wins for service, date and window; name, mobile, postcode, house number and street, note and emergency reasons are always restored; the variant is restored only when the draft's service equals the URL's service.
 
 **13.2.2 Steps.**
 
-*Step 0, "What do you need?" (`#book`, only when no service is chosen).* A red-tint row at the top (`booking-emergency-link`): `Emergency right now? Request an urgent visit` (hidden when emergencies are off). Then one radio-card per active non-emergency service (`service-option-<id>`, min 64px): icon, name, price label, `durationLabel`. One tap commits and advances to `#book/<id>`. Helper: `Not sure? Choose Fault finding. {ownerFirst} will work it out on the day.` No other input.
+*Step 0, "What do you need?" (`#book`, only when no service is chosen).* A red-tint row at the top (`booking-emergency-link`): `Emergency right now? Request an urgent visit` (hidden when emergencies are off). Then one tappable card (a `<button>`, not a radio) per active non-emergency service (`service-option-<id>`, min 64px): icon, name, price label, `durationLabel`. One tap commits and advances with `goBooking({ serviceId })` (11.1). Helper: `Not sure? Choose Fault finding. {ownerFirst} will work it out on the day.` No other input.
 
 *Step 1, "When suits you?" (`#book/<serviceId>`).*
 1. Service chip row (`booking-service-chip`): `{name} · {price label} · Change` (Change goes to `#book`).
 2. EICR only: `Segmented` `Property size` with options `Flat £150` (`eicr-size-flat`), `House, 2–3 bed £195` (`eicr-size-house`, default), `House, 4+ bed £260` (`eicr-size-large`); prices from the service variants. The size is asked HERE, before the slot, so the price never changes later.
 3. `Soonest` card (`soonest-card`, amber outline): `Soonest: {slotHuman}` for THIS service (so an EICR shows its own half-day answer) and a `Pick this` button (`soonest-pick`) that selects it.
-4. `Or choose another day` and the **DayPicker** (`js/booking/day-picker.js`): the days from `getBookableDays` (today to horizon), each a cell (`day-chip-<date>`, min 44x56) with weekday short, date number, today ring, and a status dot with a screen-reader label (`2 or more windows free`, `1 left`, `Full`, `Closed`). Layout: wrapping grid, 7 columns from 360px and 5 columns below 360px (5.4). Disabled days (`closed`, `full`) show `Closed` / `Full` and are not selectable. A selected day is `is-selected`.
-5. Windows for the selected day: full-width 56px buttons (`window-<windowId>`). Single-window services list the four windows `8–10am`, `10am–12`, `1–3pm`, `3–5pm`, each with helper `Arrive between 8 and 10`. Half-day services list two: `Morning · arrive 8–10am` (`window-0`) and `Afternoon · arrive 1–3pm` (`window-2`) with the note `Takes about half a day.` Windows in state `booked` or `blocked` are disabled and labelled `Booked`; `past`, `too_soon`, `closed` windows are not rendered. If the chosen day has nothing free: `Nothing free that day. Try another day.` (`no-slots-day`).
+4. `Or choose another day` and the **DayPicker** (`js/booking/day-picker.js`): the days from `getBookableDays(state, { serviceOrBlocks, ownerMode })` (today to horizon; owner mode 28 days), each a cell (`day-chip-<date>`, a `<button aria-pressed>`, min 44x56) with weekday short, date number, today ring, and a status dot with an `aria-label` such as `Sat 24 Oct, 1 left`. The cell level comes from the SERVICE-specific `freeSlots`, NOT from `load.level` (9.3): `status.kind` of `past`, `beyond`, `dayoff` or `closed` -> `Closed`; kind `full` or `freeSlots === 0` -> `Full`; `freeSlots === 1` -> `1 left`; otherwise `2 or more windows free`. Layout: wrapping grid, 7 columns from 375px and 5 columns below 375px (5.4). Disabled days (`Closed`, `Full`) are not selectable. A selected day is `is-selected`. On entry the selected day is the date of the Soonest slot (so its windows are listed at once); no window is preselected.
+5. Windows for the selected day: full-width 56px buttons (`window-<windowId>`, `aria-pressed` when chosen). Single-window services list the four windows `8–10am`, `10am–12`, `1–3pm`, `3–5pm`, each with helper `Arrive between 8 and 10`. Half-day services list two: `Morning · arrive 8–10am` (`window-0`) and `Afternoon · arrive 1–3pm` (`window-2`) with the note `Takes about half a day.` Windows in state `booked` or `blocked` are disabled and labelled `Booked`; `past`, `too_soon`, `closed` windows are not rendered. If the chosen day has nothing free: `Nothing free that day. Try another day.` (`no-slots-day`).
 6. If nothing is free anywhere in the horizon (`no-slots`): `No free times for this job in the next {maxDaysAhead} days. Call or WhatsApp {ownerFirst} and I'll fit you in if I can.` with `Call` and `WhatsApp` buttons.
-7. Sticky footer: `booking-summary` (`{dateShort} · arrive {arriveLabel}` or `Choose a time to continue`) and the primary `Continue` (`booking-continue`; `aria-disabled` until a window is chosen, helper `Choose a time to continue`). Reassurance under it: `No payment now. Free to change up to {freeChangeHours} hours before.` Selection is announced through an `aria-live="polite"` region. Continue goes to `#book/<serviceId>/<date>/<windowId>`.
+7. Sticky footer: `booking-summary` (`{dateShort} · arrive {arriveLabel}` or `Choose a time to continue`) and the primary `Continue` (`booking-continue`; `aria-disabled` until a window is chosen, helper `Choose a time to continue`). Reassurance under it: `No payment now. Free to change up to {freeChangeHours} hours before.` Selection is announced through an `aria-live="polite"` region. Continue calls `goBooking({ serviceId, date, windowId })` (11.1), i.e. `#book/<serviceId>/<date>/<windowId>`.
 
 *Step 2, "Your details" (`#book/<serviceId>/<date>/<windowId>`).* No account, four fields.
 1. Ticket (`booking-ticket`): service and variant, `{dateShort} · arrive {arriveLabel}`, price (`Fixed £195` for `fixed`/`by_size`, `From £75` for `from`, `Free` for `free`), and an `Edit` link back to Step 1.
 2. Fields, labels above, 16px, 52px (attributes in 5.1): `Your name` (`field-name`); `Mobile number` (`field-phone`, helper `For your confirmation and the {awayMinutes}-minutes-away message. No marketing.`); `Postcode` (`field-postcode`) with a live hint (`postcode-hint`) from `postcodeZone` that never blocks: covered `In {ownerFirst}'s area` (green), edge `On the edge of the area: {ownerFirst} will confirm any travel charge`, outside `A bit outside the area: you can still send it`, none while empty or invalid; `House number and street` (`field-line1`). Optional disclosure `+ Add a note for {ownerFirst}` (`note-toggle`) revealing a textarea (`field-note`, placeholder `e.g. flat 3, buzzer broken, dog is friendly`, max 300).
 3. Validation inline on blur and on submit; messages exactly as 13.2.3, rendered through `Field error`; on submit focus moves to the first invalid field; the button stays tappable.
 4. Sticky primary button (`booking-submit`): `Confirm booking · £195` (`from` priced: `Confirm booking · from £75`; free: `Confirm booking`). Under it: `No payment now. You pay {ownerFirst} after the job.` and the consent line `By booking you agree {ownerFirst} may message you on this number about this visit.`
-5. Submit calls `createBooking`. `slot_taken`: show the banner (`slot-taken-banner`) `That window was just taken. Your details are saved. Here are the next free times:` with up to three chips (`slot-alt-0` to `slot-alt-2`) from `alternatives`; choosing one updates date and window and keeps every typed field; the user taps Confirm again. `invalid`: inline errors. `service_unavailable`: banner `That service isn't available right now. Please call {ownerFirst}.` Success: clear the draft and `replace` to `#booked/<ref>`.
+5. Submit calls `createBooking`. `slot_taken`: show the banner (`slot-taken-banner`) `That window was just taken. Your details are saved. Here are the next free times:` with up to three chips (`slot-alt-0` to `slot-alt-2`) from `alternatives`; choosing one updates date and window and keeps every typed field; the user taps Confirm again. `invalid`: inline errors. `service_unavailable`: banner `That service isn't available right now. Please call {ownerFirst}.` Success: clear the draft and `goBooking({ bookedRef: ref })`. The submit handler ignores re-entry while a submit is in flight (8.3).
 
 *Emergency path (`#book/emergency`).* Skips the date. At the top a danger `Banner` `If there is a fire, or someone has had a shock, call 999.` Title `What is happening?`. If no reason is chosen on submit the error `Choose what is happening` shows under the chips (`error-reasons`). Multi-select chips (`emergency-reason-<id>`, 48px), ids and labels from `EMERGENCY_REASONS`: `no_power` `No power at all`, `burning` `Burning smell or sparks`, `tripping` `Keeps tripping and won't reset`, `water` `Water has got in`, `other` `Something else`. Fields: name, mobile, postcode (required), house number and street (optional), note (optional). Button `Send emergency request` (`emergency-submit`, emergency variant) and a link `Rather call? {phone}` (`emergency-phone-link`). Creates an urgent booking (`createBooking({ urgent: true, date: today, windowId: null, serviceId: 'emergency', ... })`). If `takingEmergencies` is false the path shows only the `Banner` (`emergency-off-banner`) `Not taking emergency visits right now. Call 999 for fire or shock, or {powerCutNumber} for a power cut.` and a Call button.
 
@@ -1965,7 +2098,7 @@ Under it: town chips `{towns}` with caption `(fictional)`, and `{hoursText}. Eme
 
 1. `BreakerArt` (`breaker-art`): six breaker switches; the third flips ON over `--dur-flip` with `--ease-spring` and a small scale pulse; static final state under reduced motion.
 2. Title (`confirmation-title`): confirmed `You're booked in, {first}.`; status `new` or urgent `Request sent, {first}.`
-3. Status chip (`confirmation-status`), live from the store: `Confirmed`, or `Waiting for {ownerFirst} to confirm`. It flips to `Confirmed` when the dashboard confirms in another tab.
+3. Status chip (`confirmation-status`), live from the store: `Confirmed`, or `Waiting for {ownerFirst} to confirm`. It flips to `Confirmed` when the dashboard confirms in another tab. Full mapping from the live status: `new` -> `Waiting for {ownerFirst} to confirm`; `confirmed` -> `Confirmed`; `on_the_way` -> `{ownerFirst} is on the way`; `done` -> `Done`; `cancelled` -> `Cancelled`.
 4. Ticket (`confirmation-ticket`): reference in monospace (`confirmation-ref`), service and variant, `{dateShort} · arrives {arrive}`, address, price (`Fixed £195 · pay after the job` or `From £75 · pay after the job`), and the line `{ownerFirst} gets a WhatsApp alert (simulated in this prototype).`
 5. `What happens next` timeline (`confirmation-timeline`):
    - `Just now` `{ownerFirst} has your booking on WhatsApp (simulated)` (ticked)
@@ -1974,24 +2107,24 @@ Under it: town chips `{towns}` with caption `(fictional)`, and `{hoursText}. Eme
    - `After the job` `Certificate and receipt, then a quick review request`
    Urgent variant: `Now` `{ownerFirst} has been alerted (simulated)`; `Within {emergencyReplyMinutes} minutes` `A reply with an arrival time`; `If you haven't heard in {emergencyCallAfterMinutes} minutes` `Call {phone}`. The urgent screen also repeats the three safety lines from L5.
 6. Buttons (52px): `Add to calendar` (`add-to-calendar`, `downloadIcs`; not shown for urgent), `Message {ownerFirst} on WhatsApp` (`confirmation-whatsapp`, prefilled `Hi {ownerFirst}, it's {first}, booking {ref} for {dateShort} {arriveLabel}.`), `Call {ownerFirst}` (`confirmation-call`), text links `Change or cancel` (`confirmation-manage` -> `#manage/<ref>`) and `Done` (`confirmation-done`).
-7. **DEMO panel** (`demo-panel`, dashed border, label `DEMO · SIMULATED`): heading `This is the message {ownerFirst}'s phone just received`; a `PhoneMock` containing the owner bubble for this booking (`demo-owner-bubble`, `WhatsAppBubble direction="in"`, buttons shown but inert) and a second bubble `What you received` (the customer message); button `Open {ownerFirst}'s dashboard →` (`demo-open-dashboard`, `pageHref('dashboard.html', '#/bookings/<id>')`).
+7. **DEMO panel** (`demo-panel`, dashed border, label `DEMO · SIMULATED`): heading `This is the message {ownerFirst}'s phone just received`; a `PhoneMock` containing the owner bubble for this booking, read from the store by `bookingId` (the `owner_new_booking` or `owner_emergency` message, and the booking's first customer message `customer_confirmed` / `customer_received` / `customer_emergency_received`), so the panel also works after a refresh (`demo-owner-bubble`, `WhatsAppBubble direction="in"`, buttons shown but inert) and a second bubble `What you received` (the customer message); button `Open {ownerFirst}'s dashboard →` (`demo-open-dashboard`, `pageHref('dashboard.html', '#/bookings/<id>')`).
 8. Unknown or missing ref: friendly not-found with Book and Call buttons.
 
 **Manage (`#manage/<ref>`, `manage-page`).**
 - Unknown ref (`manage-not-found`): `We couldn't find that booking. Check the reference, or call {ownerFirst}.` with `Book a visit` and Call.
-- Ticket (`manage-ticket`) and a live status timeline (`manage-status-timeline`): `Requested`, `Confirmed`, `On the way`, `Done`. `on_the_way` reads `{ownerFirst} is on the way. Expected about {etaClock} (his own estimate, not live tracking).` `cancelled` reads `This booking was cancelled.` with a `Book again` button.
-- Status `new` or `confirmed` and NOT within `freeChangeHours` of the start: `Change time` (`manage-change`) swaps the ticket for the "When" step (same components) with primary `Save new time` (`manage-save-time`), which calls `rescheduleBooking(id, {...}, 'customer')`; `Cancel visit` (`manage-cancel`) opens `ConfirmDialog` `Cancel this visit?` with an optional reason `Select` (`manage-cancel-reason`: `Changed my mind`, `Found someone else`, `No longer needed`, `Other`) and confirm (`manage-cancel-confirm`) which calls `cancelBooking(id, 'customer', { reason })`. The window is free again instantly on the landing page and the dashboard.
+- Ticket (`manage-ticket`) and a live status timeline (`manage-status-timeline`): `Requested`, `Confirmed`, `On the way`, `Done`. `on_the_way` reads `{ownerFirst} is on the way. Expected about {etaClock} ({ownerFirst}'s own estimate, not live tracking).` `cancelled` reads `This booking was cancelled.` with a `Book again` button.
+- Status `new` or `confirmed` and NOT within `freeChangeHours` of the start: `Cancel visit` (`manage-cancel`) opens `ConfirmDialog` `Cancel this visit?` with an optional reason `Select` (`manage-cancel-reason`: `Changed my mind`, `Found someone else`, `No longer needed`, `Other`) and confirm (`manage-cancel-confirm`) which calls `cancelBooking(id, 'customer', { reason })`. The window is free again instantly on the landing page and the dashboard. There is no self-service time change (WON'T, 2.3): beneath the button sits the line `To change the time, call or WhatsApp {ownerFirst}.` with Call and WhatsApp buttons.
 - Within `freeChangeHours` of the visit (and still active): no actions; text (`manage-close-note`) `This is close, so please call {ownerFirst}.` with Call and WhatsApp buttons.
 - `on_the_way` and `done`: status only.
 
 ### 13.4 Dashboard: Today (`js/dashboard/views/today.js`, `css/today.css`, WP4)
 
-`title`: `Today`. `css`: `['css/today.css', 'css/bookings.css']` (the latter for shared job-action sheets). PageHeader: title `{Morning|Afternoon|Evening}, {ownerFirst}` (before 12:00 Morning, before 18:00 Afternoon, else Evening, from the real clock), subtitle `{Fri 23 Oct} · {n} jobs today · {m} need you`. Sections, in this order on mobile (at 1100px two columns per 12.2 `db-two-col`: left = Availability, Needs you, Next up; right = Stats, Today's diary, Tomorrow, Share):
+`title`: `Today`. `css`: `['css/today.css', 'css/bookings.css']` (the latter for shared job-action sheets). PageHeader: title `{Morning|Afternoon|Evening}, {ownerFirst}` (before 12:00 Morning, before 18:00 Afternoon, else Evening, from the real clock), subtitle `{Fri 23 Oct} · {n} jobs today · {m} need you`. Sections (the numbers below are LABELS, not the order). **Render order on mobile: 2 (Needs you), 3 (Next up), 1 (Availability), 4, 5, 6, 7**, because Needs you is what the owner must act on first. At 1100px two columns per 12.2 `db-two-col`: left = Needs you, Next up, Availability; right = Stats, Today's diary, Tomorrow, Share:
 
-1. **Availability card** (`today-availability`). A `Switch` `Taking bookings today` (`today-taking-bookings`), checked when today is not in `fullDays`. On: description `Customers can book your free windows today.` Off: an amber note `Full today. New customers cannot book today. Your {n} jobs stay in your diary.` Toggling calls `setDayFull(today, !checked)` with an Undo toast; the landing page updates live. If today is closed (day off or a closed weekday) the switch is disabled with `Today is closed.` Below, two secondary buttons: `Take tomorrow off` (`today-take-tomorrow-off`) and `Take next week off` (`today-take-week-off`). One tap each, no confirm; they call `addDaysOff` for tomorrow / the 7 days of next Monday to Sunday with label `Day off` / `Holiday`, then a toast `Tomorrow marked as a day off. Customers cannot book it.` (or `Next week marked as days off.`, plus `{n} booked jobs stay in your diary.` when `bookedCount > 0`) with Undo. If already off the button is disabled and reads `Tomorrow is off`.
+1. **Availability card** (`today-availability`). A `Switch` `Taking bookings today` (`today-taking-bookings`), checked when today is not in `fullDays`. On: description `Customers can book your free windows today.` Off: an amber note `Full today. New customers cannot book today. Your {n} jobs stay in your diary.` Toggling calls `setDayFull(today, !checked)` with an Undo toast; the landing page updates live. If today is closed (day off or a closed weekday) the switch is disabled with `Today is closed.` Below, two secondary buttons: `Take tomorrow off` (`today-take-tomorrow-off`) and `Take next week off` (`today-take-week-off`). One tap each, no confirm; they call `addDaysOff` for tomorrow / the 7 days of next Monday to Sunday with label `Day off` / `Holiday`, then a toast `Tomorrow marked as a day off. Customers cannot book it.` (or `Next week marked as days off.`, plus `{n} booked jobs stay in your diary.` when `bookedCount > 0`) with Undo. If tomorrow is already off or closed (a day off, or a weekday with no open windows such as Sunday) the button is disabled and reads `Tomorrow is off`.
 2. **Needs you** (`needs-you`, only when `selectNeedsYou` is non-empty). Section title `Needs you` and a count. One card per booking (`needs-you-card-<id>`, 4px left border: `--danger` for urgent, `--status-new-fg` otherwise; `is-unseen` while unseen): urgent pill or `New request` pill, `{first name} · {outward code} · {fmtTimeAgo}`, a summary (urgent: `emergencyList` and the note; otherwise `{serviceName}, {when}` plus the line `Outside your usual area: confirm travel.` for edge/outside, or `Auto-confirm is off.`). Buttons come from `NeedsYouActions` (13.6.2). Ordered urgent first, then oldest first.
 3. **Next up** (`next-up`). From `selectNextUp(state, nowStamp)`. Eyebrow `Next up` and a countdown (`useNow(30000)`): on the way `On the way since {HH:mm}`; accepted emergency `Emergency · ETA {etaClock}`; today before the window `In {n} min` / `In {h} h {m} min`; during the window `Arriving now`; another day `{Tomorrow|Sat 24 Oct}`. Big window label (display, 28px, tabular): `bookingWindowLabel(booking)`. Then: service (and variant), customer name with the `Repeat customer` tag when `selectRepeatInfo` says so, address (maps link), a one-line note snippet, price. A row of four 56px tiles: `Navigate` (`next-up-navigate`, `mapsLink`), `Call` (`next-up-call`), `WhatsApp` (`next-up-whatsapp`, prefilled `Hi {first}, it's {ownerFirst} from {business} about your booking {ref}.`), `Details` (`next-up-details`, `#/bookings/<id>`). Below it `JobActionBar variant="card"` (ONE full-width 56px primary whose label follows the job state, 13.6.1). Empty state (`today-empty`, `EmptyState` `calendar-days`): `Nothing booked. Go put the kettle on.` with the share card below.
-4. **Stats** (three `Stat` tiles): `Jobs today` (`stat-jobs-today`, count of non-cancelled bookings starting today including accepted emergencies), `Owed to you` (`stat-owed`, `£245`, hint `2 jobs`, links to `#/insights`), `Next free slot` (`stat-next-free`, `nextFreeSlot(state, 'fault')` human text, hint `for repairs`).
+4. **Stats** (three `Stat` tiles): `Jobs today` (`stat-jobs-today`, count of bookings starting today whose status is `confirmed`, `on_the_way` or `done`: an unaccepted emergency is in Needs you, not yet a job; an accepted one counts; the same `n` feeds the page subtitle), `Owed to you` (`stat-owed`, `£245`, hint `2 jobs`, links to `#/insights`), `Next free slot` (`stat-next-free`, `nextFreeSlot(state, 'fault')` human text, hint `for repairs`).
 5. **Today's diary** (`today-jobs`). The day's open windows in order with a thin `Lunch` divider between windows 1 and 2. A booking row (`today-job-<id>`, min 72px): window label, service, customer first name and outward code, price, `StatusPill`; a half-day job spans two windows as one row; accepted emergencies appear first with `ASAP`. A free window that is not past shows a dashed row `Free · add a job` (`today-free-<windowId>`) linking to `#/new?date=<today>&window=<id>`. Blocked windows show `Blocked: {label}`. Closed and past-and-empty windows are not shown.
 6. **Tomorrow** (`tomorrow-list`). Heading `Tomorrow` (or `{weekday date}` when the next open day is not tomorrow): up to four rows (window label, service, customer, status), a tag `Free windows: {n}` and a link `Open calendar` -> `#/calendar/<date>`.
 7. **Share card** (`share-card`): `Your booking page` / `Send this link to customers. It shows your real diary.` Buttons `Send on WhatsApp` (`share-whatsapp`, `waShareLink` with `Book {name} online: <SITE_BASE_URL>index.html`) and `Copy link` (`share-copy`, `copyText`, then toast `Link copied`).
@@ -2011,7 +2144,7 @@ The FAB is rendered by the shell (not by Today).
 | `cancelled` | `Cancelled` | `status === 'cancelled'` |
 | `all` | `All` | everything |
 
-Search matches case-insensitively across customer name, phone digits (spaces ignored), postcode (spaces ignored), ref, service name and address line. Sort: `new`/`upcoming` soonest first, others most recent first; urgent bookings first under a group `ASAP`. Group by day with sticky headings (`Today`, `Tomorrow`, `Mon 27 Oct`). Row (`booking-row-<id>`, min 72px, whole row is a link to `#/bookings/<id>`): left time block (window label), name (bold), service, outward code, price, `StatusPill` (and the `URGENT` pill); `is-unseen` rows show a blue dot and the left bar. Empty states: `new` `Nothing needs you. Nice.`; `upcoming` `No upcoming bookings. Share your booking link.` (link to Today share card); `owed` `Nothing to collect. Nice.`; `done` `No finished jobs yet.`; `cancelled` `No cancelled bookings. Nice.`; `all` or any search with no hits `No bookings match "{q}".` (`bookings-empty`). Below 1100px the list and detail are separate screens; from 1100px they sit side by side (`db-master-detail`), selecting a row never changes the list scroll position.
+**Search and filter behaviour.** Only the search + filter block is sticky (just below the sticky dashboard header); the page title and the Bookings | Customers toggle scroll away, and when the viewport is under 600px high nothing is sticky. Search and filter changes call `navigate(..., { replace: true })` (no history spam). A non-empty search runs over ALL bookings whatever filter is selected and shows the line `Searching all bookings`. The selected filter option is scrolled into view on mount. A ghost button `Mark all seen` (`bookings-mark-all-seen`) sits in the PageHeader actions while any booking is unseen and calls `markAllSeen()`. Search matches case-insensitively across customer name, phone digits (spaces ignored), postcode (spaces ignored), ref, service name and address line. Sort: `new`/`upcoming` soonest first, others most recent first; urgent bookings first under a group `ASAP`. Group by day with plain, NON-sticky headings (`Today`, `Tomorrow`, `Mon 27 Oct`). Row (`booking-row-<id>`, min 72px, whole row is a link to `#/bookings/<id>`): left time block (window label), name (bold), service, outward code, price, `StatusPill` (and the `URGENT` pill); `is-unseen` rows show a blue dot and the left bar. Empty states: `new` `Nothing needs you. Nice.`; `upcoming` `No upcoming bookings. Share your booking link.` (link to Today share card); `owed` `Nothing to collect. Nice.`; `done` `No finished jobs yet.`; `cancelled` `No cancelled bookings. Nice.`; `all` or any search with no hits `No bookings match "{q}".` (`bookings-empty`). Below 1100px the list and detail are separate screens; from 1100px they sit side by side (`db-master-detail`), selecting a row never changes the list scroll position.
 
 **Booking detail** (`js/dashboard/views/booking-detail.js` exports the NAMED component `BookingDetail({ id })`, used by `bookings.js`; it is not a route module). Testid `booking-detail`. Mobile: immersive page, PageHeader with back arrow to `#/bookings`, eyebrow `Booking`, title `{ref}` (monospace). On mount it calls `markSeen(id)`. Content in order:
 
@@ -2021,7 +2154,7 @@ Search matches case-insensitively across customer name, phone digits (spaces ign
 4. **Timeline** (`detail-timeline`): the `history` entries, newest last, each `<Sat 24 Oct 09:12> · <text>` (`Booked via website`, `Confirmed`, `Declined`, `On the way, about 11:20`, `Done`, `Paid by cash`, `Moved to Mon 26 Oct, 8–10am`, `Cancelled by customer: Customer asked`, `Message logged (simulated): Running late`).
 5. **Messages for this booking**: up to three latest (kind label, time, `Sent (simulated)` or `Scheduled for ...`) and a link `See all` -> `#/messages?b=<id>`.
 6. **Quick messages** (SHOULD): three 48px buttons `Running late` (`detail-quick-late`), `Need access` (`detail-quick-access`), `Quote ready` (`detail-quick-quote`). Tap logs the message (`sendQuickMessage`) and shows a toast `Message logged (simulated). Open it in your WhatsApp to send it for real.` with action `Open WhatsApp` (opens `waLink(...)` in a new tab).
-7. Sticky bottom bar (`db-sticky-actions`): `JobActionBar variant="bar"` and an overflow `IconButton` (`detail-overflow`, `ellipsis`) opening a Sheet with: `Reschedule`, `Cancel booking`, `Payment reminder` (when owed), `Ask for a review` (when done and not requested), `Mark unpaid` (when paid).
+7. Sticky bottom bar (`db-sticky-actions`) holding `JobActionBar variant="bar"`: the primary button plus the overflow `IconButton` (`detail-overflow`, `ellipsis`). `JobActionBar` renders the overflow button itself; it opens a Sheet (`detail-overflow-sheet`) listing the SECONDARY actions of 13.6.1 as 56px rows that reuse the testids `job-secondary-decline` (status new), `job-secondary-reschedule`, `job-secondary-cancel`, `job-secondary-nudge` (owed), `job-secondary-review` (done and not yet requested) and `job-secondary-unpaid` (paid; label `Mark unpaid`).
 8. Unknown id (`detail-not-found`): `We couldn't find that booking.` and a `Back to bookings` button.
 
 ### 13.6 Shared job actions (`js/dashboard/shared/job-actions.js`, WP5)
@@ -2036,11 +2169,11 @@ Search matches case-insensitively across customer name, phone digits (spaces ign
 | `confirmed`, urgent (accepted) | `mark_done` `Mark done` | `Cancel booking` |
 | `on_the_way` | `mark_done` `Mark done` (opens the complete sheet) | `Cancel booking` |
 | `done`, unpaid | `mark_paid` `Mark paid` (opens the paid sheet) | `Payment reminder` (`job-secondary-nudge`), `Ask for a review` (`job-secondary-review`, only if not yet requested) |
-| `done`, paid, review not requested | `review` `Ask for a review` | none |
-| `done`, paid, review requested | none: disabled text `All done` | none |
+| `done`, paid, review not requested | `review` `Ask for a review` | `Mark unpaid` (`job-secondary-unpaid`) |
+| `done`, paid, review requested | none: disabled text `All done` | `Mark unpaid` (`job-secondary-unpaid`) |
 | `cancelled` | `rebook` `Rebook` -> `#/new?customer=<key>&service=<serviceId>` | none |
 
-The primary button has `data-testid="job-primary"`; the container `job-action-bar`. Accept/Decline are at least 16px apart. Every status change shows an Undo toast (6s) via `showUndoToast`:
+**Variants.** `variant="card"` (Today's Next up): the primary full width at 56px with the secondary actions as a row of 44px text buttons below it. `variant="bar"` (booking detail): ONLY the primary (56px, flex 1) plus the `detail-overflow` IconButton; the secondaries live in the overflow sheet (13.5 item 7). For an urgent `new` booking both variants show the ETA `Segmented` (`job-eta-*`) directly above the primary. The primary button has `data-testid="job-primary"`; the container `job-action-bar`. Accept/Decline are at least 16px apart. Every status change shows an Undo toast (6s) via `showUndoToast` from `js/ui/toast.js` (12.3):
 
 | Action | Toast copy |
 |---|---|
@@ -2052,6 +2185,7 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 | mark paid | `Marked paid.` |
 | cancel | `Cancelled. The window is free again.` |
 | reschedule | `Moved to {when}.` |
+| mark unpaid | `Marked unpaid.` (a plain toast: `markUnpaid` returns no undo token) |
 
 **13.6.2 `NeedsYouActions`** renders, for an urgent booking: ETA `Segmented` (`needs-you-eta-45`, `needs-you-eta-60`, `needs-you-eta-120`; labels `45 min`, `1 hr`, `2 hrs`), primary `Accept` (`needs-you-accept-<id>`), `Call`, `WhatsApp`, then (16px gap) ghost `Decline` (`needs-you-decline-<id>`). For a non-urgent `new` booking: primary `Confirm` (`needs-you-confirm-<id>`), `Call`, `WhatsApp`, `Decline`. Decline is ONE tap with Undo (no reason sheet). `Call` and `WhatsApp` open `telLink` and `waLink` (with the demo phone override).
 
@@ -2060,7 +2194,7 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 - **Complete sheet** (`complete-sheet`): title `Finish the job`; final price `Stepper` (`complete-price`, `complete-price-minus`, `complete-price-plus`; step £5; defaults to the quoted price); `Segmented` `Paid?` options `Not yet` (`paid-method-none`, default), `Cash` (`paid-method-cash`), `Card` (`paid-method-card`), `Bank` (`paid-method-bank`); `Switch` `Send review request` (`complete-review-toggle`, default on, helper `Goes out {reviewDelayMinutes} minutes after you finish.`); primary `Complete job` (`complete-submit`) -> `completeBooking`. Choosing a method goes straight to paid.
 - **Paid sheet** (`paid-sheet`): title `How did they pay?`; the three method options (`paid-method-cash`, `paid-method-card`, `paid-method-bank`), none preselected; primary `Mark paid` (`paid-submit`, disabled until chosen) -> `markPaid`.
 - **Cancel sheet** (`cancel-sheet`): reason chips `Customer asked` (`cancel-reason-customer`, default), `Can't make it` (`cancel-reason-cannot`), `Duplicate` (`cancel-reason-duplicate`), `Other` (`cancel-reason-other`); `Switch` `Tell the customer` (`cancel-notify-toggle`, default on) with a preview bubble of `customer_cancelled`; danger button `Cancel booking` (`cancel-submit`) and ghost `Keep booking`.
-- **Reschedule sheet** (`reschedule-sheet`): a wrapping grid of days (`reschedule-day-<date>`, next 28 days, owner mode) and the selected day's windows (`reschedule-window-<id>`, from `getDaySlots(..., { ownerMode: true, ignoreBookingId })`; half-day jobs show their two options); `Switch` `Tell the customer` (`reschedule-notify-toggle`, default on); preview bubble of `customer_rescheduled` (`reschedule-preview`); primary `Move booking` (`reschedule-submit`) -> `rescheduleBooking`.
+- **Reschedule sheet** (`reschedule-sheet`): a wrapping grid of days (`reschedule-day-<date>`, next 28 days, owner mode, built with this package's own `ja-` classes because WP3's DayPicker is not importable; same 5 / 7 column rule as 5.4) and the selected day's windows (`reschedule-window-<id>`, from `getDaySlots(..., { ownerMode: true, ignoreBookingId })`; half-day jobs show their two options); `Switch` `Tell the customer` (`reschedule-notify-toggle`, default on); preview bubble of `customer_rescheduled` (`reschedule-preview`); primary `Move booking` (`reschedule-submit`) -> `rescheduleBooking`.
 
 `PaidButton` renders a `Button` `Mark paid` (`owed-mark-paid-<id>`) that opens the Paid sheet.
 
@@ -2069,19 +2203,19 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 `title`: `Calendar`. `css`: `['css/calendar.css']`. The diary IS the availability: whatever is blocked or booked here is what customers see.
 
 1. Week header: label `{Mon 26 Oct} to {Sun 1 Nov}`; `calendar-prev` and `calendar-next` (48px), `Today` (`calendar-today`). The route is `#/calendar/<date>`; the week is the Monday-start week containing it (default today).
-2. Week strip (mobile): seven 48px-min chips (`calendar-day-<date>`; scroll-snap if narrower than 7x44): weekday short, date number, `{n} jobs` (non-cancelled bookings that day), a dot from `getDayLoad(state, date)` (the CUSTOMER view of availability), today ring, selected state. Sunday and days off show `Closed` / `Off`.
+2. Week strip (mobile): seven chips (`calendar-day-<date>`), min 44px wide x 64px high, 2px gaps (seven fit from 360px; below that the strip scrolls inside its wrapper with scroll-snap and the selected day is scrolled into view): weekday short, date number, `{n} jobs` (non-cancelled bookings that day), a dot from `getDayLoad(state, date)` (the CUSTOMER view of availability), today ring, selected state. Sunday and days off show `Closed` / `Off`.
 3. Selected day panel (`calendar-day-panel`): banners when the day is a day off (`Day off: {label}` and button `Remove day off` `calendar-remove-dayoff`) or marked full (`Marked full. Customers cannot book this day.` and button `Reopen day` `calendar-reopen-day`). Then one row per open window in order with a thin `Lunch` divider between windows 1 and 2 (`calendar-window-<date>-<windowId>`):
    - **booked**: the booking card (`calendar-booking-<id>`): window label, service, customer first name, `StatusPill`; links to `#/bookings/<id>`. A half-day job is ONE card spanning its two rows.
    - **free**: dashed full-width button `Free · tap to add or block` -> opens the free-window Sheet (`calendar-free-sheet`) with `Add booking (phone call)` (`calendar-add-booking` -> `#/new?date=<date>&window=<id>`), `Block this time` (`calendar-block-open`), `Take the whole day off` (`calendar-dayoff-open`, adds a day off).
-   - **blocked**: hatched row `Blocked: {label}` as a button (`calendar-unblock-<blockId>`) -> `ConfirmDialog` `Unblock this time?`; confirming removes the block with an Undo toast.
+   - **blocked**: hatched row `Blocked: {label}` as a button (`calendar-unblock-<blockId>`) -> `ConfirmDialog` `Unblock this time?`; confirming removes the block with an Undo toast. When the block's `groupId` is shared by more than one block, the dialog body also shows a `Switch` `Unblock all {n} windows` (`calendar-unblock-group`, default on) and confirming then calls `removeBlockGroup`.
    - **closed** (not in the weekday's hours): muted `Closed`; **past** and empty: muted.
-4. **Block sheet** (`block-sheet`): label chips `Dentist` (`block-label-dentist`), `Van MOT` (`block-label-mot`), `Supplier run` (`block-label-supplier`), `Other` (`block-label-other`) filling a text `Input` (`block-label`, default `Blocked`); `Segmented` scope `This window` (`block-scope-window`, default), `Whole day` (`block-scope-day`), `Until a date` (`block-scope-until`, reveals a date input `block-until`); primary `Block` (`block-confirm`). Calls `addBlock` or `blockRange`; booked windows are skipped and reported in the toast (`Blocked 3 windows. 1 was already booked.`) with Undo. The landing page updates within a second.
+4. **Block sheet** (`block-sheet`): label chips `Dentist` (`block-label-dentist`), `Van MOT` (`block-label-mot`), `Supplier run` (`block-label-supplier`), `Other` (`block-label-other`) filling a text `Input` (`block-label`, default `Blocked`); `Segmented` scope `This window` (`block-scope-window`, default), `Whole day` (`block-scope-day`), `Until a date` (`block-scope-until`, reveals a date input `block-until` (`type="date"`, `min` = the selected day; an earlier value is ignored)); primary `Block` (`block-confirm`). Calls `addBlock` or `blockRange`; booked windows are skipped and reported in the toast (`Blocked 3 windows. 1 was already booked.`) with Undo. The landing page updates within a second.
 5. From 768px the strip and panel become a 7-column week grid (`calendar-grid`): columns Monday to Sunday, rows the four windows with the lunch gap, the same cell states and handlers, compact. Selecting a day column heading selects it.
 6. Legend (`calendar-legend`): green `Plenty free`, amber `1 left`, grey `Full or closed`, hatched `Blocked`, and the note `Customers book from this diary. Free here means bookable on your website.` with the link `Preview customer view` (`calendar-preview-site`, `pageHref('index.html', '#book')`).
 
 ### 13.8 Dashboard: New booking (`js/dashboard/views/new.js`, WP6)
 
-`title`: `New booking`. `css`: `['css/booking.css']`. Immersive route; the inline panel root has `data-testid="new-booking-page"`. Renders `PageHeader` (back arrow to the previous route via `history.back()`, fallback `#/today`) and `<BookingSheet mode="owner" presentation="page" intent=${{ serviceId, date, windowId, customerKey, source }} onClose=${back} onBooked=${(b) => navigate(routeHref('bookings', { id: b.id }))} />` with the intent parsed from the query (`service`, `date`, `window`, `customer`, `source`). Owner-mode behaviour (implemented in WP3's components; WP6 only wraps it):
+`title`: `New booking`. `css`: `['css/booking.css']`. Immersive route; the inline panel root has `data-testid="new-booking-page"`. Renders `PageHeader` (back arrow via `goBack('#/today')`, 11.3) and `<BookingSheet mode="owner" presentation="page" intent=${{ serviceId, date, windowId, customerKey, source }} onClose=${back} onBooked=${(b) => navigate(routeHref('bookings', { id: b.id }), { replace: true })} />` with the intent parsed from the query (`service`, `date`, `window`, `customer`, `source`). In `presentation="page"` the booking step titles are `<h2>` (the one `<h1>` on the screen is the PageHeader's) and the Sheet-only chrome (close X, `Prototype` ribbon) is omitted. Owner-mode behaviour (implemented in WP3's components; WP6 only wraps it):
 - Step 0 service list (no emergency). Step 1 When uses `ownerMode: true` and 28 days (windows `too_soon` are bookable, `booked`/`blocked`/`closed`/`past` are not).
 - Step 2 fields: name, mobile, postcode, house number and street, note; typing a mobile that matches an existing customer shows the chip `Existing customer` (`existing-customer-chip`) and fills missing name and address; `Source` `Segmented` `Phone` (`source-phone`, default), `WhatsApp` (`source-whatsapp`), `Word of mouth` (`source-referral`); `Price` input (`field-price`, prefilled with the quoted price, editable, numeric); `Switch` `Send confirmation message` (`notify-toggle`, default on).
 - Submit `Add to diary` (`booking-submit`) -> `createBooking({ ..., asOwner: true, notifyCustomer, quotedPrice, source })`: status `confirmed`, confirmation message logged when enabled, then `onBooked`.
@@ -2110,11 +2244,11 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 
 ### 13.13 Dashboard: Settings (`js/dashboard/views/settings.js`, `css/settings.css`, WP8)
 
-`title`: `Settings`. One scrolling page, four `db-section`s. Every control saves on change/blur (no Save button), shows a `Saved` tick (`setting-saved`) for 2 seconds, and the landing page in another tab reflects it live.
+`title`: `Settings`. One scrolling page, four `db-section`s. Every control saves on change/blur (no Save button), and ONE shared `Saved` tick (`setting-saved`, `role="status"`, pinned at the top right of the page content) appears for 2 seconds after any successful save (a tick per control would repeat the testid), and the landing page in another tab reflects it live.
 
 **A. Business and brand.** `Input`s: `Business name` (`setting-business-name`), `Short name` (`setting-short-name`, helper `Shown next to the logo`), `Your first name` (`setting-owner-first`), `Tagline` (`setting-tagline`), `Phone` (`setting-phone`, error `Enter a UK mobile like 07700 900412`), `Email` (`setting-email`), `Area` (`setting-area`). A live mini preview (`setting-preview`): `BrandMark`, name, tagline, a primary button. Note: `Reviews, ratings and the registration line stay sample content after you rebrand.` Empty required fields show `This can't be empty.` and are not saved.
 
-**B. Services and prices.** One row per service: `Switch` `Show on website` (`service-active-<id>`) and a price `Input` (`service-price-<id>`, prefix `£`, numeric). `eicr` shows three price inputs (`service-variant-price-flat`, `service-variant-price-house`, `service-variant-price-large`). Invalid price: `Enter a whole number of pounds.`
+**B. Services and prices.** One row per service: `Switch` `Show on website` (`service-active-<id>`) and a price `Input` (`service-price-<id>`, prefix `£`, numeric). `eicr` shows three price inputs (`service-variant-price-flat`, `service-variant-price-house`, `service-variant-price-large`). Invalid price: `Enter a whole number of pounds.` The `emergency` row has no `Show on website` switch (emergency visibility is the `setting-emergencies` rule in D) and `rewire` has no price input (it shows `Free`).
 
 **C. Availability.** Seven weekday rows Monday to Sunday; each has four toggle chips for the windows (`hours-<weekday>-<windowId>`, weekday is the JS number 0 to 6, so Monday is `hours-1-0`; label `8–10am` etc.; `aria-pressed`). `Select` `Minimum notice` (`setting-lead`: 60, 90, 120, 180, 240 minutes shown as `1 hour`, `90 minutes`, `2 hours`, `3 hours`, `4 hours`) and `Book up to` (`setting-ahead`: 7, 14, 21, 28 days). Days off: list (`dayoff-list`, items `dayoff-item-<id>` with remove `dayoff-remove-<id>`), date input (`dayoff-date`), label input (`dayoff-label`, default `Day off`), `Add day off` (`dayoff-add`), quick buttons `Take tomorrow off` (`dayoff-tomorrow`) and `Take next week off` (`dayoff-next-week`). Changing a window or notice changes the customer calendar immediately.
 
@@ -2125,9 +2259,9 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 `title`: `Messages`. The headline of the pitch. On mount call `markMessagesSeen()`.
 1. Banner (`messages-banner`, `PrototypeNotice variant="inline"`, text from 3.7).
 2. If `?b=<bookingId>`: a chip row (`messages-booking-filter`) `Showing messages for {ref}` with `Clear`.
-3. **Compare card** (`messages-compare`, `<details open>`; SHOULD): title `Is this better than a ping?`; two columns: `A typical ping` (small caption `illustrative, not your agency's exact message`) with a plain bubble `New booking received. Priya Nair 07700 900231. 26/10 08:00.` and `With this` with a real owner-alert bubble (the latest `owner_new_booking` in the store, else a static sample); caption `One tells you. The other lets you act.`
+3. **Compare card** (`messages-compare`, `<details open>`; SHOULD): title `Is this better than a ping?`; two columns: `A typical ping` (small caption `illustrative, not your agency's exact message`) with a plain bubble `New booking received. {name} {phone}. {DD/MM} {HH:mm}.` filled from the SAME booking as the right-hand alert bubble (never a pasted date; when the store has no `owner_new_booking`, use the sample customer and the next free `fault` slot) and `With this` with a real owner-alert bubble (the latest `owner_new_booking` in the store, else a static sample); caption `One tells you. The other lets you act.`
 4. Filter `Segmented`: `All` (`msg-filter-all`), `To me` (`msg-filter-owner`), `To customers` (`msg-filter-customer`), `Scheduled` (`msg-filter-scheduled`).
-5. List (`messages-list`) grouped by day (`Today`, `Yesterday`, `Mon 26 Oct`), newest first. Each card (`message-<id>`): header `To: {toName} (you)` or `To: {toName}`, the phone, the `KIND_LABELS` label and time; the `WhatsAppBubble` (owner alerts `in`, customer messages `out`) with `stateLabel` `Sent (simulated)` or `Scheduled for {Fri 18:00} (simulated)`; quick-reply buttons from `bubbleActions` (`bubble-action-<messageId>-<actionId>`) that run the real store actions (10.6); after a button is used the bubble list updates and a NEW customer bubble appears at the top; footer buttons `Open in WhatsApp` (`message-open-wa-<id>`, `waLink(toPhone, body, demoPhoneDigits)`, new tab), `Copy text` (`message-copy-<id>`, toast `Copied`), `Open booking` (`message-open-booking-<id>`), and for scheduled messages `Send now (simulated)` (`message-send-now-<id>`).
+5. List (`messages-list`) grouped by day (`Today`, `Yesterday`, `Mon 26 Oct`), newest first. Each card (`message-<id>`): header `To: {toName} (you)` or `To: {toName}`, the phone, the `KIND_LABELS` label and the time (`sendAt` when set, else `at`); the `WhatsAppBubble` (owner alerts `in`, customer messages `out`) with `stateLabel` `Sent (simulated)` or `Scheduled for {Fri 18:00} (simulated)`; quick-reply buttons from `bubbleActions` (`bubble-action-<messageId>-<actionId>`) that run the real store actions (10.6) and show the same Undo toast as 13.6.1 through `showUndoToast` (12.3); after a button is used the bubble list updates and a NEW customer bubble appears at the top; footer buttons `Open in WhatsApp` (`message-open-wa-<id>`, `waLink(toPhone, body, demoPhoneDigits)`, new tab), `Copy text` (`message-copy-<id>`, toast `Copied`), `Open booking` (`message-open-booking-<id>`), and for scheduled messages `Send now (simulated)` (`message-send-now-<id>`).
 6. Hint (`messages-demo-hint`): `Open in WhatsApp goes to the number on the message. These numbers are fictional, so it will not reach a real person. Add your own mobile in Demo tools and every link opens your WhatsApp instead.` with a link to `#/demo`.
 7. Button `See message templates` (`messages-templates-open`) opens a read-only Sheet (`templates-sheet`) listing all 19 kinds with their `{placeholders}` highlighted (`<mark>`).
 8. Empty: `No messages yet. Make a booking on the website and watch this fill up.`
@@ -2135,8 +2269,8 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 ### 13.15 Dashboard: Demo tools (`js/dashboard/views/demo.js`, `css/settings.css`, WP8)
 
 `title`: `Demo tools`. Sections:
-1. **Try on your phone**: explanation `These sample customers use fictional numbers, which WhatsApp cannot open. Enter your own mobile and every Open in WhatsApp link opens a chat with you instead. Stored on this device only.` `Input` `Open WhatsApp links with this mobile number` (`demo-phone-input`), `Save` (`demo-phone-save`), `Clear` (`demo-phone-clear`), status line (`demo-phone-status`): `Links open WhatsApp for {07700 900231}` or `Not set: links go to the fictional numbers and will not open a chat.` Invalid: `Enter a UK mobile or an international number.`
-2. **Add a sample website booking**: `Standard booking` (`demo-sim-standard`), `Needs your OK (edge postcode)` (`demo-sim-approval`), `Emergency request` (`demo-sim-emergency`) -> `simulateIncomingBooking`; toast `Added {ref} for {first}.` with action `View`.
+1. **Try on your phone**: explanation `These sample customers use fictional numbers, which WhatsApp cannot open. Enter your own mobile and every Open in WhatsApp link opens a chat with you instead. Stored on this device only.` `Input` `Open WhatsApp links with this mobile number` (`demo-phone-input`), `Save` (`demo-phone-save`), `Clear` (`demo-phone-clear`), status line (`demo-phone-status`): `Links open WhatsApp for +{digits}` (for example `+447700900231`) or `Not set: links go to the fictional numbers and will not open a chat.` Invalid: `Enter a UK mobile or an international number.`
+2. **Add a sample website booking**: `Standard booking` (`demo-sim-standard`), `Needs your OK (edge postcode)` (`demo-sim-approval`), `Emergency request` (`demo-sim-emergency`) -> `simulateIncomingBooking`; no toast of its own (the Watcher already announces the arrival, 11.7); instead an inline `aria-live` line (`demo-sim-result`) `Added {ref} for {first}.` with a `View` link, or on `slot_taken` `No free window to book. Free one up in Calendar.`
 3. **Customer site**: `Open the customer site` (`demo-open-site`), `Open the booking sheet` (`demo-open-booking`, `pageHref('index.html', '#book')`).
 4. **Reset**: `Reset diary and messages` (`demo-reset`; `ConfirmDialog` `Reset the diary?` / `This reseeds the sample bookings relative to today and clears messages. Your business details stay.`) and danger `Reset everything` (`demo-reset-all`; `Reset everything?` / `This also restores the default business details, prices and hours.`).
 5. **Status**: `demo-storage-status` (`Saving in this browser: working` or `Saving is blocked in this browser mode, so bookings made on the website will not appear on the dashboard.`) and, when overridden, `demo-clock-status` (`Clock override active: {stamp}`).
@@ -2144,7 +2278,7 @@ The primary button has `data-testid="job-primary"`; the container `job-action-ba
 
 ### 13.16 About the dashboard shell (`dashboard.html`, `shell.js`, WP2)
 
-Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/today`); right: `IconButton` Messages (`db-messages-button`, `message-circle`, badge `db-messages-badge` = `selectUnreadMessageCount`, links to `#/messages`), `ThemeToggle variant="icon"`, and `IconButton` `external-link` (`db-site-link`, label `View customer site`, `pageHref('index.html')`, `target="vm-site"`). Tab bar (`tabbar`) items `tab-today`, `tab-calendar`, `tab-bookings`, `tab-insights`, `tab-more` (rail and sidebar items use `nav-<name>` for `today`, `calendar`, `bookings`, `customers`, `insights`, `messages`, `more`, plus sidebar `nav-demo`, `nav-about`). Tab badges: `tab-badge-today` (needs-you count) and `tab-badge-bookings` (dot when unseen exist). FAB `fab-new-booking` (`plus`, label `New booking`) on Today, Calendar and the Bookings list below 768px; rail and sidebar show a `New booking` button (`nav-new-booking`). The shell renders `PrototypeNotice variant="strip" page="dashboard"` above the header and the `ToastHost`.
+Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/today`); right: `IconButton` Messages (`db-messages-button`, `message-circle`, badge `db-messages-badge` = `selectUnreadMessageCount`, links to `#/messages`), `ThemeToggle variant="icon"`, and `IconButton` `external-link` (`db-site-link`, label `View customer site`, `pageHref('index.html')`, `target="vm-site"`). Tab bar (`tabbar`) items `tab-today`, `tab-calendar`, `tab-bookings`, `tab-insights`, `tab-more` (sidebar items use `nav-<name>` for `today`, `calendar`, `bookings`, `customers`, `insights`, `messages`, `more`, plus sidebar `nav-demo`, `nav-about`). Tab badges: `tab-badge-today` (needs-you count) and `tab-badge-bookings` (dot when unseen exist). FAB `fab-new-booking` (`plus`, label `New booking`) on Today, Calendar and the Bookings list below 1100px; the sidebar shows a `New booking` button (`nav-new-booking`). The shell renders `PrototypeNotice variant="strip" page="dashboard"` above the header (the `ToastHost` is mounted by `bootApp`, 11.6). The header is sticky (5.1 item 16).
 
 ---
 
@@ -2190,7 +2324,7 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 | `coverage-input`, `coverage-check`, `coverage-result`, `coverage-book` | postcode checker |
 | `faq`, `faq-item-0` ... `faq-item-5` | FAQ and items |
 | `final-cta`, `final-book` | final CTA and its button |
-| `footer`, `footer-owner-link` | footer and the "Owner login (demo)" link |
+| `footer`, `footer-owner-link`, `footer-about-link` | footer, the "Owner login (demo)" link and the "What's real in this prototype" link |
 | `sticky-bar`, `sticky-call`, `sticky-whatsapp`, `sticky-book` | mobile action bar |
 
 **Booking sheet and flow (WP3; same names in owner mode)**
@@ -2229,7 +2363,7 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 | `add-to-calendar`, `confirmation-whatsapp`, `confirmation-call`, `confirmation-manage`, `confirmation-done` | its buttons |
 | `demo-panel`, `demo-owner-bubble`, `demo-open-dashboard` | DEMO panel |
 | `manage-page`, `manage-not-found`, `manage-ticket`, `manage-status-timeline` | Manage |
-| `manage-change`, `manage-save-time`, `manage-cancel`, `manage-cancel-reason`, `manage-cancel-confirm`, `manage-close-note` | Manage actions |
+| `manage-cancel`, `manage-cancel-reason`, `manage-cancel-confirm`, `manage-close-note` | Manage actions (there is no `manage-change`: customer reschedule is cut, 2.3) |
 
 **Dashboard shell (WP2)**
 
@@ -2237,8 +2371,8 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 |---|---|
 | `db-header`, `db-messages-button`, `db-messages-badge`, `db-site-link` | header |
 | `tabbar`, `tab-today`, `tab-calendar`, `tab-bookings`, `tab-insights`, `tab-more`, `tab-badge-today`, `tab-badge-bookings` | tab bar |
-| `rail`, `sidebar` | rail and sidebar containers |
-| `nav-today`, `nav-calendar`, `nav-bookings`, `nav-customers`, `nav-insights`, `nav-messages`, `nav-more`, `nav-demo`, `nav-about`, `nav-new-booking` | rail and sidebar items |
+| `sidebar` | sidebar container (1100px and up; there is no rail, 2.3) |
+| `nav-today`, `nav-calendar`, `nav-bookings`, `nav-customers`, `nav-insights`, `nav-messages`, `nav-more`, `nav-demo`, `nav-about`, `nav-new-booking` | sidebar items |
 | `fab-new-booking` | floating button |
 | `view-stub` | placeholder screen |
 
@@ -2259,15 +2393,15 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 | testid | Element |
 |---|---|
 | `bookings-view-toggle`, `bookings-view-bookings`, `bookings-view-customers` | Bookings/Customers toggle |
-| `bookings-search`, `filter-new`, `filter-upcoming`, `filter-owed`, `filter-done`, `filter-cancelled`, `filter-all` | controls |
+| `bookings-search`, `filter-new`, `filter-upcoming`, `filter-owed`, `filter-done`, `filter-cancelled`, `filter-all`, `bookings-mark-all-seen` | controls |
 | `bookings-list`, `booking-row-<id>`, `bookings-empty` | list |
 | `booking-detail`, `detail-status`, `detail-urgent`, `detail-source`, `detail-repeat-tag` | detail header |
 | `detail-call`, `detail-whatsapp`, `detail-sms`, `detail-maps` | detail contact buttons |
 | `detail-notes`, `detail-internal-notes`, `detail-timeline` | detail content |
-| `detail-quick-late`, `detail-quick-access`, `detail-quick-quote`, `detail-overflow`, `detail-not-found` | detail extras |
+| `detail-quick-late`, `detail-quick-access`, `detail-quick-quote`, `detail-overflow`, `detail-overflow-sheet`, `detail-not-found` | detail extras |
 | `job-action-bar`, `job-primary` | action bar and the primary button |
 | `job-eta-45`, `job-eta-60`, `job-eta-120` | ETA options on an urgent `new` booking inside `JobActionBar` |
-| `job-secondary-reschedule`, `job-secondary-cancel`, `job-secondary-decline`, `job-secondary-nudge`, `job-secondary-review` | secondary buttons |
+| `job-secondary-reschedule`, `job-secondary-cancel`, `job-secondary-decline`, `job-secondary-nudge`, `job-secondary-review`, `job-secondary-unpaid` | secondary buttons |
 | `eta-sheet`, `eta-option-15`, `eta-option-30`, `eta-option-45`, `eta-option-60`, `eta-preview`, `eta-send` | ETA sheet |
 | `complete-sheet`, `complete-price`, `complete-price-minus`, `complete-price-plus`, `complete-review-toggle`, `complete-submit` | complete sheet |
 | `paid-sheet`, `paid-method-none`, `paid-method-cash`, `paid-method-card`, `paid-method-bank`, `paid-submit` | paid controls (`paid-method-none` only on the complete sheet) |
@@ -2281,7 +2415,7 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 | `calendar-prev`, `calendar-next`, `calendar-today` | week navigation |
 | `calendar-day-<date>`, `calendar-day-panel` | strip chips and panel |
 | `calendar-remove-dayoff`, `calendar-reopen-day` | banners' buttons |
-| `calendar-window-<date>-<windowId>`, `calendar-booking-<id>`, `calendar-unblock-<blockId>` | rows |
+| `calendar-window-<date>-<windowId>`, `calendar-booking-<id>`, `calendar-unblock-<blockId>`, `calendar-unblock-group` (the Switch in the unblock dialog) | rows |
 | `calendar-free-sheet`, `calendar-add-booking`, `calendar-block-open`, `calendar-dayoff-open` | free-window sheet |
 | `block-sheet`, `block-label-dentist`, `block-label-mot`, `block-label-supplier`, `block-label-other`, `block-label`, `block-scope-window`, `block-scope-day`, `block-scope-until`, `block-until`, `block-confirm` | block sheet |
 | `calendar-grid`, `calendar-legend`, `calendar-preview-site` | grid, legend, preview link |
@@ -2309,21 +2443,21 @@ Header (`db-header`): `BrandMark` and `{shortName}` on the left (link to `#/toda
 | `messages-banner`, `messages-booking-filter`, `messages-compare`, `msg-filter-all`, `msg-filter-owner`, `msg-filter-customer`, `msg-filter-scheduled`, `messages-list`, `messages-demo-hint`, `messages-templates-open`, `templates-sheet` | messages screen |
 | `message-<id>`, `bubble-action-<messageId>-<actionId>`, `message-open-wa-<id>`, `message-copy-<id>`, `message-open-booking-<id>`, `message-send-now-<id>` | message cards |
 | `demo-phone-input`, `demo-phone-save`, `demo-phone-clear`, `demo-phone-status` | demo phone |
-| `demo-sim-standard`, `demo-sim-approval`, `demo-sim-emergency` | simulate |
+| `demo-sim-standard`, `demo-sim-approval`, `demo-sim-emergency`, `demo-sim-result` | simulate and its inline result line |
 | `demo-open-site`, `demo-open-booking`, `demo-reset`, `demo-reset-all`, `demo-storage-status`, `demo-clock-status`, `demo-script` | demo tools |
 
 ### 14.3 End-to-end flows that MUST pass (WP0 writes them in `tests/e2e/flows.mjs`; feature packages make them possible)
 
-Setup for every flow: a NEW Playwright browser context (so `localStorage` is empty), viewport 375x812 unless stated, both pages opened in that context as two tabs with the same query `?now=2026-10-23T20:30&freeze=1` (the fixture clock, 3.4). Pages are served from the static server on port 4100. "Within 2s" means polling for up to 2000ms.
+Setup for every flow: a NEW Playwright browser context created with `{ timezoneId: 'Europe/London', locale: 'en-GB' }` (so `localStorage` is empty and the 25 October clock change is real; Playwright and axe-core come from `loadDeps()`, 6.1), viewport 375x812 unless stated, both pages opened in that context as two tabs with the same query `?now=2026-10-23T20:30&freeze=1` (the fixture clock, 3.4). Pages are served from the static server on port 4100. "Within 2s" means polling for up to 2000ms.
 
 | # | Flow | Steps and assertions |
 |---|---|---|
-| F1 | **Customer books on the landing page, owner sees it** | Landing: `next-free-chip-0` reads `Tomorrow, 8–10am`. Tap `hero-tile-eicr`; `soonest-card` contains `Mon 26 Oct, morning, arrive 8–10am`; `eicr-size-house` is selected; `soonest-pick`, `booking-continue`; `demo-fill`; `booking-submit`. Assert `confirmation-title` = `You're booked in, Priya.`, `confirmation-ref` = `VM-1043`, `confirmation-status` = `Confirmed`, `demo-owner-bubble` contains `New booking VM-1043`. In the dashboard tab (within 2s): `tab-badge-bookings` visible, a toast containing `New booking: Priya`; `#/bookings` shows a row containing `VM-1043` with `Confirmed`; `#/messages` newest entries are the owner alert and `customer_confirmed` for VM-1043 and a scheduled reminder. Open the detail: `detail-repeat-tag` reads `Repeat customer · 2nd booking`. |
+| F1 | **Customer books on the landing page, owner sees it** | Landing: `next-free-chip-0` reads `Tomorrow, 8–10am`. Tap `hero-tile-eicr`; `soonest-card` contains `Mon 26 Oct, morning, arrive 8–10am`; `eicr-size-house` is selected; `soonest-pick`, `booking-continue`; `demo-fill`; `booking-submit`. Assert `confirmation-title` = `You're booked in, Priya.`, `confirmation-ref` = `VM-1043`, `confirmation-status` = `Confirmed`, `demo-owner-bubble` contains `New booking VM-1043`. In the dashboard tab (within 2s): a toast containing `New booking: Priya`, and `db-messages-badge` reads `1` (the Bookings tab dot is already lit at first launch by the two unseen seed bookings, so asserting it would prove nothing); `#/bookings` shows a row containing `VM-1043` with `Confirmed`; `#/messages` lists, for VM-1043, the owner alert (first), `customer_confirmed` and a scheduled `customer_reminder`. Open the detail: `detail-repeat-tag` reads `Repeat customer · 2nd booking`. |
 | F2 | **Approval booking: owner confirms, customer message appears** | Dashboard `#/demo`: `demo-sim-approval`. `#/today`: `needs-you` shows a card; tap `needs-you-confirm-<id>`; toast appears; `#/messages` newest message is `customer_confirmed` to that customer; the booking is `Confirmed`. Tap the toast Undo within 6s: booking back to `New request` and the confirmation message is gone. |
-| F3 | **Emergency path** | Landing: open `emergency-toggle`, tap `emergency-request`, pick `emergency-reason-no_power`, fill name/mobile/postcode (`MB2 6JN`), `emergency-submit`. Confirmation title `Request sent, <first>.`; no `add-to-calendar`. Dashboard Today: three cards in `needs-you` in this order: seeded Ngozi (urgent), the new emergency (urgent), seeded Sam (non-urgent). In `#/messages` tap `bubble-action-<seedEmergencyMsgId>-accept_45`; a new customer message `customer_emergency_accepted` appears at the top containing `45 minutes`; the card leaves Needs you. The new emergency never changed any window's state (check Mon 26 Oct load unchanged). |
+| F3 | **Emergency path** | Landing: open `emergency-toggle`, tap `emergency-request`, pick `emergency-reason-no_power`, fill name/mobile/postcode (`MB2 6JN`), `emergency-submit`. Confirmation title `Request sent, <first>.`; no `add-to-calendar`. Dashboard Today: three cards in `needs-you` in this order: seeded Ngozi (urgent), the new emergency (urgent), seeded Sam (non-urgent). In `#/messages` tap `bubble-action-msg_seed_07_alert-accept_45`; a new customer message `customer_emergency_accepted` appears at the top containing `45 minutes`; the card leaves Needs you. The new emergency never changed any window's state (check Mon 26 Oct load unchanged). |
 | F4 | **Job life: on my way, done, paid, insights** | Today `next-up` is Hannah (Sat 24 Oct). `job-primary` = `On my way`; tap, `eta-option-30`, `eta-send`; status `On the way`; message `customer_on_my_way` logged. `job-primary` = `Mark done`; `complete-sheet`; `paid-method-cash`; `complete-submit`. `#/insights`: `insights-collected` goes from `£850` to `£925`; `insights-owed` stays `£245`. |
 | F5 | **Done unpaid, then mark paid** | Complete a job with `paid-method-none`: `insights-owed` rises to `£320` (3 jobs); `owed-mark-paid-<id>` -> `paid-sheet` -> `paid-method-card` -> `paid-submit`: owed returns to `£245`, collected rises by the price. |
-| F6 | **Rebrand shows on the landing page** | Dashboard `#/settings`: set `setting-business-name` to `Smith Sparks`, `setting-short-name` to `Smith`, `setting-owner-first` to `Sam`, `setting-phone` to `07700 900555`. Landing tab (within 2s, no reload): header wordmark `Smith`, `document.title` starts `Smith Sparks`, `lp-call-button` href `tel:+447700900555`, footer shows the new phone, hero sub says `Sam's real diary`. The prototype strip and sample labels are still visible. |
+| F6 | **Rebrand shows on the landing page** | Dashboard `#/settings`: set `setting-business-name` to `Ashby Sparks`, `setting-short-name` to `Ashby`, `setting-owner-first` to `Lee`, `setting-phone` to `07700 900555` (not `Sam`: that is already Dan's apprentice and a seed customer, and messages would read "Hi Sam, it's Sam"). Landing tab (within 2s, no reload): header wordmark `Ashby`, `document.title` starts `Ashby Sparks`, `lp-call-button` href `tel:+447700900555`, footer shows the new phone, hero sub says `Lee's real diary`. The prototype strip and sample labels are still visible. |
 | F7 | **Calendar block updates the landing page; race recovery** | Landing tab on `#book/fault`, Saturday selected, `window-0` free. Dashboard `#/calendar/<Sat 24 Oct>`: tap `calendar-window-2026-10-24-0`, `calendar-block-open`, `block-label-dentist`, `block-confirm`. Landing (within 2s): `window-0` for that day is disabled and labelled `Booked`; `next-free-chip-0` now reads `Mon 26 Oct, 8–10am` (Saturday window 1 is already booked by Hannah). Race: on a second landing tab reach Details for Monday window 1 (`#book/fault/2026-10-26/1`) and fill the form; in the dashboard create an owner booking in that same window (`#/new?date=2026-10-26&window=1`); submit the landing form: `slot-taken-banner` shows, `field-name` still holds the typed name, `slot-alt-0` exists. |
 | F8 | **Customer cancels via Manage; slot reopens** | After F1: `confirmation-manage` -> `manage-cancel` -> `manage-cancel-confirm`. Status becomes cancelled. Dashboard `#/calendar/<Mon 26 Oct>`: window 0 is free again; `#/messages` has an `owner_customer_cancelled` entry. Landing Soonest for EICR is Mon 26 Oct morning again. |
 | F9 | **"Taking bookings today" (clock 09:30)** | Use `?now=2026-10-23T09:30&freeze=1`. Landing `next-free-chip-0` reads `Today, 1–3pm`. Dashboard Today: toggle `today-taking-bookings` off. Landing (within 2s): block shows `is fully booked today` and chip 0 no longer starts with `Today`. Toggle on: restored. |
@@ -2332,8 +2466,8 @@ Setup for every flow: a NEW Playwright browser context (so `localStorage` is emp
 | F12 | **Owner adds a phone booking** | `fab-new-booking`; service `service-option-fault`; day/window; details; `source-phone`; `booking-submit` (`Add to diary`). Lands on the detail: status `Confirmed`, source `Phone`. The landing page shows that window as `Booked`. `notify-toggle` on -> a `customer_confirmed` message exists; off -> none. |
 | F13 | **Theme** | `theme-toggle` cycles; `html[data-theme="dark"]` set; after reload still dark (`vm_theme`); axe runs in both (15). |
 | F14 | **Demo phone override** | `#/demo`: type `07700 900555`, `demo-phone-save`; `#/messages`: every `message-open-wa-<id>` href starts `https://wa.me/447700900555?text=`; `demo-phone-clear` restores per-message numbers. |
-| F15 | **Reschedule** | Detail of a confirmed booking: `detail-overflow` -> Reschedule -> `reschedule-day-<date>`, `reschedule-window-<id>` -> `reschedule-submit`. The old window is free, the new one booked, a `customer_rescheduled` message is logged, the reminder is replaced. |
-| F16 | **Search and filters** | `bookings-search` `Okafor` finds one row; `900262` finds Marcus Tate's three bookings; `filter-owed` shows 2 rows; `filter-cancelled` shows 1. |
+| F15 | **Reschedule** | Detail of a confirmed booking: `detail-overflow` -> `job-secondary-reschedule` -> `reschedule-day-<date>`, `reschedule-window-<id>` -> `reschedule-submit`. The old window is free, the new one booked, a `customer_rescheduled` message is logged, the reminder is replaced. |
+| F16 | **Search and filters** | `bookings-search` `Okafor` finds one row; `900262` finds Marcus Tate's two bookings (a non-empty search ignores the selected filter, 13.5); `filter-owed` shows 2 rows; `filter-cancelled` shows 1. |
 | F17 | **Seed fixture** | At the fixture clock: Today `stat-owed` `£245`; Insights values per 3.4; `#/customers` lists 11; calendar day loads per 3.4; the hero chips read `Tomorrow, 8–10am`, `Mon 26 Oct, 8–10am`, `Mon 26 Oct, 10am–12` (Saturday window 1 is booked, Monday afternoon holds the EICR). |
 | F18 | **Storage blocked** | Init script makes `localStorage.setItem` throw. Both pages still render; a booking can be made on the landing page; the dashboard Demo tools shows the blocked message; no console errors. |
 | F19 | **Deep links** | `dashboard.html#/bookings/bk_seed_08` opens the detail for VM-1035; `#/bookings/nope` shows `detail-not-found`; `index.html#booked/VM-1035` shows the confirmation; `#manage/NOPE-0` shows `manage-not-found`; `index.html#book/fault/2020-01-01/0` falls back to the When step. |
@@ -2343,7 +2477,7 @@ Setup for every flow: a NEW Playwright browser context (so `localStorage` is emp
 
 ## 15. QUALITY BAR / ACCEPTANCE CRITERIA
 
-All of these are measured by WP0 scripts in `tests/qa/` run against the merged site (static server on port 4100), at the fixture clock, with the seeded diary. A package is not done until its screens pass its share.
+All of these are measured by WP0 scripts in `tests/qa/` run against the merged site (static server on port 4100), at the fixture clock, with the seeded diary. Playwright and axe-core come from `loadDeps()` in `tests/e2e/lib.mjs` (6.1); every context uses `timezoneId: 'Europe/London'` and `locale: 'en-GB'`. A package is not done until its screens pass its share.
 
 ### 15.1 Matrix
 
@@ -2357,18 +2491,19 @@ Viewports (width x height): **320x568, 375x812, 390x844, 430x932, 768x1024, 1024
 | # | Criterion | Measure | Script |
 |---|---|---|---|
 | Q1 | **No horizontal overflow** | `document.documentElement.scrollWidth <= window.innerWidth` and `document.body.scrollWidth <= window.innerWidth` for every matrix cell, from 320px up | `tests/qa/overflow.mjs` |
-| Q2 | **Tap targets >= 44x44 CSS px** | Every visible element matching `a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=switch], [role=radio], [role=tab]` has `getBoundingClientRect()` width and height >= 44 (checkbox/radio natives hidden inside a >=44 label count via the label). Exemptions: `.ui-link--inline`, `.u-sr-only`, elements not visible. | `tests/qa/targets.mjs` |
-| Q3 | **axe-core: zero serious or critical violations** | `axe-core` (from `/home/user/LG-Proto1/node_modules/axe-core`), tags `wcag2a`, `wcag2aa`, `wcag21aa`, `best-practice`, in light AND dark, every matrix page/state at 375, 768 and 1440 | `tests/qa/axe.mjs` |
+| Q2 | **Tap targets >= 44x44 CSS px** | Every visible element matching `a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=switch], [role=radio], [role=tab]` has `getBoundingClientRect()` width and height >= 44 (checkbox/radio natives hidden inside a >=44 label count via the label). Exemptions: `.ui-link--inline`, `.u-sr-only`, elements not visible. (The prototype-strip link passes through the oversized hit-box rule in 3.7: its own box is 44px tall.) | `tests/qa/targets.mjs` |
+| Q3 | **axe-core: zero serious or critical violations** | `axe-core` (loaded by `loadDeps()`, 6.1), tags `wcag2a`, `wcag2aa`, `wcag21aa`, `best-practice`, in light AND dark, every matrix page/state at 375, 768 and 1440 | `tests/qa/axe.mjs` |
 | Q4 | **Contrast AA** | every token pair in 4.3 computed from the live `getComputedStyle` values: text pairs >= 4.5:1, UI/large pairs >= 3:1, in light and dark | `tests/qa/contrast.mjs` |
 | Q5 | **Zero console errors/warnings** | no `console.error`, no `pageerror`, no failed requests, no `404`, across all flows and routes | built into every QA script |
 | Q6 | **Zero external network requests** | every request URL is same-origin (`http://127.0.0.1:4100`) or `data:`/`blob:`; no request to any other host | `tests/qa/network.mjs` |
 | Q7 | **Keyboard operable** | Tab reaches every control in a logical order; `Enter`/`Space` activate; every Sheet traps focus, closes on `Esc`, returns focus; visible focus ring (3px `--focus`) on every control | `tests/qa/keyboard.mjs` |
 | Q8 | **Page basics** | `<html lang="en-GB">`; one non-empty `<title>`; `meta viewport` with `viewport-fit=cover`; `meta color-scheme`; two `theme-color` metas; `rel=manifest`; `rel=icon`; exactly one `<h1>` per landing page and per dashboard view; images/SVG decorative have `aria-hidden`; no duplicate ids | `tests/qa/basics.mjs` |
 | Q9 | **Reduced motion** | with `prefers-reduced-motion: reduce` the breaker art is in its final state, the live dot does not pulse, sheets appear without sliding | `tests/qa/basics.mjs` |
-| Q10 | **Forbidden APIs** | repo grep finds no `innerHTML`, `dangerouslySetInnerHTML`, `document.write`, `eval(`, `Date.now(` or bare `new Date()` outside `js/core/clock.js`, no `86400000`, no `https://` URL string other than the allowed link patterns | `tests/qa/grep.mjs` |
+| Q10 | **Forbidden APIs** | a grep over `electrician/js` (EXCLUDING `js/vendor/`, which legitimately contains `innerHTML` handling), `electrician/css`, `index.html` and `dashboard.html` finds no `innerHTML`, `dangerouslySetInnerHTML`, `document.write`, `eval(`, `Date.now(`, `performance.timeOrigin` or bare `new Date()` outside `js/core/clock.js`, no `86400000`, no root-absolute URL (`href="/`, `src="/`, `url(/`), and no `https://` string other than the allowed link patterns of 10.5. `tests/`, `scripts/` and `docs/` are not scanned. | `tests/qa/grep.mjs` |
 | Q11 | **Both base paths work** | the site passes Q5/Q6 and flows F1, F6 when served at `/` (port 4100) AND at `/LG-Proto1/electrician/` (a static server mapping that prefix to the folder) | `tests/e2e/run.mjs --prefix` |
-| Q12 | **Unit tests green** | `TZ=Europe/London node --test electrician/tests/unit/` | |
+| Q12 | **Unit tests green** | `TZ=Europe/London node --test "electrician/tests/unit/*.test.mjs"` (quoted glob; a bare directory fails on Node 22) | |
 | Q13 | **E2E flows F1 to F20 green** | at 375x812; F1, F3, F6, F7 also at 1440x900 | `tests/e2e/run.mjs` |
+| Q14 | **Live deploy** | After the deploy in 16.2, `https://gokulmadan-ws.github.io/LG-Proto1/electrician/index.html`, `dashboard.html`, `js/landing/app.js`, `js/dashboard/app.js`, `js/dashboard/views/stub.js`, `fonts/figtree-latin-wght-normal.woff2` and `img/favicon.svg` all return 200 with the right content type, and Q5, Q6 and flows F1 and F6 pass against that URL | `tests/e2e/run.mjs --base <url>` |
 
 ### 15.3 Weight and speed targets (SHOULD; measured, reported, not blocking unless 2x over)
 
@@ -2399,9 +2534,10 @@ Screenshots at 375x812 and 1440x900, light and dark, of: landing top, landing se
 <html lang="en-GB">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Voltmere Electrical: Local electrician. Booked in 60 seconds.</title>   <!-- dashboard.html: "Today · Voltmere dashboard" -->
-  <meta name="description" content="Book Voltmere Electrical online in 60 seconds. Real availability, clear prices, a certificate with every job. Prototype with sample data.">
+  <meta name="description" content="Book Voltmere Electrical online in 60 seconds. Real availability, clear prices, a certificate with every job. Prototype with sample data.">   <!-- dashboard.html: "Owner dashboard for Voltmere Electrical bookings. Prototype with sample data." -->
+  <meta name="robots" content="noindex, nofollow">   <!-- a prototype with sample data must never be indexed -->
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FBF8F2" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0B1020" media="(prefers-color-scheme: dark)">
@@ -2410,6 +2546,11 @@ Screenshots at 375x812 and 1440x900, light and dark, of: landing top, landing se
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <link rel="preload" href="fonts/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="modulepreload" href="js/vendor/preact-htm.js">   <!-- the app is ~45 small unbundled modules: preloading the roots shortens the import waterfall -->
+  <link rel="modulepreload" href="js/ui/index.js">
+  <link rel="modulepreload" href="js/core/store.js">
+  <!-- landing:   <link rel="modulepreload" href="js/landing/app.js"> -->
+  <!-- dashboard: <link rel="modulepreload" href="js/dashboard/app.js"> -->
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
@@ -2444,8 +2585,8 @@ Screenshots at 375x812 and 1440x900, light and dark, of: landing top, landing se
 
 - **Relative paths only.** Works under `https://gokulmadan-ws.github.io/LG-Proto1/electrician/` (GitHub Pages sub-path) and at a domain root (Vercel). Never `/css/...`, never `location.origin + '/...'`. JS-built URLs use `new URL('../x', import.meta.url)` or relative strings. `SITE_BASE_URL` (config.js) is derived from `import.meta.url`.
 - **Needs an HTTP server.** ES modules do not load from `file://`. Local: `python3 -m http.server 4100 --directory /home/user/LG-Proto1/electrician`, then open `http://127.0.0.1:4100/index.html` and `.../dashboard.html`. The README says this in the first lines.
-- **GitHub Pages:** the repo's existing Pages site serves the branch root, so `electrician/` appears at `/LG-Proto1/electrician/` with no config. `.nojekyll` in `electrician/` is harmless. No server-side routing is used (hash routes only), so there is nothing to 404.
-- **Cache:** none of the files are fingerprinted; Vercel headers below set `must-revalidate` so a redeploy is visible immediately.
+- **GitHub Pages (read this before promising a live link).** The repo already publishes through GitHub's `pages-build-deployment` workflow, from the repository's DEFAULT branch root. At the time of writing the default branch is `claude/ecstatic-meitner-j31xes`, NOT the feature branch this work is built on, and a root-level `.nojekyll` already exists (so folders and files starting with `_` are served; this contract avoids them anyway). Therefore `electrician/` only appears at `https://gokulmadan-ws.github.io/LG-Proto1/electrician/` once its commits are on the Pages source branch. WP0 must: (1) confirm the source branch (repo Settings > Pages, or `gh api repos/gokulmadan-ws/LG-Proto1/pages` when the proxy allows it); (2) land the `electrician/` folder on that branch through a pull request and merge it (the PR must touch NOTHING outside `electrician/`); (3) wait for the `pages-build-deployment` run to finish; (4) run gate Q14 against the live URL. A `.nojekyll` inside `electrician/` is harmless but does nothing. No server-side routing is used (hash routes only), so there is nothing to 404.
+- **Cache:** none of the files are fingerprinted; Vercel headers below set `must-revalidate` so a redeploy is visible immediately. GitHub Pages instead serves `Cache-Control: max-age=600` and the ES modules are separate files, so for up to 10 minutes after a redeploy a returning browser can mix old and new modules and show a broken page. Tell the SE to hard-refresh (or use a fresh private tab) after any redeploy, and never redeploy in the minutes before a demo.
 
 ### 16.3 `vercel.json` (WP0; deploy the folder alone with `vercel deploy electrician --prod` or `cd electrician && vercel --prod`)
 
@@ -2472,6 +2613,8 @@ Screenshots at 375x812 and 1440x900, light and dark, of: landing top, landing se
   ]
 }
 ```
+
+The repo root has its own `vercel.json` (`cleanUrls: true`) for the Kontor project. Deploy the `electrician/` FOLDER on its own to get the file above; deploying the repo root would still serve the app under `/electrician/` (relative URLs and hash routes survive) but with the other project's headers and clean-URL redirects.
 
 ### 16.4 `manifest.webmanifest` (WP2) and the install decision
 
@@ -2505,7 +2648,7 @@ Screenshots at 375x812 and 1440x900, light and dark, of: landing top, landing se
 6. Clock override `?now=YYYY-MM-DDTHH:mm&freeze=1`.
 7. What is real and what is simulated (the table from 17, short).
 8. Tests: unit, e2e, QA commands.
-9. Deploy: GitHub Pages sub-path; Vercel (`vercel.json`); note that no build step exists.
+9. Deploy: GitHub Pages sub-path with the source-branch and 10-minute-cache warnings from 16.2; Vercel (`vercel.json`); note that no build step exists.
 10. File map (pointer to `docs/BUILD-CONTRACT.md`) and credits (fonts OFL, icons ISC).
 
 ### 16.6 Third-party notices
@@ -2565,12 +2708,20 @@ Every WhatsApp, SMS and email message (the outbox shows the exact text the real 
 | Scarcity and fake precision | None (no "only 2 left", no sub-ratings) | Reads as manufactured pressure. |
 | Sample labelling | `SampleTag` on every credential, strip on both pages, "simulated" on every message | Honesty is a feature. |
 | Cross-page links | `target` names `vm-site` and `vm-dashboard` reuse two tabs | Makes the two-tab demo natural on a phone. |
+| Navigation at 768 to 1099 | The bottom tab bar (no rail) | One navigation layout fewer; the demo is on a phone. |
+| History inside the booking sheet | ONE push to open, `replaceState` for every step | Back and X close the sheet in one step however many steps were visited. |
+| Unread messages | Counted with a monotonic `seq`, not minute-precision stamps | A message arriving in the same minute as the owner opened Messages must still count. |
+| Customer reschedule on Manage | Cut (store function and tests stay) | WP3 is the critical path; the demo never needs it. |
+| Home of `showUndoToast` | `js/ui/toast.js` (WP2) | Today, Calendar, Messages and job actions all need it; no cross-package imports. |
+| Test dependencies | Installed in the scratchpad, resolved by `loadDeps()` | The repo has no `node_modules`, and its root `package.json` belongs to another project. |
+| Unit test command | Quoted glob | `node --test <directory>` fails on Node 22. |
+| Order of Today | Needs you, Next up, then Availability | What the owner must act on comes first. |
 
 ### 18.1 Known traps (read before coding)
 
 1. `localStorage` events do not fire in the tab that wrote; the store notifies local subscribers directly. Other tabs get the `storage` event; frozen background tabs get the foreground re-read.
 2. Fictional phone numbers and addresses do not work in WhatsApp or Google Maps. That is what the demo phone override and the Demo tools text are for.
-3. `Sheet` and `ToastHost` render into `#overlay-root`, outside `#app`, so setting `inert` on `#app` never inerts toasts.
+3. `Sheet` and `ToastHost` render into their OWN containers inside `#overlay-root`, which is outside `#app`, so setting `inert` on `#app` never inerts toasts (and each container has exactly one `render()` call, 6.1.1).
 4. Preact's `render()` into a non-empty container tries to reuse the DOM; always empty `#app` first.
 5. Keys in `settings.hours` are weekday NUMBERS by array index (0 = Sunday). Monday is index 1.
 6. Never compare Stamps with `Date` objects; compare strings, or convert with `parseStamp`.
@@ -2578,3 +2729,41 @@ Every WhatsApp, SMS and email message (the outbox shows the exact text the real 
 8. The seed contains bookings in the past and the future; "Today" at 21:00 may have all jobs `done`. That is expected; Next up then shows the next confirmed job on a future day.
 9. `useStore` selectors that build new arrays every call are fine (shallow compare), but do not return freshly created objects containing new nested objects.
 10. Do not add `package.json`, `node_modules`, or build output under `electrician/`.
+11. Preact + htm has eight verified traps (6.1.1). The two that bite hardest: `spellcheck="false"` (a string) turns spell-check ON, and two `render()` calls on one container replace each other.
+12. `node --test <directory>` fails on Node 22; use a quoted glob. Playwright and axe-core are not installed in the repo; use `loadDeps()`.
+13. GitHub Pages publishes the repository's default branch, not the feature branch (16.2). A commit on the feature branch alone is not live.
+14. Stamps have minute precision and the test clock may be frozen: never use `at` alone to order or to count anything; messages have `seq`.
+15. iOS Safari and Chrome do not shrink `100dvh` for the on-screen keyboard; use `--kb-inset` (5.1 item 15) or the submit button disappears behind the keyboard.
+16. A day rollover reseeds the demo bookings. `buildSeed` must be given the non-seed records (`existing`) or it can double-book a window the owner or a customer already holds.
+
+---
+
+## 19. Change log (critic pass), version 1.0 to 1.1
+
+The integration-risk critic read the whole contract, then verified the claims that could silently break an 8-agent parallel build: every token pair's contrast (computed, light and dark), npm package versions, font file sizes and all 67 icon names, the vendored Preact's attribute and `render()` behaviour in Chromium, `node --test` on Node 22, and the repo's Pages and test-dependency facts. Numbering and structure are unchanged; only the new sub-sections `6.1.1` and `8.1.1` and this section were added.
+
+**Defects found by running things, now fixed**
+- `node --test electrician/tests/unit/` FAILS on Node 22 (a directory is treated as a module). Now a quoted glob everywhere (6.1, 8.9, Q12).
+- Playwright and axe-core are not installed and the repo has no `node_modules`; the contract pointed at `/home/user/LG-Proto1/node_modules/axe-core`. Now installed per agent into a scratchpad and resolved by `loadDeps()` (6.1, DoD, Q3, 4.8).
+- Preact turns `spellcheck="false"` into TRUE; a second `render()` on one container replaces the first; `render()` into a non-empty container appends; htm eats whitespace around newlines. New 6.1.1, and 12.4 / 11.6 give Sheet and ToastHost separate containers (the old text had both render into `#overlay-root`).
+- Light-mode `--focus` is 2.4:1 on the navy panels: new token `--focus-on-panel`. All other pairs verified; `--field-border` comment corrected.
+- GitHub Pages publishes the repo DEFAULT branch (`claude/ecstatic-meitner-j31xes`), not the feature branch: 16.2 now says how to get a live link, gate Q14 checks it, plus the 10-minute Pages cache trap.
+- The 7-column day picker needed 332px but was specified from 360px (328px available): moved to 375px (documented as the one extra breakpoint); sticky bar widths fixed below 375px; the week strip chips are 44px.
+- Landing header at 768 could not fit five links plus phone plus button: links only from 1100.
+- The Bookings tab dot is already lit at first launch by the two unseen seed bookings, so F1 and the demo script no longer rely on it (Messages badge instead).
+- Seed said "all statuses" but has no `on_the_way`; seeds could double-book windows after a day rollover (`buildSeed` now takes `existing`); F16 said "three" Marcus bookings (two) and search ignored whether filters apply (now searches all).
+- Minute-precision stamps made unread counts and message order unreliable: `Message.seq`, `meta.msgSeq`, `meta.messagesSeenSeq` replace `messagesSeenAt`; deterministic ordering and message insertion order in 8.4.
+- Booking-sheet history: Back or X would leave the sheet half open after several steps. New exact model in 11.1 (one push, `replaceState` per step, `goBooking`, `useBookRoute`).
+- Unspecified or contradictory: `postcodeZone` needed the business zones; `icsFilename` needed settings; `DTSTAMP` must be UTC; `{line1}` empty for urgent requests, "can't make as soon as possible" wording (new `{serviceWhen}`), `{certLine}` for the survey visit, a stale `{reviewLink}` domain, hard-coded dates ("Sep 2026", "26/10 08:00"), gendered "him" copy; `ToastHost` was mounted in three different places; `showUndoToast` lived in WP5 but WP4 to WP8 all need it (moved to `js/ui/toast.js`); `_stub.js` renamed `stub.js`.
+
+**Gaps filled**
+- 8.1.1: exact signatures for every export of `dates.js`, `format.js`, `messages.js`, `ics.js`, `seed.js` that 8.1 listed by name only; `selectBrand` now carries `demoPhoneDigits` and the zones; `makeId` is random (frozen test clocks cannot collide); the generic mutation-failure and double-tap rules (8.3); undo re-validates freed windows; `getDayLoad` treats an all-past today as `closed`, and the DayPicker reads per-service `freeSlots`.
+- Mobile: on-screen keyboard handling (`--kb-inset`, `is-keyboard-open`, `interactive-widget`), touch-action and text-size-adjust, safe-area inline padding, sticky-header sibling rule, no `overflow-x: hidden` on page roots, 44px hit box for the 28px prototype-strip link, `Sheet` `header` prop and nested-sheet `inert`, toast offsets that clear the tab bar and FAB, WP3 triage order.
+- Accessibility: roving tabindex on `Segmented`, `aria-pressed` on day and window buttons, persistent live regions, `role="alert"` for danger toasts, landing error boundary, `--fs-14` instead of a 13px size.
+- Deploy: `robots noindex`, `modulepreload`, relative-`url()` rule, root `vercel.json` note, Playwright context `timezoneId: 'Europe/London'`.
+
+**Scope cut (also in 2.3)**
+- Customer self-service reschedule on Manage (store function and tests stay); the 768 to 1099 icon rail (bottom tab bar up to 1099); sticky day headings in Bookings. Customers master-detail demoted to SHOULD (S10).
+
+**Decisions made**
+- Today renders Needs you, Next up, then Availability; Settings shows one shared `Saved` tick; unblocking a grouped block offers "all windows"; owner New booking replaces history after saving; Demo tools shows an inline result line instead of a second toast; F6 rebrands to `Ashby Sparks` / `Lee` (not `Sam`, which is already the apprentice and a seed customer); new testids: `footer-about-link`, `bookings-mark-all-seen`, `detail-overflow-sheet`, `job-secondary-unpaid`, `calendar-unblock-group`, `demo-sim-result`; removed `rail`, `manage-change`, `manage-save-time`.
