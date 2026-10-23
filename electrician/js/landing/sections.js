@@ -68,7 +68,7 @@ export function EmergencyStrip() {
               <li>Do not touch anything wet, scorched or sparking.</li>
             </ol>
             <div class="lp-emergency__actions">
-              <${Button} variant="emergency" size="lg" block icon="phone" href=${brand.telHref} data-testid="emergency-call">Call ${o} now · ${brand.phone}<//>
+              <${Button} variant="emergency" size="lg" block icon="phone" href=${brand.telHref} data-testid="emergency-call">Call ${o} now · <span class="u-nowrap">${brand.phone}</span><//>
               ${taking
                 ? html`<${Button} variant="secondary" size="lg" block onClick=${bookClick({ emergency: true })} data-testid="emergency-request">Request an emergency visit<//>`
                 : null}

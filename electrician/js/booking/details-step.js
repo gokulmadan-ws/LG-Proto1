@@ -115,7 +115,8 @@ export function DetailsStep({ ctx }) {
     : html`<${SlotTakenBanner} banner=${banner} onPick=${pickAlternative} />`}
     <div class="bk-ticket" data-testid="booking-ticket">
       <div class="bk-ticket__main">
-        <p class="bk-ticket__service">${svc.name}${variant ? html`<span class="bk-ticket__variant">${' · '}${variant.label}</span>` : null}</p>
+        <p class="bk-ticket__service">${svc.name}</p>
+        ${variant ? html`<p class="bk-ticket__variant">${variant.label}</p>` : null}
         <p class="bk-ticket__when">${fmtDayShort(route.date)} · arrive ${win ? win.label : ''}</p>
         ${half ? html`<p class="bk-ticket__sub">${route.windowId === 0 ? 'Morning' : 'Afternoon'} visit, about half a day</p>` : null}
       </div>
