@@ -11,32 +11,7 @@ import { DAY_LONG, fmtDayShort, stampDay, stampTime, weekdayOf } from '../core/d
 import { nowStamp } from '../core/clock.js';
 import { firstName } from '../core/format.js';
 import { priceText } from './bk-shared.js';
-
-// CONTRACT-GAP: 4.8 puts BreakerArt in js/landing/art.js (the other WP3 half). This local board avoids a cross-agent import
-// before that file exists; the integrator may swap it for the shared component. Rects and lines only, no path data.
-const BREAKER_COUNT = 6;
-const FLIPPER = 2; // the third breaker flips ON
-
-export function BreakerBoard() {
-  const w = 38;
-  const gap = 8;
-  const width = BREAKER_COUNT * w + (BREAKER_COUNT - 1) * gap + 24;
-  const breakers = [];
-  for (let i = 0; i < BREAKER_COUNT; i += 1) {
-    const x = 12 + i * (w + gap);
-    const flip = i === FLIPPER;
-    breakers.push(html`<g key=${i} class=${'bk-breaker' + (flip ? ' bk-breaker--flip' : '')}>
-      <rect class="bk-breaker__body" x=${x} y="14" width=${w} height="64" rx="7" />
-      <rect class="bk-breaker__slot" x=${x + 7} y="22" width=${w - 14} height="48" rx="4" />
-      <rect class="bk-breaker__lever" x=${x + 9} y="46" width=${w - 18} height="22" rx="3" />
-      <circle class=${'bk-breaker__led' + (flip ? ' bk-breaker__led--flip' : '')} cx=${x + w / 2} cy="9" r="3" />
-    </g>`);
-  }
-  return html`<svg class="bk-breakers" viewBox=${`0 0 ${width} 90`} role="img" aria-label="Circuit breaker board, one switch flipped on" data-testid="breaker-art" focusable="false">
-    <rect class="bk-breakers__panel" x="0" y="0" width=${width} height="90" rx="12" />
-    ${breakers}
-  </svg>`;
-}
+import { BreakerArt } from '../landing/art.js';
 
 const reasonLabel = (id) => (EMERGENCY_REASONS.find((r) => r.id === id) || { label: id }).label;
 
@@ -163,7 +138,7 @@ export function Confirmation({ ctx, refId }) {
     ? `Hi ${brand.ownerFirst}, it's ${first}, emergency request ${booking.ref}.`
     : `Hi ${brand.ownerFirst}, it's ${first}, booking ${booking.ref} for ${fmtDayShort(stampDay(booking.start))} ${arriveLabel}.`;
   return html`<div class="bk-step bk-confirm" data-testid="confirmation">
-    <div class="bk-confirm__art"><${BreakerBoard} /></div>
+    <div class="bk-confirm__art"><${BreakerArt} /></div>
     <div class="bk-titleblock bk-titleblock--center">
       <h2 class="bk-title" tabindex="-1" data-bk-title="true" data-testid="confirmation-title">${titleFor(booking, first)}</h2>
     </div>

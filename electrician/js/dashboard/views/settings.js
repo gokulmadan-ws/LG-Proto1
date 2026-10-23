@@ -246,11 +246,11 @@ function DaysOff({ onSaved }) {
     setError('');
     if (add([date], label.trim() || 'Day off', `${fmtDayShort(date)} is off.`)) { setDate(''); setLabel('Day off'); }
   };
-  const tomorrow = () => { const d = addDays(todayKey(), 1); add([d], 'Day off', `${fmtDayShort(d)} is off.`); };
+  const tomorrow = () => { const d = addDays(todayKey(), 1); add([d], 'Day off', 'Tomorrow marked as a day off. Customers cannot book it.'); };
   const nextWeek = () => {
     const monday = addDays(weekStart(todayKey()), 7);
     const days = [0, 1, 2, 3, 4, 5, 6].map((n) => addDays(monday, n));
-    add(days, 'Week off', 'Next week is off.');
+    add(days, 'Holiday', 'Next week marked as days off.');
   };
   const remove = (off) => {
     const res = removeDayOff(off.id);
