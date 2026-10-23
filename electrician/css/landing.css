@@ -182,8 +182,9 @@ html { scroll-padding-top: calc(var(--h-header) + var(--safe-top) + 8px); }
 @media (min-width: 768px) {
   .lp-hero { padding-block: var(--space-6) var(--space-7); }
   .lp-hero__inner {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "copy panel" "links panel";
-    column-gap: var(--space-7); row-gap: var(--space-3); align-items: start;
+    /* The tile card gets the wider column at 768 so "From £150" never drops under its icon. */
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); grid-template-areas: "copy panel" "links panel";
+    column-gap: var(--space-5); row-gap: var(--space-3); align-items: start;
   }
   .lp-hero__copy { grid-area: copy; }
   .lp-hero__panel {
@@ -193,7 +194,10 @@ html { scroll-padding-top: calc(var(--h-header) + var(--safe-top) + 8px); }
   .lp-hero__links { grid-area: links; }
   .lp-hero__title { font-size: clamp(2.25rem, 4.6vw, 3.5rem); }
 }
-@media (min-width: 1100px) { .lp-hero__panel { padding: var(--space-5); } }
+@media (min-width: 1100px) {
+  .lp-hero__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--space-7); }
+  .lp-hero__panel { padding: var(--space-5); }
+}
 
 /* ================= Section scaffolding ================= */
 .lp-section { padding-block: var(--space-7); }

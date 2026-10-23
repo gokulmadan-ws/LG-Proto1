@@ -69,7 +69,7 @@
 .bk-help__text { margin: 0; font-weight: var(--fw-semibold); color: var(--text-2); font-size: var(--fs-15); }
 
 .bk-linkbtn {
-  align-self: flex-start; min-height: var(--tap); padding: 0 var(--space-2);
+  align-self: flex-start; min-height: var(--tap); min-width: var(--tap); padding: 0 var(--space-2);
   border: 0; background: none; color: var(--link); font-size: var(--fs-15); font-weight: var(--fw-semibold);
   text-decoration: underline; text-underline-offset: 3px; text-align: left;
 }

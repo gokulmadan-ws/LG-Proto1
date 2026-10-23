@@ -146,10 +146,9 @@ function Flow({ mode, presentation, intent, customerRoute, onClose, onBooked }) 
   const setPick = (patch) => setPickState((prev) => ({ ...prev, ...patch }));
 
   const go = (opts = {}) => {
-    if (opts.serviceId && opts.serviceId !== effRoute.serviceId) {
-      setForm({ variantId: null });
-      setPickState(EMPTY_PICK);
-    }
+    // A new service resets the size (variants belong to a service). The picked day and window stay: they are re-checked
+    // against the new service every render (`chosen`), and the owner's #/new?date&window intent must survive Step 0.
+    if (opts.serviceId && opts.serviceId !== effRoute.serviceId) setForm({ variantId: null });
     if (opts.date) setPickState({ date: opts.date, windowId: opts.windowId === undefined ? null : opts.windowId });
     setBanner(null);
     if (ownerMode) setOwnerRoute(routeFromOpts(opts));
