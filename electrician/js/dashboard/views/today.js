@@ -79,7 +79,7 @@ function NeedCard({ booking: b, brand, autoConfirm, nowStamp }) {
         : html`<${StatusPill} status="new" />`}
       ${unseen ? html`<span class="u-sr-only">Not opened yet</span>` : null}
     </div>
-    <p class="td-need__who"><strong>${first}</strong> · ${outwardCode(b.address.postcode)} · ${fmtTimeAgo(b.createdAt, nowStamp)}</p>
+    <p class="td-need__who"><a class="td-need__link" href=${`#/bookings/${b.id}`} data-testid=${`needs-you-open-${b.id}`}><strong>${first}</strong></a> · ${outwardCode(b.address.postcode)} · ${fmtTimeAgo(b.createdAt, nowStamp)}</p>
     ${b.urgent
       ? html`<div class="td-need__what">
           ${reasons ? html`<p class="td-need__line">${reasons}</p>` : null}
@@ -87,7 +87,6 @@ function NeedCard({ booking: b, brand, autoConfirm, nowStamp }) {
         </div>`
       : html`<p class="td-need__line">${b.serviceName}, ${bookingWhen(b)}</p>`}
     ${flag ? html`<p class="td-need__flag"><${Icon} name="triangle-alert" size=${16} /><span>${flag}</span></p>` : null}
-    ${/* CROSS-PKG: WP5 css/bookings.css `.ja-needs__contact .ui-btn` keeps the 24px side padding, so at 375px the WhatsApp label wraps to "WhatsA/pp". Fix there: padding-inline var(--space-3) and white-space nowrap. */ null}
     <${NeedsYouActions} booking=${b} />
   <//>`;
 }

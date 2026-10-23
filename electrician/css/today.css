@@ -39,6 +39,7 @@
   width: 10px; height: 10px; border-radius: 50%;
 }
 .td-need__top { display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-5); }
+.td-need__link { color: inherit; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
 .td-need__who { margin: 0; font-size: var(--fs-17); color: var(--text-2); overflow-wrap: anywhere; }
 .td-need__who strong { color: var(--text); }
 .td-need__what { display: flex; flex-direction: column; gap: 2px; }

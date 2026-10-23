@@ -1,6 +1,6 @@
 // tests/e2e/dashboard.mjs: lean end-to-end check of the owner dashboard (Playwright, Chromium, no build step).
 //   node electrician/tests/e2e/dashboard.mjs
-// Env: BASE_URL (reuse a running server; otherwise a python http.server is started on a free port),
+// Env: VERBOSE=1 (print passing checks too), BASE_URL (reuse a running server; otherwise a python http.server is started on a free port),
 //      QA_DEPS_DIR (folder whose node_modules holds playwright-core), CHROME_PATH (Chromium binary).
 // Covers: every dashboard route (375x812, light then dark: no console/page errors, no failed or off-site
 // requests, no horizontal overflow, real views, tab bar), the WhatsApp label at 320px, toasts versus open
@@ -24,7 +24,7 @@ const { chromium } = require('playwright-core');
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok: !!ok, detail });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? `  -> ${detail}` : ''}`);
+  if (!ok || process.env.VERBOSE) console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? `  -> ${detail}` : ''}`);
 };
 
 // ---------- server ----------
@@ -188,13 +188,13 @@ async function journey(browser) {
   check('today: tab badge shows 2 need you', (await text(page, T('tab-badge-today'))) === '2');
 
   // Open the non-urgent needs-you booking and Confirm it.
-  await page.click('a[href="#/bookings/bk_seed_11"]');
+  await page.click(T('needs-you-open-bk_seed_11'));
   await page.waitForSelector(T('booking-detail'));
   check('detail: Sam shows "New request" with a Confirm button', /New request/.test(await text(page, T('detail-status'))) && (await text(page, T('job-primary'))) === 'Confirm', await text(page, T('detail-status')));
   await page.click(T('job-primary'));
   const confirmed = await until(page, () => /Confirmed/.test((document.querySelector('[data-testid="detail-status"]') || {}).textContent || ''));
   check('detail: after Confirm the status reads Confirmed', !!confirmed, await text(page, T('detail-status')));
-  check('detail: a toast with Undo appears', /Undo/.test(await text(page, T('toast'))), await text(page, T('toast')));
+  check('detail: a toast with an Undo button appears', (await page.locator(T('toast-action'), { hasText: 'Undo' }).count()) > 0, await text(page, T('toast')));
 
   // Back on Today the card has left Needs you.
   await gotoDash(page, '#/today', 201);
@@ -206,6 +206,7 @@ async function journey(browser) {
   await page.waitForSelector(T('eta-sheet'));
   await page.click(T('eta-option-30'));
   await page.click(T('eta-send'));
+  await page.waitForSelector(T('eta-sheet'), { state: 'detached', timeout: 3000 });
   const onWay = await until(page, () => (document.querySelector('[data-testid="next-up"] [data-testid="job-primary"]') || {}).textContent === 'Mark done');
   check('today: after On my way (30 min) the button becomes Mark done', !!onWay, await text(page, `${T('next-up')} ${T('job-primary')}`));
   check('today: Next up shows "On the way since"', /On the way since/.test(await text(page, T('next-up'))), await text(page, T('next-up')));
@@ -302,7 +303,7 @@ try {
   const steps = [['light route sweep', () => sweep(browser, 'light')], ['dark route sweep', () => sweep(browser, 'dark')],
     ['narrow viewport and toast', () => narrowChecks(browser)], ['owner journey', () => journey(browser)]];
   for (const [name, run] of steps) {
-    try { await run(); } catch (e) { check(`${name}: ran to the end`, false, String(e && e.message || e).split('\n')[0]); }
+    try { await run(); } catch (e) { check(`${name}: ran to the end`, false, String(e && e.message || e).split('\n').slice(0, 3).join(' ')); }
   }
 } finally {
   if (browser) await browser.close();

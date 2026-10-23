@@ -103,7 +103,8 @@ function DemoPanel({ booking, state, brand }) {
   const msgs = selectMessages(state, { bookingId: booking.id });
   const ownerMsg = msgs.find((m) => m.kind === 'owner_new_booking' || m.kind === 'owner_emergency');
   if (!ownerMsg) return null;
-  const custMsg = [...msgs].reverse().find((m) => ['customer_confirmed', 'customer_received', 'customer_emergency_received'].includes(m.kind));
+  // Oldest first: what the customer got when they booked, then (live) what they got when the owner confirmed.
+  const custMsgs = [...msgs].reverse().filter((m) => ['customer_confirmed', 'customer_received', 'customer_emergency_received'].includes(m.kind));
   const stamp = nowStamp();
   const actions = bubbleActions(ownerMsg, booking, stamp).map((a) => ({ id: a.id, label: a.label }));
   return html`<section class="bk-demo" data-testid="demo-panel" aria-labelledby="bk-demo-title">
@@ -112,10 +113,10 @@ function DemoPanel({ booking, state, brand }) {
     <${PhoneMock} title=${brand.shortName + ' bookings'} subtitle=${brand.ownerFirst + "'s phone (simulated)"}>
       <${WhatsAppBubble} direction="in" body=${ownerMsg.body} time=${stampTime(ownerMsg.at)} stateLabel="Sent (simulated)" actions=${actions} onAction=${() => {}} data-testid="demo-owner-bubble" />
     <//>
-    ${custMsg ? html`<p class="bk-eyebrow bk-demo__label">What you received</p>
+    ${custMsgs.map((m, i) => html`<div key=${m.id}><p class="bk-eyebrow bk-demo__label">${i === 0 ? 'What you received' : `Then, when ${brand.ownerFirst} confirmed`}</p>
     <${PhoneMock} title=${brand.name} subtitle=${firstName(booking.customer.name) + "'s phone (simulated)"}>
-      <${WhatsAppBubble} direction="out" body=${custMsg.body} time=${stampTime(custMsg.at)} stateLabel="Sent (simulated)" />
-    <//>` : null}
+      <${WhatsAppBubble} direction="out" body=${m.body} time=${stampTime(m.at)} stateLabel="Sent (simulated)" data-testid=${i === 0 ? 'demo-customer-bubble' : `demo-customer-bubble-${i}`} />
+    <//></div>`)}
     <${Button} variant="secondary" size="lg" block iconRight="arrow-right" href=${pageHref('dashboard.html', '#/bookings/' + booking.id)} target=${pageTarget('dashboard.html')} data-testid="demo-open-dashboard">Open ${brand.ownerFirst}'s dashboard<//>
   </section>`;
 }
