@@ -78,7 +78,7 @@ export function Manage({ ctx, refId }) {
       </div>`
     : html`<${StatusTimeline} booking=${booking} brand=${brand} />`}
     ${canCancel ? html`<div class="bk-block">
-      <${Button} variant="danger" size="lg" block icon="calendar-x" onClick=${() => setConfirming(true)} data-testid="manage-cancel">Cancel visit<//>
+      <${Button} variant="secondary" size="lg" block icon="calendar-x" onClick=${() => setConfirming(true)} data-testid="manage-cancel">Cancel visit<//>
       <p class="bk-note">To change the time, call or WhatsApp ${brand.ownerFirst}.</p>
       <${ContactButtons} brand=${brand} text=${waText} />
     </div>` : null}

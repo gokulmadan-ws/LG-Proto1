@@ -85,7 +85,7 @@ function StepHeader({ step, page, onBack, onClose }) {
   const showProgress = step === 'service' || step === 'when' || step === 'details';
   const showBack = step !== 'service' && step !== 'confirmation';
   return html`<div class=${cx('bk-header', step === 'confirmation' && 'bk-header--ok', page && 'bk-header--page')}>
-    <div class="bk-header__row">
+    ${page && !showBack ? null : html`<div class="bk-header__row">
       ${showBack
     ? html`<${IconButton} icon="chevron-left" label="Back" size="lg" onClick=${onBack} data-testid="booking-back" />`
     : html`<span class="bk-header__spacer" aria-hidden="true"></span>`}
@@ -93,7 +93,7 @@ function StepHeader({ step, page, onBack, onClose }) {
       ${page
     ? html`<span class="bk-header__spacer" aria-hidden="true"></span>`
     : html`<${IconButton} icon="x" label="Close" size="lg" onClick=${onClose} data-testid="booking-close" />`}
-    </div>
+    </div>`}
     ${showProgress ? html`<div class="bk-progress" data-testid="booking-progress" role="progressbar" aria-label="Booking progress" aria-valuemin="0" aria-valuemax="2" aria-valuenow=${idx}>
       <span class=${cx('bk-progress__seg', idx >= 1 && 'is-done')}></span><span class=${cx('bk-progress__seg', idx >= 2 && 'is-done')}></span>
     </div>` : null}
@@ -196,13 +196,20 @@ function Flow({ mode, presentation, intent, customerRoute, onClose, onBooked }) 
   };
 
   // Draft: customer flow only; the URL stays the source of truth for service, date and window (13.2.1).
+  // Saved after each change and again on pagehide, because a passive effect may not have run when the page is refreshed.
+  const draftRef = useRef(null);
+  draftRef.current = (ownerMode || step === 'confirmation' || step === 'manage') ? null : {
+    serviceId: effRoute.serviceId || '', variantId: form.variantId || '', date: pick.date || '', windowId: pick.windowId === undefined ? null : pick.windowId,
+    name: form.name, phone: form.phone, postcode: form.postcode, line1: form.line1, note: form.note, reasons: form.reasons
+  };
   useEffect(() => {
-    if (ownerMode || step === 'confirmation' || step === 'manage') return;
-    saveDraft({
-      serviceId: effRoute.serviceId || '', variantId: form.variantId || '', date: pick.date || '', windowId: pick.windowId === undefined ? null : pick.windowId,
-      name: form.name, phone: form.phone, postcode: form.postcode, line1: form.line1, note: form.note, reasons: form.reasons
-    });
+    if (draftRef.current) saveDraft(draftRef.current);
   }, [form, pick, step]);
+  useEffect(() => {
+    const flush = () => { if (draftRef.current) saveDraft(draftRef.current); };
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, []);
 
   // Step change: release the double-tap lock, scroll to the top and move focus to the new heading.
   const stepKey = step + ':' + (effRoute.ref || '');
