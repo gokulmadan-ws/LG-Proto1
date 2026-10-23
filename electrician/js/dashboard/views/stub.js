@@ -4,8 +4,6 @@ import { html } from '../../vendor/preact-htm.js';
 import { PageHeader, EmptyState } from '../../ui/index.js';
 import { ROUTES } from '../routes.js';
 
-export const title = 'Not built yet';
-
 /** `error` is the import error the shell caught (shown small, so a half-merged repo is easy to debug). */
 export default function StubView({ route, error }) {
   const meta = ROUTES.find((r) => r.name === (route && route.name));

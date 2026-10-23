@@ -191,6 +191,7 @@ function describeSlot(c, info) {
   };
 }
 
+// CONTRACT-GAP: owner mode searches the same maxDaysAhead days as customer mode (it only relaxes the per-window rules).
 /** Up to `count` free slots in time order, searching today .. today + maxDaysAhead - 1. */
 export function nextFreeSlots(state, serviceOrBlocks, count = 3, opts = {}) {
   const c = ctxFor(state, opts);

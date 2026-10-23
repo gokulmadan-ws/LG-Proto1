@@ -172,8 +172,9 @@ export function Stepper({ value, onChange, step = 5, min = 0, max = 99999, forma
     onChange(clamp(text === '' ? min : parseInt(text, 10)));
     setText(null);
   };
+  // Selecting on focus lets a tap-and-type replace the amount. The shown text is NOT changed on focus: a test
+  // (or a paste) that selects first and types second must still replace the whole value.
   const onFocus = (e) => {
-    setText(String(num));
     const el = e.target;
     setTimeout(() => { try { el.select(); } catch (err) { /* not selectable */ } }, 0);
   };

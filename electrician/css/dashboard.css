@@ -8,6 +8,8 @@
 }
 @media (min-width: 768px) { :root { --db-col: 720px; } }
 @media (min-width: 1100px) { :root { --db-col: 1080px; --toast-bottom: 24px; } }
+/* An immersive screen has a sticky action bar at the bottom: keep toasts above it (below 1100 the default already clears it). */
+@media (min-width: 1100px) { body:has(#app .db-sticky-actions) { --toast-bottom: 96px; } }
 
 /* ================= Shell ================= */
 /* Strip, header and content are siblings in one page-tall box so the sticky header keeps sticking (5.1 item 16). */
@@ -134,7 +136,8 @@ html.is-keyboard-open #app .db-sticky-actions { display: none; }
     display: grid; align-items: start;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
     grid-template-rows: auto auto 1fr;
-    grid-template-areas: "strip strip" "sidebar header" "sidebar main";
+    /* the sidebar runs the full height (strip row included) so its bottom links are never cut off */
+    grid-template-areas: "sidebar strip" "sidebar header" "sidebar main";
   }
   .db-shell > .ui-notice--strip { grid-area: strip; }
   .db-header { grid-area: header; }
@@ -196,6 +199,7 @@ a.db-list__item:active, button.db-list__item:active { background: var(--surface-
 }
 .db-sticky-actions > * { min-width: 0; }
 
+/* CONTRACT-GAP: 12.2 names db-master-detail and --has-detail but not the two panes; they are __list and __detail. */
 /* Master-detail: below 1100 only one pane shows; --has-detail flips which. From 1100: list 420px, detail beside it. */
 .db-master-detail__detail { display: none; }
 .db-master-detail--has-detail .db-master-detail__list { display: none; }

@@ -218,8 +218,8 @@ export function Shell() {
     <${Sidebar} route=${route} />
     <main class="db-main" id="main">
       <${ViewHost} route=${route} />
+      ${showFab ? html`<${Fab} />` : null}
     </main>
     ${immersive ? null : html`<${TabBar} activeTab=${meta.tab} />`}
-    ${showFab ? html`<${Fab} />` : null}
   </div>`;
 }

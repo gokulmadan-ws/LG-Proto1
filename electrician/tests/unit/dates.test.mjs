@@ -77,21 +77,26 @@ test('diffDays counts whole days, including across the 25-hour day', () => {
 });
 
 test('minutesBetween uses real minutes: the 25 Oct 2026 day is 25 hours in London', () => {
-  assert.equal(minutesBetween('2026-10-25T00:00', '2026-10-26T00:00'), LONDON ? 1500 : 1440);
+  // Real minutes between two local midnights = 1440 + (UTC offset before - UTC offset after), whatever the zone.
+  const realMinutes = (y, m, d) => 1440 + (new Date(y, m, d + 1).getTimezoneOffset() - new Date(y, m, d).getTimezoneOffset());
+  assert.equal(minutesBetween('2026-10-25T00:00', '2026-10-26T00:00'), realMinutes(2026, 9, 25));
+  assert.equal(minutesBetween('2026-10-25T00:00', '2026-10-26T00:00'), LONDON ? 1500 : realMinutes(2026, 9, 25));
+  assert.equal(minutesBetween('2026-11-01T00:00', '2026-11-02T00:00'), realMinutes(2026, 10, 1), 'the US clock change');
   assert.equal(minutesBetween('2026-10-23T00:00', '2026-10-24T00:00'), 1440);
   assert.equal(minutesBetween('2026-10-23T20:30', '2026-10-23T20:00'), -30);
   assert.equal(minutesBetween('2026-10-23T20:30', '2026-10-23T20:30'), 0);
-  // New York changes on 1 Nov 2026, so the same maths proves itself there too.
-  const expectedNy = ZONE === 'America/New_York' ? 1500 : 1440;
-  assert.equal(minutesBetween('2026-11-01T00:00', '2026-11-02T00:00'), expectedNy);
+  if (ZONE === 'America/New_York' || ZONE === 'America/Los_Angeles') assert.equal(minutesBetween('2026-11-01T00:00', '2026-11-02T00:00'), 1500);
+  if (ZONE === 'UTC') assert.equal(minutesBetween('2026-10-25T00:00', '2026-10-26T00:00'), 1440);
 });
 
 test('addMinutes adds real minutes (a 90 minute lead time is 90 minutes across a clock change)', () => {
   assert.equal(addMinutes('2026-10-23T20:30', 90), '2026-10-23T22:00');
   assert.equal(addMinutes('2026-10-23T20:30', -30), '2026-10-23T20:00');
   assert.equal(addMinutes('2026-10-23T23:30', 60), '2026-10-24T00:30');
-  // 00:30 BST + 90 real minutes is 01:00 GMT in London (the repeated hour), plain 02:00 elsewhere.
-  assert.equal(addMinutes('2026-10-25T00:30', 90), LONDON ? '2026-10-25T01:00' : '2026-10-25T02:00');
+  // 00:30 BST + 90 real minutes is 01:00 GMT in London (the repeated hour), plain 02:00 where the clocks do not change that night.
+  const ukStyleChange = ['Europe/London', 'Europe/Dublin'].includes(ZONE); // clocks go back at 02:00 BST on 25 Oct 2026
+  assert.equal(addMinutes('2026-10-25T00:30', 90), ukStyleChange ? '2026-10-25T01:00' : '2026-10-25T02:00');
+  if (LONDON) assert.equal(addMinutes('2026-10-25T00:30', 90), '2026-10-25T01:00');
   // (A naive stamp inside the repeated London hour is ambiguous by nature, so it does not round-trip; that is why
   // the app only ever ADDS minutes to a stamp and compares stamps as strings.)
 });

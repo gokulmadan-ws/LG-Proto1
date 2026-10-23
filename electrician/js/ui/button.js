@@ -59,6 +59,7 @@ export function Button({
   }, inner);
 }
 
+// CONTRACT-GAP: `badgeTestid` is not in the IconButton props of 12.3; the shell needs it for db-messages-badge (14.2).
 /**
  * Round icon-only button with an accessible name (`label`) and an optional count badge.
  * `badgeTestid` is an addition for the shell (db-messages-badge); the badge is hidden when `badge` is 0 or falsy.

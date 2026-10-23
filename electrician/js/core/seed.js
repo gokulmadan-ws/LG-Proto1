@@ -1,6 +1,6 @@
 // js/core/seed.js: the relative demo diary (S01 to S15), seeded customers, sample customer and simulator pool
 // Owner: WP1
-import { WINDOWS, SOURCE_LABELS, makeDefaultSettings } from './config.js';
+import { WINDOWS, makeDefaultSettings } from './config.js';
 import { addDays, addMinutes, makeStamp, stampDay, toStamp, weekdayOf } from './dates.js';
 import { bookingWindowIds } from './availability.js';
 import { buildMessage, reminderSendAt } from './messages.js';

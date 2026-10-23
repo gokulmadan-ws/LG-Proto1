@@ -235,6 +235,7 @@ export function getState() {
 }
 
 export function getStorageStatus() {
+  if (!state) initStore(); // the mode is only known once storage has been probed
   return { ok: mode === 'local', mode };
 }
 
@@ -303,12 +304,17 @@ function mutate(fn) {
 
 const findById = (list, id) => list.find((r) => r.id === id) || null;
 
+// One undo entry per touched record: what it looked like before, what the mutation left, and where it sat in its list.
+function snapshotOf(prevList, nextList, id) {
+  return { id, before: findById(prevList, id), after: findById(nextList, id), index: prevList.findIndex((r) => r.id === id) };
+}
+
 function makeToken(prev, next, touched) {
   const entry = { bookings: [], messages: [], blocks: [], daysOff: [], fullDays: [] };
-  for (const id of touched.bookings || []) entry.bookings.push({ id, before: findById(prev.bookings, id), after: findById(next.bookings, id) });
-  for (const id of touched.messages || []) entry.messages.push({ id, before: findById(prev.messages, id), after: findById(next.messages, id) });
-  for (const id of touched.blocks || []) entry.blocks.push({ id, before: findById(prev.blocks, id), after: findById(next.blocks, id) });
-  for (const id of touched.daysOff || []) entry.daysOff.push({ id, before: findById(prev.settings.daysOff, id), after: findById(next.settings.daysOff, id) });
+  for (const id of touched.bookings || []) entry.bookings.push(snapshotOf(prev.bookings, next.bookings, id));
+  for (const id of touched.messages || []) entry.messages.push(snapshotOf(prev.messages, next.messages, id));
+  for (const id of touched.blocks || []) entry.blocks.push(snapshotOf(prev.blocks, next.blocks, id));
+  for (const id of touched.daysOff || []) entry.daysOff.push(snapshotOf(prev.settings.daysOff, next.settings.daysOff, id));
   for (const date of touched.fullDays || []) {
     entry.fullDays.push({ date, before: prev.settings.fullDays.includes(date), after: next.settings.fullDays.includes(date) });
   }
@@ -362,6 +368,7 @@ function createBookingIn(draft, input) {
   const serviceId = urgent ? 'emergency' : d.serviceId;
   const service = settings.services.find((s) => s.id === serviceId) || null;
 
+  // CONTRACT-GAP: 13.2.3 fixes the messages for name, phone, postcode and line1 only; the other three are chosen here.
   const errors = {};
   if (!urgent && (typeof serviceId !== 'string' || !serviceId)) errors.serviceId = 'Choose a service';
   const nameError = validateName(name);
@@ -483,7 +490,7 @@ export function confirmBooking(id, by = 'owner') {
     if (!b) return fail('not_found');
     if (b.status !== 'new' || b.urgent) return fail('bad_transition');
     b.status = 'confirmed';
-    b.seenByOwner = true;
+    b.seenByOwner = true; // CONTRACT-GAP: acting on a booking counts as having seen it (so the Bookings dot clears)
     addHistory(b, 'confirmed', by === 'system' ? 'system' : 'owner');
     const reminder = maybeReminder(draft, b);
     const message = addMessage(draft, 'customer_confirmed', b);
@@ -501,7 +508,7 @@ export function acceptEmergency(id, etaMinutes) {
     b.seenByOwner = true;
     b.etaMinutes = etaMinutes;
     b.etaAt = addMinutes(nowStamp(), etaMinutes);
-    addHistory(b, 'confirmed', 'owner', `ETA ${etaMinutes} min`);
+    addHistory(b, 'confirmed', 'owner');
     const message = addMessage(draft, 'customer_emergency_accepted', b, { etaMinutes });
     return { ok: true, booking: b, touched: { bookings: [b.id], messages: [message.id] } };
   });
@@ -533,7 +540,9 @@ export function markOnTheWay(id, etaMinutes) {
     b.status = 'on_the_way';
     b.etaMinutes = etaMinutes;
     b.etaAt = addMinutes(nowStamp(), etaMinutes);
-    addHistory(b, 'on_the_way', 'owner', `ETA ${etaMinutes} min`);
+    // CONTRACT-GAP: history notes are 'created' = the source id, 'on_the_way' = the ETA clock (HH:mm), 'paid' = the
+    // method id, 'cancelled' = the reason, 'rescheduled' = the new when, 'message' = the KIND_LABELS label.
+    addHistory(b, 'on_the_way', 'owner', b.etaAt.slice(11, 16));
     const message = addMessage(draft, 'customer_on_my_way', b, { etaMinutes });
     return { ok: true, booking: b, touched: { bookings: [b.id], messages: [message.id] } };
   });
@@ -763,6 +772,8 @@ export function blockRange({ fromDate, toDate = fromDate, windowIds = [0, 1, 2, 
     const ids = (Array.isArray(windowIds) ? windowIds : []).filter((w) => Number.isInteger(w) && w >= 0 && w <= 3);
     if (ids.length === 0) errors.windowIds = 'Choose at least one window';
     if (Object.keys(errors).length) return fail('invalid', { errors });
+    // CONTRACT-GAP: only BOOKED windows are skipped (and reported). A window that is already blocked is neither added nor
+    // reported, and a window outside the opening hours is blocked like any other (harmless; the engine says 'closed' first).
     const groupId = makeId('grp');
     const text = String(label || '').trim() || 'Blocked';
     const added = [];
@@ -1016,14 +1027,17 @@ function sameRecord(current, expected) {
   return current === null || expected === null ? current === expected : deepEqual(current, expected);
 }
 
-function restoreRecord(list, id, before) {
-  const idx = list.findIndex((r) => r.id === id);
-  if (before === null) {
-    if (idx >= 0) list.splice(idx, 1);
-  } else if (idx >= 0) {
-    list[idx] = clone(before);
-  } else {
-    list.push(clone(before));
+// Put a record back where it was (list order is part of how the diary reads), or remove it again.
+function restoreRecords(list, snapshots) {
+  for (const t of [...snapshots].sort((a, b) => a.index - b.index)) {
+    const idx = list.findIndex((r) => r.id === t.id);
+    if (t.before === null) {
+      if (idx >= 0) list.splice(idx, 1);
+    } else if (idx >= 0) {
+      list[idx] = clone(t.before);
+    } else {
+      list.splice(t.index >= 0 ? Math.min(t.index, list.length) : list.length, 0, clone(t.before));
+    }
   }
 }
 
@@ -1054,13 +1068,16 @@ export function undo(token) {
       if (!isSlotFree(draft, { date: stampDay(b.start), windowId: ids[0], blocks: ids.length === 2 ? 2 : 1, ignoreBookingId: b.id, ownerMode: true })) return stale();
     }
     for (const t of entry.blocks) {
-      if (t.before && !t.after && occupiedBy(draft, t.before.date, t.before.windowId)) return stale();
+      if (!t.before || t.after) continue; // only a block being put back can clash
+      const { date, windowId } = t.before;
+      if (occupiedBy(draft, date, windowId)) return stale();
+      if (draft.blocks.some((k) => k.date === date && k.windowId === windowId)) return stale(); // blocked again since
     }
 
-    for (const t of entry.bookings) restoreRecord(draft.bookings, t.id, t.before);
-    for (const t of entry.messages) restoreRecord(draft.messages, t.id, t.before);
-    for (const t of entry.blocks) restoreRecord(draft.blocks, t.id, t.before);
-    for (const t of entry.daysOff) restoreRecord(draft.settings.daysOff, t.id, t.before);
+    restoreRecords(draft.bookings, entry.bookings);
+    restoreRecords(draft.messages, entry.messages);
+    restoreRecords(draft.blocks, entry.blocks);
+    restoreRecords(draft.settings.daysOff, entry.daysOff);
     for (const t of entry.fullDays) {
       const has = draft.settings.fullDays.includes(t.date);
       if (t.before && !has) draft.settings.fullDays = [...draft.settings.fullDays, t.date].sort();

@@ -69,6 +69,7 @@ const STATUS_META = {
   cancelled: { label: 'Cancelled', icon: 'ban', mod: 'cancelled' }
 };
 
+// CONTRACT-GAP: `urgentTestid` is not in the StatusPill props of 12.3; detail-urgent (14.2) needs a way to tag the URGENT pill.
 /**
  * Status pill: always icon + word (colour is never the only signal). `done` with paid === false reads
  * "To collect". `urgent` adds a second URGENT pill; `urgentTestid` is an addition so a screen can tag it.

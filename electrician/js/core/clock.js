@@ -31,7 +31,7 @@ function readOverrideFromLocation() {
     const params = new URLSearchParams(search);
     const date = parseNowParam(params.get('now'));
     if (!date) return null;
-    const f = params.get('freeze');
+    const f = params.get('freeze'); // CONTRACT-GAP: 8.2 says freeze=1; 'true' is accepted too
     return makeOverride(date, f === '1' || f === 'true');
   } catch (e) {
     return null;

@@ -23,6 +23,7 @@ function withBold(body) {
 
 const isWeb = (href) => /^https?:\/\//i.test(String(href));
 
+// CONTRACT-GAP: `messageId` and `actions[].testid` are not in the WhatsAppBubble props of 12.3; bubble-action-<messageId>-<actionId> (14.2) needs them.
 /**
  * One simulated message bubble. `direction` 'out' = to customers (right, green), 'in' = owner alerts (left).
  * `actions` is [{ id, label, href?, testid? }]: with an href the action is a link, without one it is a button that

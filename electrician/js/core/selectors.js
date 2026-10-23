@@ -162,7 +162,7 @@ export function customerKeyOf(phone) {
   return toWaDigits(phone);
 }
 
-// Newest first: by createdAt, then start, then position in the list.
+// CONTRACT-GAP: "newest first" for a customer's bookings means by createdAt, then start, then list position.
 function recentFirst(a, b) {
   return cmp(b.item.createdAt, a.item.createdAt) || cmp(b.item.start, a.item.start) || b.index - a.index;
 }

@@ -239,7 +239,7 @@
 
 /* ================= Page header ================= */
 .ui-page-header { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0 0 var(--space-4); min-width: 0; }
-.ui-page-header__back { flex: none; margin: -2px 0 0 -8px; }
+.ui-page-header__back { flex: none; margin: -2px 0 0 -12px; }
 .ui-page-header__main { flex: 1 1 0; min-width: 0; padding-top: 2px; }
 .ui-page-header__eyebrow { margin: 0 0 2px; color: var(--text-2); font-size: var(--fs-12); font-weight: var(--fw-bold); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 .ui-page-header__title { margin: 0; font-family: var(--font-display); font-size: var(--fs-26); font-weight: var(--fw-heavy); line-height: var(--lh-snug); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
